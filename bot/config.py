@@ -10,6 +10,7 @@ expected types. Anything dangerous defaults to OFF.
 
 from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 from typing import Any
@@ -255,6 +256,17 @@ class AppConfig(BaseModel):
         return p if p.is_absolute() else (self.project_root / p)
 
 
+def _deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge ``override`` into a deep copy of ``base`` (YAML settings)."""
+    out = copy.deepcopy(base)
+    for k, v in override.items():
+        if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+            out[k] = _deep_merge_dict(out[k], v)
+        else:
+            out[k] = copy.deepcopy(v)
+    return out
+
+
 def _read_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
@@ -300,11 +312,20 @@ def load_config(
     """
     root = project_root or PROJECT_ROOT
     s_path = settings_path or (root / "config" / "settings.yaml")
+    s_local = root / "config" / "settings.local.yaml"
     st_path = strategy_path or (root / "config" / "strategy.yaml")
     w_path = watchlist_path or (root / "config" / "watchlist.yaml")
     n_path = news_path or (root / "config" / "news.yaml")
 
     settings_raw = _read_yaml(s_path)
+    if (
+        s_local.is_file()
+        and not settings_path
+        and not os.environ.get("PYTEST_VERSION")
+    ):
+        # Local-only overlay (gitignored). Tests run under pytest (PYTEST_VERSION
+        # set) so the repo can keep settings.local.yaml without changing tmp fixtures.
+        settings_raw = _deep_merge_dict(settings_raw, _read_yaml(s_local))
     strategy_yaml = _read_yaml(st_path)
     strategy_raw = strategy_yaml.get("strategy", {})
     strategies_raw = strategy_yaml.get("strategies", {}) or {}

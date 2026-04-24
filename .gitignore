@@ -37,6 +37,9 @@ env/
 *.swo
 .DS_Store
 
+# Local settings overlay (enables paper trading on this machine; never commit)
+config/settings.local.yaml
+
 # Local data / runtime artifacts (do not commit broker data)
 data/*.sqlite
 data/*.sqlite-journal

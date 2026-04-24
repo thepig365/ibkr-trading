@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -50,6 +53,33 @@ def test_live_mode_hard_rejected_by_client(tmp_project: Path, write_yaml, monkey
     client = IBKRClient(cfg)
     with pytest.raises(LiveTradingBlocked):
         client.connect()
+
+
+def test_settings_local_merge_when_pytest_not_in_env(
+    tmp_project: Path,
+) -> None:
+    """settings.local.yaml merges at runtime; under pytest the merge is skipped."""
+    repo = Path(__file__).resolve().parent.parent
+    local = tmp_project / "config" / "settings.local.yaml"
+    local.write_text("trading:\n  enabled: true\n", encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_VERSION"}
+    code = (
+        f"import sys; from pathlib import Path; "
+        f"sys.path.insert(0, {str(repo)!r}); "
+        f"from bot.config import load_config; "
+        f"c = load_config(project_root=Path({str(tmp_project)!r})); "
+        f"print('enabled=' + str(c.settings.trading.enabled))"
+    )
+    r = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode == 0, (r.stdout, r.stderr)
+    assert "enabled=True" in (r.stdout or "")
 
 
 def test_live_port_rejected_even_if_mode_paper(tmp_project: Path, monkeypatch) -> None:
