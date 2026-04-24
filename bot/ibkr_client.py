@@ -480,6 +480,85 @@ class IBKRClient:
             )
         return out
 
+    @staticmethod
+    def _aggregate_1h_bars_to_4h(bars_1h: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Roll four consecutive 1H bars into one synthetic 4H bar (RTH list order)."""
+        if len(bars_1h) < 4:
+            return []
+        out: list[dict[str, Any]] = []
+        i = 0
+        n = len(bars_1h)
+        while i + 4 <= n:
+            chunk = bars_1h[i : i + 4]
+            out.append(
+                {
+                    "timestamp": str(chunk[0].get("timestamp", "")),
+                    "open": float(chunk[0].get("open", 0.0) or 0.0),
+                    "high": max(float(x.get("high", 0.0) or 0.0) for x in chunk),
+                    "low": min(float(x.get("low", 0.0) or 0.0) for x in chunk),
+                    "close": float(chunk[-1].get("close", 0.0) or 0.0),
+                    "volume": sum(float(x.get("volume", 0.0) or 0.0) for x in chunk),
+                }
+            )
+            i += 4
+        return out
+
+    def get_4h_bars_with_fallback(
+        self,
+        symbol: str,
+        spec: Any,
+        *,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        """Fetch 4H bars, or aggregate from 1H if native ``4 hours`` is empty/short.
+
+        Returns ``(rows, warnings)``. Never places orders. Read-only.
+        """
+        warnings: list[str] = []
+        min_need = int(getattr(spec, "min_bars", 80) or 80)
+        native = self.get_intraday_bars(
+            symbol,
+            duration=str(getattr(spec, "duration", "60 D")),
+            bar_size=str(getattr(spec, "bar_size", "4 hours")),
+            what_to_show=str(getattr(spec, "what_to_show", "TRADES")),
+            use_rth=bool(getattr(spec, "use_rth", True)),
+            sec_type=sec_type,
+            exchange=exchange,
+            currency=currency,
+        )
+        mx = int(getattr(spec, "max_bars", 300) or 300)
+        if len(native) >= min_need:
+            out = native[-mx:] if len(native) > mx else list(native)
+            return out, warnings
+        h1 = self.get_intraday_bars(
+            symbol,
+            duration=str(getattr(spec, "duration", "60 D")),
+            bar_size="1 hour",
+            what_to_show=str(getattr(spec, "what_to_show", "TRADES")),
+            use_rth=bool(getattr(spec, "use_rth", True)),
+            sec_type=sec_type,
+            exchange=exchange,
+            currency=currency,
+        )
+        if not h1 and not native:
+            warnings.append("4h: no native 4h data and no 1h data for fallback")
+            return [], warnings
+        agg = self._aggregate_1h_bars_to_4h(h1) if h1 else []
+        if not agg and native:
+            out = native[-mx:] if len(native) > mx else list(native)
+            return out, warnings
+        if agg:
+            warnings.append(
+                "4h bars aggregated from 1h due to IBKR barSize limitation "
+                "or insufficient native 4h history"
+            )
+        use = agg or native
+        if len(use) > mx:
+            use = use[-mx:]
+        return use, warnings
+
     def get_bars_for_timeframe(
         self,
         symbol: str,
@@ -488,14 +567,24 @@ class IBKRClient:
         sec_type: str = "STK",
         exchange: str = "SMART",
         currency: str = "USD",
+        out_warnings: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Return bars for the :class:`bot.smc_timeframes.TimeframeSpec`.
 
         Dispatches to :meth:`get_daily_bars` or
         :meth:`get_intraday_bars` based on ``spec.is_intraday``.
+        For ``spec.name == '4h'`` uses :meth:`get_4h_bars_with_fallback`.
+        Optional ``out_warnings`` receives 4h fallback notices.
         Returns an empty list on any failure and logs a debug line.
         This path is read-only; execution remains disabled globally.
         """
+        if getattr(spec, "name", None) == "4h":
+            rows, w = self.get_4h_bars_with_fallback(
+                symbol, spec, sec_type=sec_type, exchange=exchange, currency=currency
+            )
+            if out_warnings is not None:
+                out_warnings.extend(w)
+            return rows
         if getattr(spec, "is_intraday", False):
             out = self.get_intraday_bars(
                 symbol,

@@ -66,6 +66,16 @@ smc_timeframes:
     use_rth: true
     min_bars: 150
     max_bars: 400
+    role: "macro_bias"
+
+  4h:
+    enabled: true
+    duration: "60 D"
+    bar_size: "4 hours"
+    use_rth: true
+    min_bars: 80
+    max_bars: 300
+    role: "structure_confirmation"
 
   30min:
     enabled: true
@@ -74,6 +84,16 @@ smc_timeframes:
     use_rth: true
     min_bars: 100
     max_bars: 300
+    role: "setup_detector"
+
+  5min:
+    enabled: true
+    duration: "5 D"
+    bar_size: "5 mins"
+    use_rth: true
+    min_bars: 100
+    max_bars: 500
+    role: "entry_trigger"
 
 market_regime:
   # These knobs drive bot.market_regime.evaluate_regime() only. They

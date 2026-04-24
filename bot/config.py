@@ -99,6 +99,7 @@ class TimeframeConfig(BaseModel):
     min_bars: int | None = None
     max_bars: int | None = None
     what_to_show: str | None = None
+    role: str | None = None  # e.g. structure_confirmation, entry_trigger (MTF / docs)
 
     model_config = {"extra": "ignore"}
 
@@ -111,17 +112,25 @@ class SmcTimeframesConfig(BaseModel):
     """
 
     daily: TimeframeConfig | None = None
+    h4: TimeframeConfig | None = Field(default=None, alias="4h")
     m30: TimeframeConfig | None = Field(default=None, alias="30min")
+    m5: TimeframeConfig | None = Field(default=None, alias="5min")
 
     model_config = {"populate_by_name": True, "extra": "allow"}
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
-        """Always dump with the canonical ``30min`` key."""
+        """Always dump with canonical ``4h`` / ``30min`` / ``5min`` keys."""
         data = super().model_dump(by_alias=True, **kwargs)
+        if "4h" not in data and data.get("h4") is not None:
+            data["4h"] = data.pop("h4")
+        data.pop("h4", None)
         # Back-fill from the alias-free attribute when only ``m30`` was set.
         if "30min" not in data and data.get("m30") is not None:
             data["30min"] = data.pop("m30")
         data.pop("m30", None)
+        if "5min" not in data and data.get("m5") is not None:
+            data["5min"] = data.pop("m5")
+        data.pop("m5", None)
         return data
 
 

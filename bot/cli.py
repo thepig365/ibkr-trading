@@ -2147,6 +2147,300 @@ def _now_et_hhmm() -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# MTF SMC/ICT (Prompt 10B) — research only
+# ---------------------------------------------------------------------------
+def _mtf_connect_and_fetch(
+    symbol: str,
+    cfg: AppConfig,
+    *,
+    include_5min: bool,
+    include_daily: bool,
+) -> tuple[Any, list[str], IBKRClient | None]:
+    """Build :class:`MtfCandleBundle` for ``symbol`` via IBKR. Read-only."""
+    from .mtf_smc_engine import MtfCandleBundle
+    from .smc_timeframes import resolve_timeframe_spec
+
+    client: IBKRClient | None = None
+    w: list[str] = []
+    b = MtfCandleBundle()
+    try:
+        client = _connect(cfg)
+    except (IBKRClientError, LiveTradingBlocked) as exc:
+        w.append(f"ibkr_connect: {exc}")
+        return b, w, None
+    try:
+        if include_daily:
+            ds = resolve_timeframe_spec("daily", cfg)
+            b.daily = client.get_bars_for_timeframe(
+                symbol, ds, out_warnings=w
+            )
+        h4s = resolve_timeframe_spec("4h", cfg)
+        b.h4 = client.get_bars_for_timeframe(
+            symbol, h4s, out_warnings=w
+        )
+        t30 = resolve_timeframe_spec("30min", cfg)
+        b.m30 = client.get_bars_for_timeframe(
+            symbol, t30, out_warnings=w
+        )
+        if include_5min:
+            t5 = resolve_timeframe_spec("5min", cfg)
+            b.m5 = client.get_bars_for_timeframe(
+                symbol, t5, out_warnings=w
+            )
+        b.warnings = list(w)
+    except Exception as exc:  # noqa: BLE001
+        w.append(f"fetch: {exc}")
+    return b, w, client
+
+
+def _mtf_save_json(cfg: AppConfig, payload: dict) -> Path:
+    out = cfg.absolute("data/mtf_smc")
+    out.mkdir(parents=True, exist_ok=True)
+    sym = str(payload.get("symbol") or "X").replace("/", "_")
+    name = f"{payload.get('date', '2000-01-01')}-{sym}-mtf-smc.json"
+    path = out / name
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, default=str)
+    return path
+
+
+def _mtf_save_watchlist_summary(
+    cfg: AppConfig, summary: dict
+) -> Path:
+    out = cfg.absolute("data/mtf_smc")
+    out.mkdir(parents=True, exist_ok=True)
+    name = f"{summary.get('date', '2000-01-01')}-watchlist-mtf-smc-summary.json"
+    path = out / name
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, default=str)
+    return path
+
+
+@app.command("scan-mtf-smc")
+def scan_mtf_smc(
+    symbol: str = typer.Option(
+        ..., "--symbol", "-s", help="Ticker, e.g. AAPL. Research only."
+    ),
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr", help="Fetch all timeframes from IBKR (read-only).",
+    ),
+    chart: bool = typer.Option(
+        False, "--chart", help="Write MTF debug PNGs under data/debug_charts/.",
+    ),
+    telegram: bool = typer.Option(
+        False, "--telegram", help="Send Chinese MTF summary (research only).",
+    ),
+    save_json: bool = typer.Option(
+        True, "--save-json/--no-save-json", help="Write data/mtf_smc/ JSON.",
+    ),
+    include_5min: bool = typer.Option(
+        True, "--include-5min/--no-include-5min", help="Load 5m trigger bars.",
+    ),
+    include_daily: bool = typer.Option(
+        True, "--include-daily/--no-include-daily", help="Load daily bias bars.",
+    ),
+    market_regime: Optional[str] = typer.Option(
+        None, "--market-regime", help="Override regime; else from snapshot.",
+    ),
+) -> None:
+    """Run multi-timeframe SMC/ICT recognition (no orders, no execution)."""
+    from .mtf_chart import render_mtf_smc_charts
+    from .mtf_smc_engine import run_mtf_smc
+
+    cfg, journal = _bootstrap()
+    regime_ctx = _resolve_regime_context(cfg, market_regime)
+    regime = str(regime_ctx["market_regime"])
+    conf = str(regime_ctx.get("regime_confidence") or "medium")
+    w: list[str] = []
+    b = None
+    client: IBKRClient | None = None
+    if not use_ibkr:
+        console.print("[red]MTF scan requires --ibkr to load candles.[/red]")
+        raise typer.Exit(2)
+    b, w, client = _mtf_connect_and_fetch(
+        symbol.upper(), cfg, include_5min=include_5min, include_daily=include_daily
+    )
+    if client is not None:
+        try:
+            client.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
+    out_ev: dict = {}
+    rep = run_mtf_smc(
+        symbol, cfg, b, market_regime=regime, regime_confidence=conf,
+        include_5min=include_5min, include_daily=include_daily, out_eval=out_ev,
+    )
+    rep["warnings"] = list(dict.fromkeys((rep.get("warnings") or []) + w))
+    if chart and out_ev:
+        charts = render_mtf_smc_charts(
+            symbol.upper(),
+            {
+                "daily": b.daily,
+                "4h": b.h4,
+                "30min": b.m30,
+                "5min": b.m5,
+            },
+            {k: out_ev.get(k) for k in ("daily", "4h", "30min", "5min")},
+            output_dir=cfg.absolute("data/debug_charts"),
+        )
+        rep["chart_paths"] = charts
+    console.print(Panel.fit(json.dumps(rep, indent=2, default=str), title="MTF SMC/ICT"))
+    path = None
+    if save_json:
+        path = _mtf_save_json(cfg, rep)
+        console.print(f"[green]Saved:[/green] {path}")
+    sent = False
+    if telegram and cfg.telegram.is_configured:
+        from html import escape
+        body = f"<b>{escape('【MTF SMC/ICT 多周期识别】')}{escape(symbol.upper())}</b>\n"
+        body += "<pre>" + escape(rep.get("human_summary_zh", "")) + "</pre>\n"
+        body += f"<i>{escape('研究扫描，不下单。')}</i>"
+        sent = bool(send_telegram_message(body, cfg=cfg, journal=journal))
+    journal.record_event(
+        category="mtf_smc",
+        level="INFO",
+        message="scan-mtf-smc",
+        payload={
+            "symbol": symbol.upper(),
+            "path": str(path) if path else None,
+            "telegram": sent,
+            "execution_allowed": False,
+        },
+    )
+    raise typer.Exit(0)
+
+
+@app.command("scan-mtf-smc-watchlist")
+def scan_mtf_smc_watchlist(
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr", help="Fetch MTF data from IBKR (read-only).",
+    ),
+    chart: bool = typer.Option(False, "--chart"),
+    telegram: bool = typer.Option(False, "--telegram"),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", min=1, help="Max symbols to scan.",
+    ),
+    source: Optional[str] = typer.Option(
+        None, "--source", help="static or dynamic (default: watchlist config).",
+    ),
+    save_json: bool = typer.Option(True, "--save-json/--no-save-json"),
+    include_5min: bool = typer.Option(True, "--include-5min/--no-include-5min"),
+    include_daily: bool = typer.Option(True, "--include-daily/--no-include-daily"),
+) -> None:
+    """Scan many symbols with the MTF engine. Research-only, no trading."""
+    from .mtf_smc_engine import format_mtf_watchlist_digest_zh, run_mtf_smc
+    from .mtf_chart import render_mtf_smc_charts
+
+    cfg, journal = _bootstrap()
+    regime_ctx = _resolve_regime_context(cfg, None)
+    regime = str(regime_ctx["market_regime"])
+    conf = str(regime_ctx.get("regime_confidence") or "medium")
+    chosen = (source or str(cfg.watchlist.get("default_source") or "static")).lower()
+    if chosen not in {"static", "dynamic"}:
+        console.print("[red]--source must be static or dynamic[/red]")
+        raise typer.Exit(2)
+    symbols: list[str] = []
+    if chosen == "dynamic":
+        dw = load_dynamic_watchlist(cfg)
+        if dw is None:
+            console.print("[red]Build dynamic watchlist first (build-watchlist).[/red]")
+            raise typer.Exit(3)
+        symbols = [r.symbol for r in dw.symbols if not r.blocked]
+    else:
+        eqs = (cfg.watchlist or {}).get("equities") or []
+        symbols = [e.get("symbol") for e in eqs if e.get("symbol")]
+        if not symbols:
+            symbols = list(cfg.watchlist.get("static_core") or [])
+    if not symbols:
+        raise typer.Exit(0)
+    if limit is not None:
+        symbols = symbols[:limit]
+    if not use_ibkr:
+        console.print("[red]--ibkr is required.[/red]")
+        raise typer.Exit(2)
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    items: list[dict] = []
+    counts: dict[str, int] = {
+        "FULL_ALIGNMENT": 0,
+        "SETUP_READY_WAITING_TRIGGER": 0,
+        "BIAS_OK_SETUP_INCOMPLETE": 0,
+        "CONFLICTED": 0,
+        "BLOCKED": 0,
+    }
+    for sym in symbols:
+        b, w, client = _mtf_connect_and_fetch(
+            sym, cfg, include_5min=include_5min, include_daily=include_daily
+        )
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+        out_ev: dict = {}
+        rep = run_mtf_smc(
+            sym, cfg, b, market_regime=regime, regime_confidence=conf,
+            include_5min=include_5min, include_daily=include_daily, out_eval=out_ev,
+        )
+        rep["warnings"] = list(dict.fromkeys((rep.get("warnings") or []) + w))
+        if chart and out_ev:
+            rep["chart_paths"] = render_mtf_smc_charts(
+                sym,
+                {
+                    "daily": b.daily,
+                    "4h": b.h4,
+                    "30min": b.m30,
+                    "5min": b.m5,
+                },
+                {k: out_ev.get(k) for k in ("daily", "4h", "30min", "5min")},
+                output_dir=cfg.absolute("data/debug_charts"),
+            )
+        if save_json:
+            _mtf_save_json(cfg, rep)
+        cat = str(rep.get("alignment_category") or "BLOCKED")
+        if cat in counts:
+            counts[cat] = counts[cat] + 1
+        items.append(
+            {
+                "symbol": sym.upper(),
+                "mtf_alignment_score": rep.get("mtf_alignment_score", 0),
+                "alignment_category": cat,
+                "eligible_for_future_paper_trade": rep.get(
+                    "eligible_for_future_paper_trade", False
+                ),
+            }
+        )
+    items.sort(key=lambda r: -float(r.get("mtf_alignment_score", 0)))
+    top5 = items[:5]
+    elig_names = [i["symbol"] for i in items if i.get("eligible_for_future_paper_trade")]
+    summary = {
+        "date": day,
+        "source": chosen,
+        "symbols_scanned": len(symbols),
+        "research_only": True,
+        "execution_allowed": False,
+        "counts": counts,
+        "top_by_alignment_score": top5,
+        "eligible_for_future_paper_trade": elig_names,
+        "items": items,
+    }
+    p = _mtf_save_watchlist_summary(cfg, summary) if save_json else None
+    if p:
+        console.print(f"[green]Saved summary:[/green] {p}")
+    if telegram and cfg.telegram.is_configured:
+        from html import escape
+        digest = format_mtf_watchlist_digest_zh(summary)
+        body = "<pre>" + escape(digest) + "</pre>"
+        send_telegram_message(body, cfg=cfg, journal=journal)
+    journal.record_event(
+        category="mtf_smc",
+        level="INFO",
+        message="scan-mtf-smc-watchlist",
+        payload={"n": len(symbols), "execution_allowed": False},
+    )
+    raise typer.Exit(0)
+
+
+# ---------------------------------------------------------------------------
 # Daily scheduler commands (Prompt 9 Part B)
 # ---------------------------------------------------------------------------
 @app.command("schedule-status")

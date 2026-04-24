@@ -29,7 +29,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-SUPPORTED_TIMEFRAMES: tuple[str, ...] = ("daily", "30min")
+SUPPORTED_TIMEFRAMES: tuple[str, ...] = (
+    "daily",
+    "4h",
+    "30min",
+    "5min",
+)
+
+# Subset used by legacy ``scan-smc`` / 10A (unknown labels still map to daily).
+SUPPORTED_SCAN_TIMEFRAMES: tuple[str, ...] = ("daily", "30min")
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +55,7 @@ class TimeframeSpec:
     min_bars: int
     max_bars: int
     what_to_show: str = "TRADES"
+    role: str = ""
 
     @property
     def is_intraday(self) -> bool:
@@ -63,6 +72,7 @@ class TimeframeSpec:
             "max_bars": self.max_bars,
             "what_to_show": self.what_to_show,
             "is_intraday": self.is_intraday,
+            "role": self.role,
         }
 
 
@@ -75,6 +85,17 @@ DEFAULT_TIMEFRAME_SPECS: dict[str, dict[str, Any]] = {
         "min_bars": 150,
         "max_bars": 400,
         "what_to_show": "TRADES",
+        "role": "macro_bias",
+    },
+    "4h": {
+        "enabled": True,
+        "duration": "60 D",
+        "bar_size": "4 hours",
+        "use_rth": True,
+        "min_bars": 80,
+        "max_bars": 300,
+        "what_to_show": "TRADES",
+        "role": "structure_confirmation",
     },
     "30min": {
         "enabled": True,
@@ -84,6 +105,17 @@ DEFAULT_TIMEFRAME_SPECS: dict[str, dict[str, Any]] = {
         "min_bars": 100,
         "max_bars": 300,
         "what_to_show": "TRADES",
+        "role": "setup_detector",
+    },
+    "5min": {
+        "enabled": True,
+        "duration": "5 D",
+        "bar_size": "5 mins",
+        "use_rth": True,
+        "min_bars": 100,
+        "max_bars": 500,
+        "what_to_show": "TRADES",
+        "role": "entry_trigger",
     },
 }
 
@@ -99,6 +131,13 @@ DEFAULT_TIMEFRAME_STRATEGY: dict[str, dict[str, Any]] = {
         "min_risk_reward": 2.0,
         "risk_per_trade_pct": 1.0,
     },
+    "4h": {
+        "lookback_period_for_sweep": 20,
+        "max_allowed_stop_pct": 3.0,
+        "max_extension_pct": 2.0,
+        "min_risk_reward": 1.8,
+        "risk_per_trade_pct": 0.5,
+    },
     "30min": {
         "lookback_period_for_sweep": 20,
         "max_allowed_stop_pct": 2.0,
@@ -109,6 +148,16 @@ DEFAULT_TIMEFRAME_STRATEGY: dict[str, dict[str, Any]] = {
         "avoid_last_minutes_before_close": 15,
         "max_hold_bars": 13,
     },
+    "5min": {
+        "lookback_period_for_sweep": 20,
+        "max_allowed_stop_pct": 0.6,
+        "max_extension_pct": 0.4,
+        "min_risk_reward": 1.5,
+        "risk_per_trade_pct": 0.15,
+        "trigger_entry_tolerance_pct": 0.5,
+        "max_trigger_extension_pct": 0.5,
+        "require_5min_fvg_or_displacement": True,
+    },
 }
 
 
@@ -116,11 +165,11 @@ DEFAULT_TIMEFRAME_STRATEGY: dict[str, dict[str, Any]] = {
 # Public helpers
 # ---------------------------------------------------------------------------
 def normalise_timeframe(name: str | None) -> str:
-    """Return a supported timeframe label. Unknown → ``'daily'``.
+    """Return a supported timeframe label for SMC scanning.
 
-    The CLI and tests both accept ``daily`` and ``30min`` only. Anything
-    else is normalised to ``daily`` rather than raising, so legacy
-    callers that pass ``'1d'`` / ``''`` / ``None`` still work.
+    Recognises ``daily``, ``4h``, ``30min``, and ``5min``. Legacy
+    single-timeframe CLIs that only need ``daily``/``30min`` still work;
+    any unknown label maps to ``daily`` (safe default).
     """
     if not name:
         return "daily"
@@ -129,13 +178,27 @@ def normalise_timeframe(name: str | None) -> str:
         "1d": "daily",
         "d": "daily",
         "daily": "daily",
+        "4h": "4h",
+        "4hr": "4h",
+        "4 hrs": "4h",
+        "4hours": "4h",
+        "240m": "4h",
         "30m": "30min",
         "30 min": "30min",
         "30mins": "30min",
         "30 mins": "30min",
         "30min": "30min",
+        "5m": "5min",
+        "5 min": "5min",
+        "5mins": "5min",
+        "5 mins": "5min",
+        "5min": "5min",
     }
-    return aliases.get(key, "daily")
+    if key in aliases:
+        return aliases[key]
+    if key in SUPPORTED_TIMEFRAMES:
+        return key
+    return "daily"
 
 
 def resolve_timeframe_spec(
@@ -149,6 +212,8 @@ def resolve_timeframe_spec(
     fall back to ``daily``.
     """
     tf = normalise_timeframe(name)
+    if tf not in DEFAULT_TIMEFRAME_SPECS:
+        tf = "daily"
     base = dict(DEFAULT_TIMEFRAME_SPECS[tf])
     overrides = _user_timeframes(cfg).get(tf) or {}
     for k, v in overrides.items():
@@ -163,6 +228,7 @@ def resolve_timeframe_spec(
         min_bars=int(base.get("min_bars", 100)),
         max_bars=int(base.get("max_bars", 300)),
         what_to_show=str(base.get("what_to_show", "TRADES")),
+        role=str(base.get("role", "") or ""),
     )
 
 
@@ -182,9 +248,8 @@ def resolve_strategy_thresholds(
       declares a ``timeframes.daily`` entry. This preserves the pre-
       Prompt-10A behaviour where the single base block drove
       everything.
-    * ``30min``: always start from :data:`DEFAULT_TIMEFRAME_STRATEGY`
-      and shallow-merge any declared overrides on top. 30min is a
-      new research mode and *must* apply its stricter defaults.
+    * ``30min``, ``4h``, ``5min``: start from
+      :data:`DEFAULT_TIMEFRAME_STRATEGY` and merge user overrides.
     """
     tf = normalise_timeframe(name)
     tf_overrides_raw = (
@@ -193,6 +258,8 @@ def resolve_strategy_thresholds(
     tf_overrides = {k: v for k, v in (tf_overrides_raw or {}).items()
                     if v is not None}
     if tf == "daily" and not tf_overrides:
+        return {}
+    if tf not in DEFAULT_TIMEFRAME_STRATEGY:
         return {}
     base = dict(DEFAULT_TIMEFRAME_STRATEGY[tf])
     base.update(tf_overrides)

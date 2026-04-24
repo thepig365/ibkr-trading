@@ -1,7 +1,7 @@
 """Tests for :mod:`bot.smc_timeframes` (Prompt 10A).
 
 Covers:
-    * timeframe registry defaults (daily + 30min),
+    * timeframe registry (daily, 4h, 30min, 5min),
     * IBKR request preset for 30min (``20 D`` / ``30 mins`` / TRADES / RTH),
     * strategy threshold resolution + apply-to-block,
     * session guard: first/last 15 min of US RTH for 30min,
@@ -33,8 +33,8 @@ from bot.config import load_config
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
-def test_supported_timeframes_are_daily_and_30min() -> None:
-    assert SUPPORTED_TIMEFRAMES == ("daily", "30min")
+def test_supported_timeframes_includes_mtf() -> None:
+    assert SUPPORTED_TIMEFRAMES == ("daily", "4h", "30min", "5min")
 
 
 def test_normalise_timeframe_aliases() -> None:
@@ -45,6 +45,9 @@ def test_normalise_timeframe_aliases() -> None:
     assert normalise_timeframe("30min") == "30min"
     assert normalise_timeframe("30 mins") == "30min"
     assert normalise_timeframe("30 Min") == "30min"
+    assert normalise_timeframe("4h") == "4h"
+    assert normalise_timeframe("5m") == "5min"
+    assert normalise_timeframe("5min") == "5min"
     assert normalise_timeframe("weekly") == "daily"  # unknown → safe default
 
 
