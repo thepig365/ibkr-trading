@@ -18,7 +18,7 @@ from bot.ibkr_client import IBKRClient
 
 
 def _patch_ibkr(monkeypatch) -> None:
-    def fake_connect(self, timeout: float = 10.0) -> None:
+    def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
     monkeypatch.setattr(IBKRClient, "connect", fake_connect)

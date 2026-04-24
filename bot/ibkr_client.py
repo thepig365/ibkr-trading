@@ -151,11 +151,16 @@ class IBKRClient:
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
-    def connect(self, timeout: float = 10.0) -> None:
+    def connect(
+        self, timeout: float = 10.0, *, readonly: bool = True
+    ) -> None:
         """Open a connection to TWS / IB Gateway.
 
         Refuses to connect if the configuration indicates a live account
         and `account.block_live_trading` is true (the default).
+
+        Set ``readonly=False`` only for paper order submission paths
+        (e.g. MTF bracket) — the default remains read-only for research.
         """
         self._enforce_paper_only()
 
@@ -179,7 +184,7 @@ class IBKRClient:
             port=self.cfg.ibkr.port,
             clientId=self.cfg.ibkr.client_id,
             timeout=timeout,
-            readonly=True,  # extra defence: ib_async honours readonly mode
+            readonly=readonly,
         )
         self._ib = ib
 

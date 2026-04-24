@@ -36,16 +36,18 @@ class ManualConfirmationRequired(RuntimeError):
 class OrderTicket:
     """Lightweight representation of a hypothetical order.
 
-    No method on this object actually contacts the broker.
+    After a successful non-dry paper submission, ``mtf_paper`` may hold
+    IB order ids and related metadata.
     """
 
     intent: TradeIntent
     dry_run: bool
     confirmed: bool
     decision: RiskDecision
+    mtf_paper: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "symbol": self.intent.symbol,
             "sec_type": self.intent.sec_type,
             "side": self.intent.side,
@@ -56,6 +58,9 @@ class OrderTicket:
             "allowed": self.decision.allowed,
             "reasons": self.decision.reasons,
         }
+        if self.mtf_paper is not None:
+            d["mtf_paper"] = self.mtf_paper
+        return d
 
 
 class Broker:
@@ -104,15 +109,26 @@ class Broker:
         reconciliation_passed: bool = True,
         account_equity: float | None = None,
         open_positions_count: int = 0,
+        mtf_paper_bracket: bool = False,
     ) -> OrderTicket:
-        """Validate and (someday) submit an order.
+        """Validate and submit a paper order when all gates pass.
 
-        In the foundation milestone this method ALWAYS refuses to send
-        anything. It is exposed only so that safety tests can verify
-        the gates fire in the correct order.
+        MTF paper bracket: set ``mtf_paper_bracket=True`` and enable
+        ``trading.mtf_paper_bracket_enabled``; manual confirmation is
+        bypassed only in that case when
+        ``mtf_paper_bypass_manual_confirmation`` is true.
         """
         s = self.cfg.settings
-        effective_dry_run = s.trading.dry_run_default if dry_run is None else dry_run
+        if mtf_paper_bracket and not s.trading.mtf_paper_bracket_enabled:
+            raise TradingDisabled(
+                "mtf_paper_bracket=True requires trading.mtf_paper_bracket_enabled=true"
+            )
+        if mtf_paper_bracket:
+            effective_dry_run = s.trading.mtf_paper_dry_run
+            if dry_run is not None:
+                effective_dry_run = bool(dry_run)
+        else:
+            effective_dry_run = s.trading.dry_run_default if dry_run is None else dry_run
 
         decision = self.risk.evaluate(
             intent,
@@ -147,31 +163,93 @@ class Broker:
             self._record_blocked(ticket, "risk rejected: " + "; ".join(decision.reasons))
             raise TradingDisabled("Risk engine rejected: " + "; ".join(decision.reasons))
 
-        # Hard gate 4: manual confirmation.
-        if s.trading.require_manual_confirmation and not confirmed:
+        bypass_manual = bool(
+            mtf_paper_bracket
+            and s.trading.mtf_paper_bracket_enabled
+            and s.trading.mtf_paper_bypass_manual_confirmation
+        )
+        if s.trading.require_manual_confirmation and not confirmed and not bypass_manual:
             self._record_blocked(ticket, "manual confirmation missing")
             raise ManualConfirmationRequired(
                 "require_manual_confirmation=true; pass confirmed=True explicitly."
             )
 
-        # Hard gate 5: dry run is the default in this milestone.
         if effective_dry_run:
             self._record_blocked(ticket, "dry-run")
             return ticket
 
-        # If we reach this branch, all gates have passed. The actual
-        # submission path is intentionally unimplemented.
-        return self._submit_order(ticket)
+        return self._submit_order(ticket, mtf_paper_bracket=mtf_paper_bracket)
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
-    def _submit_order(self, ticket: OrderTicket) -> OrderTicket:
-        # NEVER add ib.placeOrder() here without a code review against
-        # docs/safety-rules.md.
+    def _submit_order(
+        self, ticket: OrderTicket, *, mtf_paper_bracket: bool = False
+    ) -> OrderTicket:
+        if mtf_paper_bracket:
+            return self._submit_mtf_paper_bracket(ticket)
+        # NEVER add generic ib.placeOrder() here without a code review
+        # — only the MTF paper bracket path may submit.
         raise TradingDisabled(
-            "Order submission is not implemented in the foundation milestone."
+            "Order submission is only implemented for trading.mtf_paper_bracket "
+            "(set mtf_paper_bracket=True with qualified intent)."
         )
+
+    def _submit_mtf_paper_bracket(self, ticket: OrderTicket) -> OrderTicket:
+        """Paper + ib_async bracket. Long-only, ``stop < entry < take profit``."""
+        s = self.cfg.settings
+        if s.account.mode != "paper":
+            raise LiveTradingBlocked("MTF paper bracket is only for account.mode=paper")
+        intent = ticket.intent
+        if (intent.side or "").upper() != "BUY":
+            raise TradingDisabled("MTF paper bracket is long-only (BUY).")
+        el = intent.entry_limit_price
+        tp = intent.take_profit_price
+        sl = intent.stop_loss_price
+        if el is None or tp is None or sl is None:
+            raise TradingDisabled(
+                "MTF bracket needs entry_limit_price, take_profit_price, stop_loss_price."
+            )
+        if not (float(sl) < float(el) < float(tp)):
+            raise TradingDisabled(
+                "MTF long bracket: require stop < entry < take_profit (got "
+                f"{sl}, {el}, {tp})"
+            )
+        try:
+            from ib_async import Stock
+        except Exception as exc:  # noqa: BLE001
+            raise TradingDisabled(f"ib_async required for order submission: {exc}") from exc
+        ib = self.client._ib
+        if ib is None:
+            raise TradingDisabled("IB is not connected (use IBKRClient.connect(readonly=False)).")
+        contract = Stock(intent.symbol, "SMART", "USD")
+        qualified = ib.qualifyContracts(contract)
+        if not qualified:
+            raise TradingDisabled(f"Could not qualify contract for {intent.symbol!r}.")
+        c = qualified[0]
+        qty = max(1, int(intent.quantity))
+        br = ib.bracketOrder("BUY", float(qty), float(el), float(tp), float(sl))
+        order_ids: list[int | None] = []
+        for o in br:
+            ib.placeOrder(c, o)
+            order_ids.append(int(getattr(o, "orderId", 0) or 0) or None)
+        logger.info("MTF paper bracket placeOrder: %s %s", intent.symbol, order_ids)
+        detail = {
+            "kind": "mtf_paper_bracket",
+            "symbol": intent.symbol,
+            "quantity": qty,
+            "entry": float(el),
+            "take_profit": float(tp),
+            "stop_loss": float(sl),
+            "order_ids": order_ids,
+        }
+        ticket.mtf_paper = detail
+        if self.journal is not None:
+            self.journal.record_open_order(
+                {**detail, "dry_run": False},
+                source="mtf_paper_bracket",
+            )
+        return ticket
 
     def _record_blocked(self, ticket: OrderTicket, reason: str) -> None:
         logger.warning("Order blocked (%s): %s", reason, ticket.as_dict())

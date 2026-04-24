@@ -112,7 +112,7 @@ def test_reconcile_failure_triggers_notification_fallback(
     from bot import cli as cli_module
     from bot.ibkr_client import IBKRClient
 
-    def fake_connect(self, timeout: float = 10.0) -> None:
+    def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
     monkeypatch.setattr(IBKRClient, "connect", fake_connect)

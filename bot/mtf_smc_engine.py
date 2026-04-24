@@ -1,8 +1,9 @@
 """Multi-timeframe SMC/ICT pattern recognition (Prompt 10B).
 
-Research-only. No broker imports. Outputs JSON-friendly dicts; execution
-stays disabled globally. ``eligible_for_future_paper_trade`` is a flag
-for human/forward review only, never an order signal.
+Research report layer. No broker imports. ``eligible_for_future_paper_trade``
+indicates the MTF preconditions (including FULL alignment); actual paper
+orders are gated in :mod:`bot.mtf_paper_execution` and :class:`bot.broker.Broker`
+(Prompt 10C).
 """
 
 from __future__ import annotations

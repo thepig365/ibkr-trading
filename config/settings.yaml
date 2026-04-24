@@ -17,6 +17,14 @@ trading:
   # Even with trading.enabled = true, every order requires explicit
   # confirmation from the operator.
   require_manual_confirmation: true
+  # MTF (Prompt 10C): full-auto paper IBKR bracket when scan uses
+  # --paper-bracket, alignment is FULL, and mtf_paper_dry_run is false.
+  # Requires account.mode: paper, trading.enabled: true, and TWS
+  # connection with readonly=False for submission.
+  mtf_paper_bracket_enabled: false
+  mtf_paper_bypass_manual_confirmation: true
+  mtf_paper_dry_run: true
+  mtf_paper_require_full_alignment: true
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

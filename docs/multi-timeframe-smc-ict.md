@@ -21,10 +21,17 @@
 
 系统全局保持 `research_only=true`、`execution_allowed=false`；`eligible_for_future_paper_trade` 仅作**研究/沙盒前置标记**，**不是**执行信号。未来若需纸面执行，须单独经评审与硬开关，且不得与本识别引擎混为一谈。
 
-## 为何本模块仍不交易
+## 为何默认仍不交易
 
-- 本仓库中**不**实现下单、**不**接纸面撮合、**不**调用 `broker.place_order`。
-- Telegram 与 JSON 报告仅用于人类复盘与流程对接。
+- 默认 `trading.mtf_paper_bracket_enabled: false`，且
+  `mtf_paper_dry_run: true`：研究扫描**不会**向 IB 发单。
+- **可选（Prompt 10C）：** 在纸账户、已开启 `trading.enabled` 且
+  显式配置 MTF 纸面开关、并将 `mtf_paper_dry_run` 设为 `false` 时，
+  `scan-mtf-smc --paper-bracket` 可在 `FULL_ALIGNMENT` 且
+  `eligible_for_future_paper_trade` 为真时，经 `bot/broker` 下出
+  **限价入场 + 止盈 + 止损** 的父单 bracket（多单一组）。详见
+  `docs/safety-rules.md` 中「MTF paper bracket」一节。
+- **不**对实盘账户发单；`account.mode` 必须为 `paper`。
 
 ## 命令示例
 

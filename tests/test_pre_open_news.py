@@ -419,7 +419,7 @@ def test_cli_pre_open_news_does_not_place_orders(
     from bot import cli as cli_module
     from bot.broker import Broker
 
-    def fake_connect(self, timeout: float = 10.0) -> None:
+    def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
     monkeypatch.setattr(IBKRClient, "connect", fake_connect)
@@ -465,7 +465,7 @@ def test_cli_pre_open_news_writes_files_by_default(
 
     from bot import cli as cli_module
 
-    def fake_connect(self, timeout: float = 10.0) -> None:
+    def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
     monkeypatch.setattr(IBKRClient, "connect", fake_connect)

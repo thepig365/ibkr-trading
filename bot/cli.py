@@ -1,7 +1,7 @@
 """Typer-based CLI entry point.
 
-All commands are read-only or diagnostic. Nothing in this module
-places orders. Run with::
+Most commands are read-only. The only write path is ``--paper-bracket``
+on MTF scan commands (paper accounts, :mod:`bot.broker` only). Run with::
 
     python -m bot.cli portfolio
     python -m bot.cli open-orders
@@ -170,10 +170,10 @@ def _configure_logging(cfg: AppConfig, verbose: bool) -> None:
             lg.addFilter(status_filter)
 
 
-def _connect(cfg: AppConfig) -> IBKRClient:
+def _connect(cfg: AppConfig, *, readonly: bool = True) -> IBKRClient:
     client = IBKRClient(cfg)
     try:
-        client.connect()
+        client.connect(readonly=readonly)
     except LiveTradingBlocked as exc:
         console.print(
             Panel.fit(f"[bold red]Live trading blocked:[/bold red] {exc}", style="red")
@@ -2147,8 +2147,52 @@ def _now_et_hhmm() -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# MTF SMC/ICT (Prompt 10B) — research only
+# MTF SMC/ICT (Prompt 10B) — research; Prompt 10C — optional paper bracket
 # ---------------------------------------------------------------------------
+def _maybe_mtf_paper_bracket(
+    cfg: AppConfig,
+    journal: Journal,
+    rep: dict,
+) -> dict:
+    """Connect with ``readonly=False`` and submit a bracket if preconditions pass."""
+    from .mtf_paper_execution import mtf_paper_may_run, run_mtf_paper_bracket
+
+    ok, reasons = mtf_paper_may_run(cfg, rep)
+    if not ok:
+        return {"submitted": False, "skipped_reasons": reasons, "order_ids": []}
+    ex = IBKRClient(cfg)
+    try:
+        ex.connect(readonly=False)
+        pos = ex.get_positions()
+        summ = ex.get_account_summary()
+        eq = 0.0
+        for a in summ:
+            if a.net_liquidation and float(a.net_liquidation) > 0:
+                eq = float(a.net_liquidation)
+                break
+        npos = sum(1 for p in pos if abs(p.position) >= 1e-4)
+        br = Broker(cfg, ex, journal=journal)
+        return run_mtf_paper_bracket(
+            br,
+            cfg,
+            rep,
+            account_equity=eq,
+            open_positions=npos,
+            reconciliation_ok=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "submitted": False,
+            "error": str(exc),
+            "order_ids": [],
+        }
+    finally:
+        try:
+            ex.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _mtf_connect_and_fetch(
     symbol: str,
     cfg: AppConfig,
@@ -2242,8 +2286,13 @@ def scan_mtf_smc(
     market_regime: Optional[str] = typer.Option(
         None, "--market-regime", help="Override regime; else from snapshot.",
     ),
+    paper_bracket: bool = typer.Option(
+        False,
+        "--paper-bracket",
+        help="If FULL_ALIGNMENT + config, place paper MTF bracket (requires trading.mtf_paper_bracket_enabled).",
+    ),
 ) -> None:
-    """Run multi-timeframe SMC/ICT recognition (no orders, no execution)."""
+    """Run multi-timeframe SMC/ICT; optional paper bracket (Prompt 10C)."""
     from .mtf_chart import render_mtf_smc_charts
     from .mtf_smc_engine import run_mtf_smc
 
@@ -2257,6 +2306,11 @@ def scan_mtf_smc(
     if not use_ibkr:
         console.print("[red]MTF scan requires --ibkr to load candles.[/red]")
         raise typer.Exit(2)
+    if paper_bracket and not cfg.settings.trading.mtf_paper_bracket_enabled:
+        console.print(
+            "[yellow]--paper-bracket ignored: set trading.mtf_paper_bracket_enabled "
+            "and trading.enabled in config/settings.yaml.[/yellow]"
+        )
     b, w, client = _mtf_connect_and_fetch(
         symbol.upper(), cfg, include_5min=include_5min, include_daily=include_daily
     )
@@ -2284,6 +2338,17 @@ def scan_mtf_smc(
             output_dir=cfg.absolute("data/debug_charts"),
         )
         rep["chart_paths"] = charts
+    paper: dict = {}
+    if paper_bracket and cfg.settings.trading.mtf_paper_bracket_enabled:
+        paper = _maybe_mtf_paper_bracket(cfg, journal, rep)
+    elif paper_bracket:
+        paper = {
+            "submitted": False,
+            "skipped_reasons": [
+                "mtf_paper_bracket_enabled is false; enable in config/settings.yaml",
+            ],
+        }
+    rep["mtf_paper_bracket"] = paper
     console.print(Panel.fit(json.dumps(rep, indent=2, default=str), title="MTF SMC/ICT"))
     path = None
     if save_json:
@@ -2294,7 +2359,10 @@ def scan_mtf_smc(
         from html import escape
         body = f"<b>{escape('【MTF SMC/ICT 多周期识别】')}{escape(symbol.upper())}</b>\n"
         body += "<pre>" + escape(rep.get("human_summary_zh", "")) + "</pre>\n"
-        body += f"<i>{escape('研究扫描，不下单。')}</i>"
+        if paper.get("submitted"):
+            body += f"<i>{escape('纸面已尝试 bracket 下单；请核对你的订单面板。')}</i>"
+        else:
+            body += f"<i>{escape('研究扫描；未触发纸面下单或仅记录原因。')}</i>"
         sent = bool(send_telegram_message(body, cfg=cfg, journal=journal))
     journal.record_event(
         category="mtf_smc",
@@ -2304,7 +2372,7 @@ def scan_mtf_smc(
             "symbol": symbol.upper(),
             "path": str(path) if path else None,
             "telegram": sent,
-            "execution_allowed": False,
+            "mtf_paper_bracket": paper,
         },
     )
     raise typer.Exit(0)
@@ -2326,8 +2394,16 @@ def scan_mtf_smc_watchlist(
     save_json: bool = typer.Option(True, "--save-json/--no-save-json"),
     include_5min: bool = typer.Option(True, "--include-5min/--no-include-5min"),
     include_daily: bool = typer.Option(True, "--include-daily/--no-include-daily"),
+    paper_bracket: bool = typer.Option(
+        False,
+        "--paper-bracket",
+        help="Run paper bracket (up to --max-paper-trades) on FULL_ALIGNMENT symbols.",
+    ),
+    max_paper_trades: int = typer.Option(
+        1, "--max-paper-trades", min=0, help="Max paper brackets per run (0 = none).",
+    ),
 ) -> None:
-    """Scan many symbols with the MTF engine. Research-only, no trading."""
+    """Scan many symbols; optional paper bracket for FULL_ALIGNMENT (10C)."""
     from .mtf_smc_engine import format_mtf_watchlist_digest_zh, run_mtf_smc
     from .mtf_chart import render_mtf_smc_charts
 
@@ -2358,8 +2434,13 @@ def scan_mtf_smc_watchlist(
     if not use_ibkr:
         console.print("[red]--ibkr is required.[/red]")
         raise typer.Exit(2)
+    if paper_bracket and not cfg.settings.trading.mtf_paper_bracket_enabled:
+        console.print(
+            "[yellow]--paper-bracket ignored: enable trading.mtf_paper_bracket_enabled.[/yellow]"
+        )
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     items: list[dict] = []
+    full_reports: list[tuple[str, dict]] = []
     counts: dict[str, int] = {
         "FULL_ALIGNMENT": 0,
         "SETUP_READY_WAITING_TRIGGER": 0,
@@ -2396,6 +2477,7 @@ def scan_mtf_smc_watchlist(
             )
         if save_json:
             _mtf_save_json(cfg, rep)
+        full_reports.append((sym, rep))
         cat = str(rep.get("alignment_category") or "BLOCKED")
         if cat in counts:
             counts[cat] = counts[cat] + 1
@@ -2412,6 +2494,37 @@ def scan_mtf_smc_watchlist(
     items.sort(key=lambda r: -float(r.get("mtf_alignment_score", 0)))
     top5 = items[:5]
     elig_names = [i["symbol"] for i in items if i.get("eligible_for_future_paper_trade")]
+    paper_runs: list[dict] = []
+    n_exec = 0
+    if (
+        paper_bracket
+        and max_paper_trades > 0
+        and cfg.settings.trading.mtf_paper_bracket_enabled
+    ):
+        for sym, rep in full_reports:
+            if n_exec >= max_paper_trades:
+                break
+            if (
+                rep.get("alignment_category") == "FULL_ALIGNMENT"
+                and rep.get("eligible_for_future_paper_trade")
+            ):
+                paper_runs.append(
+                    {
+                        "symbol": sym.upper(),
+                        "result": _maybe_mtf_paper_bracket(cfg, journal, rep),
+                    }
+                )
+                n_exec += 1
+    elif paper_bracket and max_paper_trades > 0 and not cfg.settings.trading.mtf_paper_bracket_enabled:
+        paper_runs = [
+            {
+                "symbol": None,
+                "result": {
+                    "submitted": False,
+                    "skipped_reasons": ["mtf_paper_bracket_enabled is false"],
+                },
+            }
+        ]
     summary = {
         "date": day,
         "source": chosen,
@@ -2421,6 +2534,7 @@ def scan_mtf_smc_watchlist(
         "counts": counts,
         "top_by_alignment_score": top5,
         "eligible_for_future_paper_trade": elig_names,
+        "mtf_paper_bracket_runs": paper_runs,
         "items": items,
     }
     p = _mtf_save_watchlist_summary(cfg, summary) if save_json else None

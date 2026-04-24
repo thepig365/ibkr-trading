@@ -40,6 +40,12 @@ class TradingConfig(BaseModel):
     allow_crypto: bool = False
     allow_forex: bool = False
     allow_shorting: bool = False
+    # MTF paper bracket (Prompt 10C): only when mtf_paper_bracket_enabled and
+    # alignment is FULL_ALIGNMENT; still paper account + block_live_trading.
+    mtf_paper_bracket_enabled: bool = False
+    mtf_paper_bypass_manual_confirmation: bool = True
+    mtf_paper_dry_run: bool = False
+    mtf_paper_require_full_alignment: bool = True
 
 
 class RiskConfig(BaseModel):

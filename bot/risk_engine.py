@@ -28,6 +28,10 @@ class TradeIntent:
     side: Side
     quantity: float
     estimated_price: float
+    # Optional: IB bracket (MTF paper path only, see broker._submit_mtf_paper_bracket)
+    take_profit_price: float | None = None
+    stop_loss_price: float | None = None
+    entry_limit_price: float | None = None
 
 
 @dataclass

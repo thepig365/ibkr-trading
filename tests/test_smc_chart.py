@@ -381,7 +381,7 @@ def test_scan_smc_use_account_values_does_not_place_orders(
         def __init__(self, cfg) -> None:
             sentinel["cfg"] = cfg
 
-        def connect(self) -> None:
+        def connect(self, *a, **k) -> None:
             sentinel["connected"] = True
 
         def disconnect(self) -> None:

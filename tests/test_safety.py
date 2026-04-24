@@ -119,7 +119,7 @@ def test_cli_portfolio_does_not_call_place_order(monkeypatch, tmp_project: Path)
     fake_summary = []
     fake_positions = []
 
-    def fake_connect(self, timeout: float = 10.0) -> None:
+    def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
     monkeypatch.setattr(IBKRClient, "connect", fake_connect)

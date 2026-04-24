@@ -38,12 +38,28 @@ test update.
 - Telegram credential failure must NEVER crash the bot; it must fall
   back to `memory/DAILY-SUMMARY.md`.
 
+## MTF paper bracket (opt-in, Prompt 10C)
+
+- **Paper only:** `account.mode` must be `paper` and
+  `block_live_trading` must remain as configured. Long-only brackets;
+  `broker._submit_mtf_paper_bracket` is the only code path that calls
+  `ib.placeOrder` (see `bot/broker.py`).
+- **Config gates:** `trading.enabled`, `trading.mtf_paper_bracket_enabled`,
+  and (for real TWS submission) `trading.mtf_paper_dry_run: false`. CLI
+  flag `--paper-bracket` is ignored if `mtf_paper_bracket_enabled` is
+  false.
+- **Preconditions:** :func:`bot.mtf_paper_execution.mtf_paper_may_run` requires
+  `FULL_ALIGNMENT` and `eligible_for_future_paper_trade` on the scan
+  report. IB is connected with `readonly=False` only for the submission
+  step (`IBKRClient.connect(readonly=False)`).
+- The generic `_submit_order` path without `mtf_paper_bracket=True` still
+  raises `TradingDisabled`.
+
 ## What is intentionally NOT in this milestone
 
-- No trading strategy of any kind (no SMC, breakout, momentum, RSI,
-  ORB, mean reversion, etc.).
-- No order routing.
-- No live-account support.
-- No automatic execution loop.
+- No non-MTF / generic market order entry from strategies.
+- No live-account order routing.
+- No automatic 24/7 loop unless the operator schedules the CLI/scheduler
+  and accepts paper risk.
 
 When you add any of the above, update this file in the same PR.
