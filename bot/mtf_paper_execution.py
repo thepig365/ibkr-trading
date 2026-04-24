@@ -12,6 +12,7 @@ import math
 from typing import Any
 
 from .config import AppConfig
+from .journal import Journal
 from .risk_engine import TradeIntent
 
 
@@ -40,6 +41,10 @@ def mtf_paper_may_run(cfg: AppConfig, mtf: dict[str, Any]) -> tuple[bool, list[s
             reasons.append("alignment_category is not FULL_ALIGNMENT")
         if not mtf.get("eligible_for_future_paper_trade"):
             reasons.append("eligible_for_future_paper_trade is false")
+    if t.mtf_paper_require_confirmed_5m:
+        t5 = (mtf.get("timeframes") or {}).get("5min") or {}
+        if str(t5.get("trigger_state", "")).strip().lower() != "confirmed":
+            reasons.append("5min trigger_state is not confirmed (10G)")
     if cfg.settings.account.mode != "paper":
         reasons.append("account.mode must be paper")
     return (len(reasons) == 0, reasons)
@@ -151,8 +156,60 @@ def run_mtf_paper_bracket(
     }
 
 
+def connect_and_run_mtf_paper_bracket(
+    cfg: AppConfig, journal: Journal, rep: dict[str, Any]
+) -> dict[str, Any]:
+    """IBKR + :class:`Broker` path (Prompt 10C/10G); same logic as :func:`bot.cli` helper.
+
+    Call this only for MTF report dicts that have already been evaluated with
+    fresh ``run_mtf_smc`` output; :func:`mtf_paper_may_run` enforces
+    ``FULL_ALIGNMENT`` + ``eligible`` + 5m ``confirmed`` when config flags
+    are on.
+    """
+    from .broker import Broker
+    from .ibkr_client import IBKRClient
+
+    ok, reasons = mtf_paper_may_run(cfg, rep)
+    if not ok:
+        return {"submitted": False, "skipped_reasons": reasons, "order_ids": []}
+    ex: Any = None
+    try:
+        ex = IBKRClient(cfg)
+        ex.connect(readonly=False)
+        pos = ex.get_positions()
+        summ = ex.get_account_summary()
+        eq = 0.0
+        for a in summ:
+            if a.net_liquidation and float(a.net_liquidation) > 0:
+                eq = float(a.net_liquidation)
+                break
+        npos = sum(1 for p in pos if abs(p.position) >= 1e-4)
+        br = Broker(cfg, ex, journal=journal)
+        return run_mtf_paper_bracket(
+            br,
+            cfg,
+            rep,
+            account_equity=eq,
+            open_positions=npos,
+            reconciliation_ok=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "submitted": False,
+            "error": str(exc),
+            "order_ids": [],
+        }
+    finally:
+        if ex is not None:
+            try:
+                ex.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+
+
 __all__ = [
     "build_mtf_paper_intent",
+    "connect_and_run_mtf_paper_bracket",
     "mtf_paper_may_run",
     "run_mtf_paper_bracket",
 ]

@@ -1,7 +1,9 @@
-"""MTF 5m trigger watch: near-alignment polling, alert-only (Prompt 10F).
+"""MTF 5m trigger watch: near-alignment polling (Prompt 10F); optional 10G auto paper.
 
-No orders, no broker, no config mutation. `research_only` / `execution_allowed`
-in outputs are fixed for auditability.
+`research_only` / `execution_allowed` in JSON are fixed for the trigger-check
+artifact; 10G auto bracket uses the same :func:`mtf_paper_may_run` + IBKR path
+as ``scan-mtf-smc --paper-bracket`` when ``--auto-paper-bracket`` and config
+allow it.
 """
 
 from __future__ import annotations
@@ -107,6 +109,8 @@ class SymbolRuntimeState:
     last_eligible: bool = False
     last_checked_at: str = ""
     confirmed_alert_sent_for_date: str = ""
+    # 10G: at most one auto paper attempt per symbol per day (config + gates)
+    last_auto_paper_bracket_submitted_for_date: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -116,6 +120,9 @@ class SymbolRuntimeState:
             "last_eligible": self.last_eligible,
             "last_checked_at": self.last_checked_at,
             "confirmed_alert_sent_for_date": self.confirmed_alert_sent_for_date,
+            "last_auto_paper_bracket_submitted_for_date": (
+                self.last_auto_paper_bracket_submitted_for_date
+            ),
         }
 
     @classmethod
@@ -128,6 +135,9 @@ class SymbolRuntimeState:
             last_checked_at=str(d.get("last_checked_at", "")),
             confirmed_alert_sent_for_date=str(
                 d.get("confirmed_alert_sent_for_date", "") or ""
+            ),
+            last_auto_paper_bracket_submitted_for_date=str(
+                d.get("last_auto_paper_bracket_submitted_for_date", "") or ""
             ),
         )
 
@@ -292,6 +302,7 @@ def run_mtf_trigger_check(
     telegram: bool,
     state_path: Path,
     empty_digest_telegram: bool = True,
+    auto_paper_bracket: bool = False,
     # injectable for tests
     connect_fetch: WatchFetchFn | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -330,6 +341,7 @@ def run_mtf_trigger_check(
         "still_waiting": [],
         "state_changes": [],
         "items": [],
+        "auto_paper_bracket_runs": [],
     }
     rstore = load_runtime_trigger_state(state_path)
     regime_ctx = _resolve_regime_context(cfg, None)
@@ -345,6 +357,14 @@ def run_mtf_trigger_check(
             body = f"<pre>{escape(format_no_trigger_watch_telegram_zh())}</pre>"
             send_telegram_message(body, cfg=cfg, journal=journal)
         out = {**out_base, "items": []}
+        if auto_paper_bracket and (not cfg.settings.trading.mtf_paper_auto_bracket_enabled):
+            out["auto_paper_bracket_runs"] = [
+                {
+                    "symbol": None,
+                    "skipped": True,
+                    "reason": "mtf_paper_auto_bracket_enabled is false in settings",
+                }
+            ]
         p_out = mtf_dir / f"{report_date}-trigger-check.json"
         p_out.write_text(
             json.dumps(out, indent=2, ensure_ascii=False, default=str) + "\n",
@@ -376,6 +396,7 @@ def run_mtf_trigger_check(
                 last_eligible=bool(
                     cand.get("eligible_for_future_paper_trade", False)
                 ),
+                last_auto_paper_bracket_submitted_for_date="",
             )
         else:
             p_ts = st_prev.last_trigger_state
@@ -462,6 +483,12 @@ def run_mtf_trigger_check(
                 st_old, "confirmed_alert_sent_for_date", ""
             )
             or "",
+            last_auto_paper_bracket_submitted_for_date=str(
+                getattr(
+                    st_old, "last_auto_paper_bracket_submitted_for_date", ""
+                )
+                or ""
+            ),
         )
         if cur_t_n == "confirmed":
             if st_old.last_trigger_state != "confirmed":
@@ -480,6 +507,57 @@ def run_mtf_trigger_check(
     out_base["trigger_confirmed"] = confirmed_syms
     out_base["still_waiting"] = [s for s, _ in waiting_syms]
     out_base["state_changes"] = state_change_labels
+
+    auto_paper_runs: list[dict[str, Any]] = []
+    if auto_paper_bracket:
+        if not cfg.settings.trading.mtf_paper_auto_bracket_enabled:
+            auto_paper_runs.append(
+                {
+                    "symbol": None,
+                    "skipped": True,
+                    "reason": "mtf_paper_auto_bracket_enabled is false in settings",
+                }
+            )
+        else:
+            from .mtf_paper_execution import connect_and_run_mtf_paper_bracket
+
+            for sym_a, mrep_a in mreps.items():
+                cur_u = rstore.symbols.get(sym_a) or SymbolRuntimeState()
+                if str(
+                    cur_u.last_auto_paper_bracket_submitted_for_date
+                ) == str(report_date):
+                    auto_paper_runs.append(
+                        {
+                            "symbol": sym_a,
+                            "skipped": True,
+                            "reason": "auto paper already recorded for this date",
+                        }
+                    )
+                    continue
+                if not (
+                    mrep_a.get("eligible_for_future_paper_trade")
+                    and str(mrep_a.get("alignment_category") or "")
+                    == "FULL_ALIGNMENT"
+                ):
+                    continue
+                t5a = (mrep_a.get("timeframes") or {}).get("5min") or {}
+                if str(t5a.get("trigger_state", "")).lower() != "confirmed":
+                    continue
+                res = connect_and_run_mtf_paper_bracket(
+                    cfg, journal, mrep_a
+                )
+                auto_paper_runs.append({"symbol": sym_a, "result": res})
+                if res.get("skipped_reasons"):
+                    pass
+                elif res.get("error"):
+                    pass
+                else:
+                    nxt = rstore.symbols.get(sym_a) or SymbolRuntimeState()
+                    nxt.last_auto_paper_bracket_submitted_for_date = str(
+                        report_date
+                    )
+                    rstore.symbols[sym_a] = nxt
+    out_base["auto_paper_bracket_runs"] = auto_paper_runs
 
     save_runtime_trigger_state(state_path, rstore)
 
@@ -557,6 +635,7 @@ def run_mtf_trigger_watch_loop(
     state_path: Path,
     interval_minutes: int,
     duration_minutes: int,
+    auto_paper_bracket: bool = False,
     connect_fetch: WatchFetchFn | None = None,
     log_path: Path | None = None,
     time_fn: Callable[[], float] = time.time,
@@ -590,6 +669,7 @@ def run_mtf_trigger_watch_loop(
                 telegram=False,
                 state_path=state_path,
                 empty_digest_telegram=(cycle == 1),
+                auto_paper_bracket=auto_paper_bracket,
                 connect_fetch=connect_fetch,
             )
             mreps = meta.get("mreps") or {}

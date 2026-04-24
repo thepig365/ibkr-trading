@@ -46,6 +46,9 @@ class TradingConfig(BaseModel):
     mtf_paper_bypass_manual_confirmation: bool = True
     mtf_paper_dry_run: bool = False
     mtf_paper_require_full_alignment: bool = True
+    # 10G: explicit 5m trigger + optional auto from trigger-check/watch
+    mtf_paper_require_confirmed_5m: bool = True
+    mtf_paper_auto_bracket_enabled: bool = False
 
 
 class RiskConfig(BaseModel):

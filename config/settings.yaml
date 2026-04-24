@@ -25,6 +25,13 @@ trading:
   mtf_paper_bypass_manual_confirmation: true
   mtf_paper_dry_run: true
   mtf_paper_require_full_alignment: true
+  # 10G: paper bracket may run only with FULL + 5m trigger confirmed (enforced
+  # in mtf_paper_may_run when true; aligns with run_mtf_smc elig).
+  mtf_paper_require_confirmed_5m: true
+  # 10G: if true, mtf-trigger-check / mtf-trigger-watch may use --auto-paper-bracket
+  # to call the same IBKR path as --paper-bracket (still requires trading.enabled,
+  # mtf_paper_bracket_enabled, account paper, etc.).
+  mtf_paper_auto_bracket_enabled: false
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

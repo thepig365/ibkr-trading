@@ -43,7 +43,14 @@
 
 ## 与将来纸面执行的关系
 
-- 当且仅当**未来**在配置中显式打开 paper bracket、且你仍用同一套 MTF 报告流程时，本观察阶段帮助你**提前知道**哪些标的 5m 已 **confirmed**；**当前不创建订单。**
+- 当且仅当**未来**在配置中显式打开 paper bracket、且你仍用同一套 MTF 报告流程时，本观察阶段帮助你**提前知道**哪些标的 5m 已 **confirmed**；**是否下单仍完全由 `mtf_paper_*` 与 `trading.enabled` 决定。**
+
+## 10G — 自动纸面 Bracket（可选）
+
+- **`mtf_paper_require_confirmed_5m`**（默认 `true`）：`mtf_paper_may_run` 会显式要求报告里 `timeframes.5min.trigger_state == confirmed`（与 `run_mtf_smc` 的 `eligible_for_future_paper_trade` 一致，属于双重保险）。
+- **`mtf_paper_auto_bracket_enabled`**（默认 `false`）：只有为 `true` 时，CLI 的 **`--auto-paper-bracket`** 才会在每次 `mtf-trigger-check` 或每轮 `mtf-trigger-watch` 中尝试调用与 `scan-mtf-smc --paper-bracket` 相同的 `connect_and_run_mtf_paper_bracket` 路径；仍需 **`trading.enabled`**、**`mtf_paper_bracket_enabled`**、纸账户、以及未在同日重复记录（`runtime_trigger_state.json` 中的 `last_auto_paper_bracket_submitted_for_date`）。
+
+触发检查写出的 `*-trigger-check.json` 会包含 **`auto_paper_bracket_runs`** 数组（跳过原因或 IBKR 返回结果）。
 
 ## 命令示例
 
@@ -51,6 +58,9 @@
 python -m bot.cli mtf-trigger-check --latest --ibkr --telegram --top 5
 
 python -m bot.cli mtf-trigger-watch --latest --ibkr --telegram --interval-minutes 5 --duration-minutes 120 --top 5
+
+# 10G（在 settings 中启用 mtf_paper_auto_bracket_enabled 后）:
+python -m bot.cli mtf-trigger-check --latest --ibkr --auto-paper-bracket --top 5
 ```
 
 **前置**：同日期下已存在 `mtf-diagnostic-report`（通常由 `mtf-diagnostic-report` 命令生成）。

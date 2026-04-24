@@ -20,6 +20,7 @@ def _mtf_full(symbol: str = "AAPL") -> dict:
         "alignment_category": "FULL_ALIGNMENT",
         "eligible_for_future_paper_trade": True,
         "timeframes": {
+            "5min": {"trigger_state": "confirmed", "loaded": True},
             "30min": {
                 "entry_price": 100.0,
                 "stop_price": 98.0,
@@ -34,6 +35,23 @@ def test_mtf_paper_may_run_blocks_without_flags(tmp_project: Path) -> None:
     ok, r = mtf_paper_may_run(cfg, _mtf_full())
     assert ok is False
     assert "mtf_paper_bracket_enabled" in " ".join(r) or "trading.enabled" in " ".join(r)
+
+
+def test_mtf_paper_may_run_blocks_without_confirmed_5m(
+    tmp_project: Path, write_yaml
+) -> None:
+    p = tmp_project / "config" / "settings.yaml"
+    s = yaml.safe_load(p.read_text())
+    s["trading"]["enabled"] = True
+    s["trading"]["mtf_paper_bracket_enabled"] = True
+    s["account"]["mode"] = "paper"
+    write_yaml(p, s)
+    cfg = load_config(project_root=tmp_project)
+    m = _mtf_full()
+    m["timeframes"]["5min"] = {"trigger_state": "waiting_for_pullback", "loaded": True}
+    ok, r = mtf_paper_may_run(cfg, m)
+    assert ok is False
+    assert "confirmed" in " ".join(r).lower() or "5min" in " ".join(r).lower()
 
 
 def test_mtf_paper_may_run_ok_when_switches_set(tmp_project: Path, write_yaml) -> None:

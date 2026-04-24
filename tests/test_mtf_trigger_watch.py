@@ -612,6 +612,103 @@ def test_config_unchanged_after_trigger_helper(
     assert s1.get("enabled") == s2.get("enabled")
 
 
+def test_10g_auto_paper_bracket_calls_paper_path(
+    tmp_project: Path, write_yaml, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    p = tmp_project / "config" / "settings.yaml"
+    s = yaml.safe_load(p.read_text())
+    s["trading"]["enabled"] = True
+    s["trading"]["mtf_paper_bracket_enabled"] = True
+    s["trading"]["mtf_paper_auto_bracket_enabled"] = True
+    s["trading"]["mtf_paper_dry_run"] = True
+    s["account"]["mode"] = "paper"
+    write_yaml(p, s)
+    mtf = tmp_project / "data" / "mtf_smc"
+    mtf.mkdir(parents=True, exist_ok=True)
+    d = "2026-05-01"
+    near = [
+        {
+            "symbol": "ZZZ",
+            "mtf_alignment_score": 90,
+            "alignment_category": "FULL_ALIGNMENT",
+            "blocking_layer": "FIVE_MIN_TRIGGER",
+        },
+    ]
+    (mtf / f"{d}-mtf-diagnostic-report.json").write_text(
+        json.dumps(
+            {"date": d, "near_alignment_candidates": near, "items": []},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    c5 = [{"open": 1, "high": 1, "low": 1, "close": 1, "date": f"t{i}"} for i in range(50)]
+
+    def fake_smc(
+        _sym, _cfg, _b, **kw
+    ):  # noqa: ANN202
+        return {
+            "symbol": "ZZZ",
+            "timeframes": {
+                "daily": {"bias": "bullish"},
+                "4h": {"structure": "bullish_confirmed"},
+                "30min": {
+                    "setup_state": "full_setup_valid",
+                    "entry_price": 10.0,
+                    "stop_price": 9.0,
+                    "target_1": 12.0,
+                },
+                "5min": {"loaded": True, "trigger_state": "confirmed"},
+            },
+            "alignment_category": "FULL_ALIGNMENT",
+            "mtf_alignment_score": 90,
+            "eligible_for_future_paper_trade": True,
+            "chart_paths": [],
+        }
+
+    def fake_fetch(
+        s, c, *, include_5min: bool, include_daily: bool
+    ) -> tuple[MtfCandleBundle, list[str], object]:
+        return MtfCandleBundle(m5=c5, m30=c5, h4=c5, daily=c5), [], None
+
+    n_calls = 0
+
+    def fake_paper(
+        _cfg, _journal, mrep, **_k
+    ):  # noqa: ANN202
+        nonlocal n_calls
+        n_calls += 1
+        return {
+            "submitted": False,
+            "order_ids": [],
+            "error": None,
+        }
+
+    monkeypatch.setattr("bot.mtf_trigger_watch.run_mtf_smc", fake_smc)
+    monkeypatch.setattr(
+        "bot.mtf_paper_execution.connect_and_run_mtf_paper_bracket",
+        fake_paper,
+    )
+    cfg = load_config(project_root=tmp_project)
+    journal = Journal(cfg)
+    out, _m = run_mtf_trigger_check(
+        cfg,
+        journal,
+        mtf_dir=mtf,
+        report_date=d,
+        use_ibkr=True,
+        top=5,
+        include_premium=False,
+        symbol_filter=None,
+        telegram=False,
+        state_path=mtf / RUNTIME_STATE_FILENAME,
+        auto_paper_bracket=True,
+        connect_fetch=fake_fetch,
+    )
+    ar = out.get("auto_paper_bracket_runs") or []
+    assert n_calls == 1
+    assert ar and ar[0].get("symbol") == "ZZZ"
+
+
 def test_format_no_five_telegram_text() -> None:
     t = format_no_trigger_watch_telegram_zh()
     assert "FIVE" in t

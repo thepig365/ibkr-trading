@@ -2155,42 +2155,9 @@ def _maybe_mtf_paper_bracket(
     rep: dict,
 ) -> dict:
     """Connect with ``readonly=False`` and submit a bracket if preconditions pass."""
-    from .mtf_paper_execution import mtf_paper_may_run, run_mtf_paper_bracket
+    from .mtf_paper_execution import connect_and_run_mtf_paper_bracket
 
-    ok, reasons = mtf_paper_may_run(cfg, rep)
-    if not ok:
-        return {"submitted": False, "skipped_reasons": reasons, "order_ids": []}
-    ex = IBKRClient(cfg)
-    try:
-        ex.connect(readonly=False)
-        pos = ex.get_positions()
-        summ = ex.get_account_summary()
-        eq = 0.0
-        for a in summ:
-            if a.net_liquidation and float(a.net_liquidation) > 0:
-                eq = float(a.net_liquidation)
-                break
-        npos = sum(1 for p in pos if abs(p.position) >= 1e-4)
-        br = Broker(cfg, ex, journal=journal)
-        return run_mtf_paper_bracket(
-            br,
-            cfg,
-            rep,
-            account_equity=eq,
-            open_positions=npos,
-            reconciliation_ok=True,
-        )
-    except Exception as exc:  # noqa: BLE001
-        return {
-            "submitted": False,
-            "error": str(exc),
-            "order_ids": [],
-        }
-    finally:
-        try:
-            ex.disconnect()
-        except Exception:  # noqa: BLE001
-            pass
+    return connect_and_run_mtf_paper_bracket(cfg, journal, rep)
 
 
 def _mtf_connect_and_fetch(
@@ -2727,8 +2694,13 @@ def mtf_trigger_check_cmd(
         False, "--ibkr", help="Refresh candles from IBKR (read-only).",
     ),
     telegram: bool = typer.Option(False, "--telegram", help="Send trigger Telegram (if configured)."),
+    auto_paper_bracket: bool = typer.Option(
+        False,
+        "--auto-paper-bracket",
+        help="10G: if settings allow, run MTF paper bracket when FULL+5m confirmed (same gate as mtf_paper_may_run).",
+    ),
 ) -> None:
-    """One-shot 5m trigger refresh from near-alignment (10F, alert-only, no orders)."""
+    """One-shot 5m trigger refresh (10F); optional 10G auto paper (FULL + 5m confirmed, gated)."""
     from .mtf_trigger_watch import find_latest_diagnostic_report_path, run_mtf_trigger_check
     from .mtf_trigger_watch import RUNTIME_STATE_FILENAME
 
@@ -2756,6 +2728,11 @@ def mtf_trigger_check_cmd(
     if not use_ibkr:
         console.print("[red]5m trigger check needs live data: pass --ibkr.[/red]")
         raise typer.Exit(2)
+    if auto_paper_bracket and not cfg.settings.trading.mtf_paper_auto_bracket_enabled:
+        console.print(
+            "[yellow]--auto-paper-bracket: set trading.mtf_paper_auto_bracket_enabled: true in "
+            "config/settings.yaml (and other MTF paper gates) to submit.[/yellow]"
+        )
     out, _meta = run_mtf_trigger_check(
         cfg,
         journal,
@@ -2767,6 +2744,7 @@ def mtf_trigger_check_cmd(
         symbol_filter=symbol,
         telegram=telegram,
         state_path=mtf_dir / RUNTIME_STATE_FILENAME,
+        auto_paper_bracket=auto_paper_bracket,
     )
     console.print(
         Panel.fit(
@@ -2781,7 +2759,7 @@ def mtf_trigger_check_cmd(
         payload={
             "date": d,
             "symbols_checked": out.get("symbols_checked"),
-            "execution_allowed": False,
+            "auto_paper_bracket": bool(auto_paper_bracket),
         },
     )
     raise typer.Exit(0)
@@ -2814,8 +2792,13 @@ def mtf_trigger_watch_cmd(
         120, "--duration-minutes", min=1, help="Total watch window.",
     ),
     telegram: bool = typer.Option(False, "--telegram"),
+    auto_paper_bracket: bool = typer.Option(
+        False,
+        "--auto-paper-bracket",
+        help="10G: after each check cycle, may run paper bracket (FULL+5m confirmed) if config allows.",
+    ),
 ) -> None:
-    """Loop mtf-trigger-check: JSONL log only; alert-only, no orders (10F)."""
+    """Loop mtf-trigger-check (10F); optional 10G auto paper on eligible symbols."""
     from .mtf_trigger_watch import (
         RUNTIME_STATE_FILENAME,
         find_latest_diagnostic_report_path,
@@ -2845,6 +2828,10 @@ def mtf_trigger_watch_cmd(
     if not use_ibkr:
         console.print("[red]Loop requires --ibkr.[/red]")
         raise typer.Exit(2)
+    if auto_paper_bracket and not cfg.settings.trading.mtf_paper_auto_bracket_enabled:
+        console.print(
+            "[yellow]--auto-paper-bracket: enable trading.mtf_paper_auto_bracket_enabled in settings.[/yellow]"
+        )
     console.print(
         f"[cyan]mtf-trigger-watch date={d} every {interval_minutes}m "
         f"for {duration_minutes}m; Ctrl+C to stop. Log: "
@@ -2863,12 +2850,16 @@ def mtf_trigger_watch_cmd(
         state_path=mtf_dir / RUNTIME_STATE_FILENAME,
         interval_minutes=interval_minutes,
         duration_minutes=duration_minutes,
+        auto_paper_bracket=auto_paper_bracket,
     )
     journal.record_event(
         category="mtf_trigger_watch",
         level="INFO",
         message="mtf-trigger-watch",
-        payload={"date": d, "execution_allowed": False},
+        payload={
+            "date": d,
+            "auto_paper_bracket": bool(auto_paper_bracket),
+        },
     )
     raise typer.Exit(0)
 
