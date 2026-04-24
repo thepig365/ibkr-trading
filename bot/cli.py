@@ -2554,6 +2554,77 @@ def scan_mtf_smc_watchlist(
     raise typer.Exit(0)
 
 
+@app.command("mtf-diagnostic-report")
+def mtf_diagnostic_report(
+    use_latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Use the most recent date that has mtf_smc JSON under data/mtf_smc/.",
+    ),
+    report_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="YYYY-MM-DD; default: today in UTC. Ignored if --latest is set.",
+    ),
+    top: int = typer.Option(10, "--top", min=1, help="How many 'nearest' rows in the JSON top list."),
+    telegram: bool = typer.Option(False, "--telegram", help="Send Chinese digest to Telegram (if configured)."),
+) -> None:
+    """Build MTF no-trade diagnostic from saved per-symbol mtf_smc JSON (10D, no orders)."""
+    from html import escape
+
+    from .mtf_diagnostic import (
+        build_diagnostic_report,
+        find_latest_mtf_date,
+        format_mtf_diagnostic_digest_zh,
+        list_mtf_smc_per_symbol_jsons,
+        load_mtf_json,
+    )
+
+    cfg, journal = _bootstrap()
+    mtf_dir = cfg.absolute("data/mtf_smc")
+    mtf_dir.mkdir(parents=True, exist_ok=True)
+    if use_latest:
+        d = find_latest_mtf_date(mtf_dir) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    elif report_date:
+        d = report_date
+    else:
+        d = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    paths = list_mtf_smc_per_symbol_jsons(mtf_dir, d)
+    items: list[dict] = []
+    for p in paths:
+        try:
+            items.append(load_mtf_json(p))
+        except (OSError, json.JSONDecodeError) as e:
+            console.print(f"[yellow]skip {p.name}: {e}[/yellow]")
+    sum_path = mtf_dir / f"{d}-watchlist-mtf-smc-summary.json"
+    src = f"per-symbol mtf_smc under data/mtf_smc, n={len(items)}"
+    if sum_path.exists():
+        try:
+            with sum_path.open(encoding="utf-8") as f:
+                summ = json.load(f)
+            src = f"per-symbol mtf + watchlist 汇总 {d} (n_files={len(items)}); summary symbols={int(summ.get('symbols_scanned') or 0)}"
+        except OSError:  # pragma: no cover
+            pass
+    rep = build_diagnostic_report(
+        d, source_summary=src, items=items, top=top
+    )
+    out = mtf_dir / f"{d}-mtf-diagnostic-report.json"
+    with out.open("w", encoding="utf-8") as f:
+        json.dump(rep, f, indent=2, default=str, ensure_ascii=False)
+    console.print(f"[green]Wrote:[/green] {out}")
+    if telegram and cfg.telegram.is_configured:
+        dtxt = format_mtf_diagnostic_digest_zh(rep, paper_gate_disabled=True)
+        body = f"<b>{escape('【MTF SMC/ICT 未入场诊断】')}{escape(d)}</b>\n<pre>" + escape(dtxt) + "</pre>"
+        send_telegram_message(body, cfg=cfg, journal=journal)
+    journal.record_event(
+        category="mtf_diagnostic",
+        level="INFO",
+        message="mtf-diagnostic-report",
+        payload={"date": d, "n": len(items), "path": str(out)},
+    )
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # Daily scheduler commands (Prompt 9 Part B)
 # ---------------------------------------------------------------------------
