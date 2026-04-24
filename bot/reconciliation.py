@@ -8,9 +8,15 @@ It produces a `ReconciliationReport` with:
     order at the broker.
   * unknown_open_orders:    orders open at the broker that the local
     journal does not recognise.
-  * missing_local_records:  symbols our journal expected to be open
-    but the broker no longer reports.
-  * passed: True iff all the above are empty.
+  * missing_local_records:  symbols the **broker** reports with a non-zero
+    position for which the **latest** local positions snapshot has no
+    matching open line (genuine drift: must fix before new trades).
+  * stale_local_position_records: latest snapshot still lists a symbol
+    with open size, but the broker has no such position (typically the
+    position was closed in TWS; refresh ``portfolio`` or
+    ``refresh-paper-account-state`` to record a flat snapshot). This does
+    **not** fail the report by itself.
+  * passed: True when no blocking drifts (see above) remain.
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ from .journal import Journal
 logger = logging.getLogger(__name__)
 
 PROTECTIVE_ORDER_TYPES = {"STP", "STP LMT", "TRAIL", "TRAIL LIMIT", "MIT"}
+_POSITION_EPS = 1e-9
 
 
 @dataclass
@@ -33,6 +40,7 @@ class ReconciliationReport:
     positions_without_stops: list[str] = field(default_factory=list)
     unknown_open_orders: list[dict] = field(default_factory=list)
     missing_local_records: list[str] = field(default_factory=list)
+    stale_local_position_records: list[str] = field(default_factory=list)
     passed: bool = True
     notes: list[str] = field(default_factory=list)
 
@@ -42,6 +50,7 @@ class ReconciliationReport:
             "positions_without_stops": self.positions_without_stops,
             "unknown_open_orders": self.unknown_open_orders,
             "missing_local_records": self.missing_local_records,
+            "stale_local_position_records": self.stale_local_position_records,
             "notes": self.notes,
         }
 
@@ -49,7 +58,7 @@ class ReconciliationReport:
 def _has_protective_stop(symbol: str, position: float, orders: Iterable[OpenOrderRow]) -> bool:
     """A protective stop is a STP/TRAIL order on the same symbol whose
     side is opposite to the position direction."""
-    if position == 0:
+    if abs(position) <= _POSITION_EPS:
         return True
     needed_action = "SELL" if position > 0 else "BUY"
     for o in orders:
@@ -61,6 +70,10 @@ def _has_protective_stop(symbol: str, position: float, orders: Iterable[OpenOrde
             continue
         return True
     return False
+
+
+def _broker_open_symbols(positions: list[PositionRow]) -> set[str]:
+    return {p.symbol for p in positions if abs(p.position) > _POSITION_EPS}
 
 
 def reconcile(broker: Broker, journal: Journal | None = None) -> ReconciliationReport:
@@ -93,16 +106,20 @@ def reconcile(broker: Broker, journal: Journal | None = None) -> ReconciliationR
         if not _has_protective_stop(p.symbol, p.position, open_orders):
             report.positions_without_stops.append(p.symbol)
 
-    # 2. Unknown open orders / 3. Missing local records.
+    # 2. Unknown open orders / 3+4. Local vs broker open symbols.
     if journal is not None:
         local_perm_ids = journal.latest_local_open_order_perm_ids()
         for o in open_orders:
             if o.perm_id is not None and o.perm_id not in local_perm_ids:
                 report.unknown_open_orders.append(o.to_dict())
 
-        local_symbols = journal.latest_local_position_symbols()
-        broker_symbols = {p.symbol for p in positions}
-        for sym in sorted(local_symbols - broker_symbols):
+        local_open = journal.latest_local_position_symbols()
+        broker_open = _broker_open_symbols(positions)
+        # Latest snapshot still lists a symbol, broker no longer has it (closed
+        # elsewhere, or never refreshed) — not a block on its own.
+        report.stale_local_position_records = sorted(local_open - broker_open)
+        # Broker has size; latest snapshot has no line for that symbol.
+        for sym in sorted(broker_open - local_open):
             report.missing_local_records.append(sym)
     else:
         report.notes.append("no journal provided; broker-only checks performed")

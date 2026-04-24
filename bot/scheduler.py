@@ -32,11 +32,12 @@ logger = logging.getLogger(__name__)
 
 def _snapshot_job(broker: Broker, journal: Journal) -> None:
     try:
-        for s in broker.get_account_summary():
+        summaries = broker.get_account_summary()
+        for s in summaries:
             journal.record_account_snapshot(s.to_dict())
         positions = [p.to_dict() for p in broker.get_positions()]
-        if positions:
-            journal.record_positions_snapshot(positions)
+        aid = summaries[0].account_id if summaries else ""
+        journal.record_positions_snapshot(positions, account_id=aid)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Snapshot job failed")
         journal.record_event(

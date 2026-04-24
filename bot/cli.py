@@ -247,6 +247,8 @@ def portfolio() -> None:
 
     if not positions:
         console.print("[green]No open positions.[/green]")
+        aid = summaries[0].account_id if summaries else ""
+        journal.record_positions_snapshot([], account_id=aid)
         return
 
     pt = Table(title="Open positions")
@@ -263,7 +265,54 @@ def portfolio() -> None:
             f"{p.avg_cost:,.4f}",
         )
     console.print(pt)
-    journal.record_positions_snapshot([p.to_dict() for p in positions])
+    aid = positions[0].account if positions else (summaries[0].account_id if summaries else "")
+    journal.record_positions_snapshot([p.to_dict() for p in positions], account_id=aid)
+
+
+@app.command("refresh-paper-account-state")
+def refresh_paper_account_state() -> None:
+    """Read-only: write latest account + positions snapshots (paper). No orders.
+
+    When the portfolio is empty, still records a flat placeholder row so
+    reconciliation does not use a stale prior snapshot.
+    """
+    cfg, journal = _bootstrap()
+    if (cfg.settings.account.mode or "").lower() != "paper":
+        console.print("[red]Refusing: settings account.mode must be paper.[/red]")
+        raise typer.Exit(2)
+    if (cfg.ibkr.account_mode or "").lower() not in ("paper", "demo", "test"):
+        console.print(
+            "[red]Refusing: IBKR_ACCOUNT_MODE must be paper (or demo/test).[/red]"
+        )
+        raise typer.Exit(2)
+    client = _connect(cfg)
+    try:
+        broker = Broker(cfg, client, journal)
+        summaries = broker.get_account_summary()
+        pos_rows = broker.get_positions()
+        open_list = broker.get_open_orders()
+        for s in summaries:
+            journal.record_account_snapshot(s.to_dict())
+        aid = summaries[0].account_id if summaries else ""
+        journal.record_positions_snapshot(
+            [p.to_dict() for p in pos_rows], account_id=aid
+        )
+        journal.record_event(
+            category="account_refresh",
+            level="INFO",
+            message="refresh-paper-account-state",
+            payload={
+                "open_positions": len(pos_rows),
+                "open_orders_seen": len(open_list),
+                "account_snapshots": len(summaries),
+            },
+        )
+    finally:
+        client.disconnect()
+    console.print(
+        "[green]Recorded account + position snapshots (read-only; no orders).[/green]"
+    )
+    raise typer.Exit(0)
 
 
 @app.command("open-orders")
@@ -305,7 +354,8 @@ def _reconcile_failure_body(report: ReconciliationReport) -> str:
     lines = [
         f"positions_without_stops: {report.positions_without_stops}",
         f"unknown_open_orders count: {len(report.unknown_open_orders)}",
-        f"missing_local_records count: {len(report.missing_local_records)}",
+        f"missing_local_records (broker open, not in local snapshot): {report.missing_local_records}",
+        f"stale_local_position_records (info): {getattr(report, 'stale_local_position_records', [])}",
         "trading remains blocked",
     ]
     if report.notes:
@@ -336,7 +386,9 @@ def reconcile_(
             f"Reconciliation: [{style}]{'PASS' if report.passed else 'FAIL'}[/{style}]\n"
             f"positions_without_stops: {report.positions_without_stops}\n"
             f"unknown_open_orders: {len(report.unknown_open_orders)}\n"
-            f"missing_local_records: {report.missing_local_records}\n"
+            f"missing_local_records (broker open, not in journal): {report.missing_local_records}\n"
+            f"stale_local_position_records (local snapshot only): "
+            f"{getattr(report, 'stale_local_position_records', [])}\n"
             f"notes: {report.notes}",
             style=style,
         )

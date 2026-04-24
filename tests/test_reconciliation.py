@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from bot.broker import Broker
 from bot.config import load_config
 from bot.ibkr_client import OpenOrderRow, PositionRow
@@ -72,13 +74,29 @@ def test_reconciliation_flags_unknown_open_orders(tmp_project: Path) -> None:
     assert report.passed is False
 
 
-def test_reconciliation_flags_missing_local_records(tmp_project: Path) -> None:
+def test_reconciliation_stale_local_only_does_not_fail(tmp_project: Path) -> None:
+    """Latest snapshot lists MSFT; broker flat — snapshot is stale, not missing."""
     cfg = load_config(project_root=tmp_project)
     journal = Journal(cfg)
     journal.record_positions_snapshot([_row_pos("MSFT", 50).to_dict()])
     broker = _make_broker(positions=[], orders=[])
     report = reconcile(broker, journal)
-    assert "MSFT" in report.missing_local_records
+    assert "MSFT" in report.stale_local_position_records
+    assert report.missing_local_records == []
+    assert report.passed is True
+
+
+def test_reconciliation_fails_broker_open_not_in_local_snapshot(
+    tmp_project: Path,
+) -> None:
+    """Broker shows a position; latest local snapshot has no row — drift (fail)."""
+    cfg = load_config(project_root=tmp_project)
+    journal = Journal(cfg)
+    journal.record_positions_snapshot([], account_id="DU111")
+    broker = _make_broker(positions=[_row_pos("TSLA", 10)], orders=[])
+    report = reconcile(broker, journal)
+    assert "TSLA" in report.missing_local_records
+    assert report.stale_local_position_records == []
     assert report.passed is False
 
 
@@ -136,3 +154,43 @@ def test_reconcile_failure_triggers_notification_fallback(
     summary = summary_path.read_text(encoding="utf-8")
     assert "Reconciliation Failed" in summary
     assert "trading remains blocked" in summary
+
+
+def test_refresh_paper_account_state_cli_read_only(
+    tmp_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from typer.testing import CliRunner
+
+    from bot import cli as cli_module
+    from bot.ibkr_client import IBKRClient
+
+    def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
+        self._ib = MagicMock(isConnected=lambda: True)
+
+    def fake_acct(self) -> list:
+        from bot.ibkr_client import AccountSummary
+
+        return [AccountSummary(account_id="DU111", net_liquidation=100.0, currency="USD")]
+
+    def fake_pos(self) -> list:
+        return []
+
+    def fake_oo(self) -> list:
+        return []
+
+    monkeypatch.setattr(IBKRClient, "connect", fake_connect)
+    monkeypatch.setattr(IBKRClient, "disconnect", lambda self: None)
+    monkeypatch.setattr(IBKRClient, "get_account_summary", fake_acct)
+    monkeypatch.setattr(IBKRClient, "get_positions", fake_pos)
+    monkeypatch.setattr(IBKRClient, "get_open_orders", fake_oo)
+    monkeypatch.setattr(
+        cli_module, "load_config", lambda: load_config(project_root=tmp_project)
+    )
+
+    runner = CliRunner()
+    r = runner.invoke(cli_module.app, ["refresh-paper-account-state"])
+    assert r.exit_code == 0, r.stdout + r.stderr
+    from bot.journal import Journal
+
+    j = Journal(load_config(project_root=tmp_project))
+    assert j.latest_local_position_symbols() == set()

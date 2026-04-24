@@ -18,6 +18,11 @@ from typing import Any, Iterator
 
 from .config import AppConfig
 
+# When the broker portfolio is empty we still need a new ``ts_utc`` row so that
+# ``MAX(ts_utc)`` reflects "latest known state" (flat account). A single
+# placeholder row is stored; it is not a real position. Historical rows with
+# real symbols are never deleted by this mechanism.
+POSITION_SNAPSHOT_FLAT: str = "__ACCOUNT_NO_POSITIONS__"
 
 SCHEMA_STATEMENTS: list[str] = [
     """
@@ -107,7 +112,9 @@ SCHEMA_STATEMENTS: list[str] = [
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # Microsecond resolution so consecutive snapshots in the same clock second
+    # still get distinct ``ts_utc`` values (required for MAX(ts) batching).
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
 def _ensure_parent(path: Path) -> None:
@@ -193,9 +200,32 @@ class Journal:
             )
         self._append_jsonl(self.account_snapshots_jsonl, {"ts_utc": ts, **summary})
 
-    def record_positions_snapshot(self, positions: list[dict[str, Any]]) -> None:
+    def record_positions_snapshot(
+        self,
+        positions: list[dict[str, Any]],
+        *,
+        account_id: str = "",
+    ) -> None:
+        """Append a timestamped position batch. ``positions`` may be empty: we still
+        insert a placeholder row (see :data:`POSITION_SNAPSHOT_FLAT`) so the
+        latest snapshot is unambiguously "flat" and supersedes older rows.
+        """
         ts = _utc_now_iso()
         with self.connection() as conn:
+            if not positions:
+                aid = account_id
+                if not aid:
+                    aid = ""
+                conn.execute(
+                    """
+                    INSERT INTO positions_snapshots
+                      (ts_utc, account_id, symbol, sec_type, exchange,
+                       currency, position, avg_cost)
+                    VALUES (?, ?, ?, '', '', 'USD', 0, NULL)
+                    """,
+                    (ts, aid, POSITION_SNAPSHOT_FLAT),
+                )
+                return
             for p in positions:
                 conn.execute(
                     """
@@ -206,7 +236,7 @@ class Journal:
                     """,
                     (
                         ts,
-                        p.get("account", ""),
+                        p.get("account", account_id or ""),
                         p.get("symbol", ""),
                         p.get("sec_type"),
                         p.get("exchange"),
@@ -335,14 +365,29 @@ class Journal:
             }
 
     def latest_local_position_symbols(self) -> set[str]:
-        """Return the set of symbols in our most recent positions snapshot."""
+        """Return symbols with non-zero size in the **latest** positions snapshot.
+
+        The latest batch is the row set sharing ``MAX(ts_utc)``. Placeholder
+        :data:`POSITION_SNAPSHOT_FLAT` rows and zero-size symbols are ignored.
+        """
         with self.connection() as conn:
-            cur = conn.execute("SELECT MAX(ts_utc) FROM positions_snapshots")
-            row = cur.fetchone()
-            if not row or not row[0]:
-                return set()
-            ts = row[0]
             cur = conn.execute(
-                "SELECT symbol FROM positions_snapshots WHERE ts_utc = ?", (ts,)
+                """
+                SELECT ps.symbol, ps.position
+                FROM positions_snapshots ps
+                INNER JOIN (
+                    SELECT MAX(ts_utc) AS m FROM positions_snapshots
+                ) t ON ps.ts_utc = t.m
+                """
             )
-            return {r[0] for r in cur.fetchall() if r[0]}
+            out: set[str] = set()
+            for sym, pos in cur.fetchall():
+                if not sym or sym == POSITION_SNAPSHOT_FLAT:
+                    continue
+                try:
+                    p = float(pos)
+                except (TypeError, ValueError):
+                    p = 0.0
+                if abs(p) > 1e-9:
+                    out.add(sym)
+            return out
