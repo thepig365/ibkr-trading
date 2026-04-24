@@ -1,0 +1,141 @@
+{
+  "approved_for_dry_run": false,
+  "candle_count": 300,
+  "candles_end": "2026-04-23",
+  "candles_start": "2025-02-12",
+  "chart_path": "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-MU-daily-smc.png",
+  "detected_levels": {
+    "choch_close": 441.8,
+    "choch_pivot": 436.89,
+    "entry": 437.74,
+    "fvg_high": 437.74,
+    "fvg_low": 413.73,
+    "ob_high": 413.73,
+    "ob_low": 396.66,
+    "stop": 357.62,
+    "sweep_low": 357.67,
+    "swept_low": 366.06,
+    "target_1": null
+  },
+  "execution_allowed": false,
+  "market_regime": "neutral",
+  "notes": [
+    "account_equity not provided; qty_by_risk not computed"
+  ],
+  "rejection_reasons": [
+    "stop_distance_pct 18.30 > max 5.00",
+    "r_r_to_target_1 below min 2.00 for all candidates",
+    "price_extended_from_entry_pct 10.05 > 3.00 (no chasing)"
+  ],
+  "sequence": {
+    "choch": {
+      "bars_after_sweep": 5,
+      "close": 441.8,
+      "found": true,
+      "index": 272,
+      "pivot_high_broken": 436.89,
+      "pivot_high_index": 259,
+      "timestamp": "2026-03-16"
+    },
+    "fvg": {
+      "end_index": 272,
+      "found": true,
+      "high": 437.74,
+      "low": 413.73,
+      "size_pct": 5.8033,
+      "start_index": 270,
+      "timestamp": "2026-03-13"
+    },
+    "order_block": {
+      "close": 405.35,
+      "found": true,
+      "high": 413.73,
+      "index": 270,
+      "low": 396.66,
+      "open": 410.29,
+      "timestamp": "2026-03-12"
+    },
+    "sweep": {
+      "close": 389.32,
+      "closed_back_above": true,
+      "found": true,
+      "index": 267,
+      "sweep_low": 357.67,
+      "swept_low_index": 249,
+      "swept_low_price": 366.06,
+      "timestamp": "2026-03-09"
+    }
+  },
+  "strategy": "SMC_LIQUIDITY_REVERSAL_RESEARCH",
+  "symbol": "MU",
+  "target_debug": {
+    "candidates": [
+      {
+        "distance_pct_from_entry": 0.2353,
+        "price": 438.77,
+        "risk_reward": 0.0129,
+        "selected": false,
+        "timestamp": "2026-02-12",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 4.0572,
+        "price": 455.5,
+        "risk_reward": 0.2217,
+        "selected": false,
+        "timestamp": "2026-01-30",
+        "type": "swing_high"
+      }
+    ],
+    "lookback_bars_before_sweep": 60,
+    "max_target_distance_pct": 25.0,
+    "method": "nearest_buy_side_liquidity",
+    "min_risk_reward": 2.0,
+    "rejection_reason": "no_target_meets_min_rr"
+  },
+  "timeframe": "daily",
+  "trade_plan": {
+    "entry_price": 437.74,
+    "entry_type": "limit_at_fvg_top",
+    "entry_zone": {
+      "high": 437.74,
+      "low": 413.73
+    },
+    "execution_allowed": false,
+    "extension_pct_vs_latest_close": 10.0471,
+    "position_value": 0.0,
+    "qty_by_risk": 0,
+    "research_only": true,
+    "risk_per_share": 80.12,
+    "risk_reward_to_target_1": 0.0,
+    "stop_distance_pct": 18.3031,
+    "structural_stop": 357.62,
+    "target_1": null,
+    "target_debug": {
+      "candidates": [
+        {
+          "distance_pct_from_entry": 0.2353,
+          "price": 438.77,
+          "risk_reward": 0.0129,
+          "selected": false,
+          "timestamp": "2026-02-12",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 4.0572,
+          "price": 455.5,
+          "risk_reward": 0.2217,
+          "selected": false,
+          "timestamp": "2026-01-30",
+          "type": "swing_high"
+        }
+      ],
+      "lookback_bars_before_sweep": 60,
+      "max_target_distance_pct": 25.0,
+      "method": "nearest_buy_side_liquidity",
+      "min_risk_reward": 2.0,
+      "rejection_reason": "no_target_meets_min_rr"
+    }
+  },
+  "validation_notes": []
+}

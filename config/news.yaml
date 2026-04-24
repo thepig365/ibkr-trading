@@ -1,0 +1,111 @@
+# Configuration for the pre-open news report workflow.
+#
+# The foundation rule still applies: this report informs risk posture
+# only. It MUST NEVER trigger an order. See docs/safety-rules.md.
+
+pre_open_news:
+  # Canonical schedule. The CLI runs on demand; the scheduler (when
+  # started) uses this to register a CronTrigger in the America/New_York
+  # timezone, so the bot stays aligned with the US market day
+  # regardless of where the host machine lives.
+  schedule_time_new_york: "08:30"
+  timezone: "America/New_York"
+  # US equities open at 09:30 ET. Any high-severity macro event in this
+  # window blocks new entries for the day.
+  minutes_after_open_block: 30
+
+  # Indices / ETFs we always summarise.
+  indices_and_etfs:
+    - SPY
+    - QQQ
+    - DIA
+    - IWM
+
+  # Mega-cap / AI-infrastructure watchlist. Additional symbols from
+  # config/watchlist.yaml are merged in at runtime.
+  mega_cap_watchlist:
+    - NVDA
+    - MSFT
+    - AAPL
+    - AMZN
+    - GOOGL
+    - META
+    - TSLA
+    - AVGO
+    - AMD
+    - PLTR
+    - CRWV
+    - SMCI
+    - ARM
+    - MU
+    - TSM
+    - ORCL
+
+  # Macro topics the research module must cover in the prompt.
+  macro_topics:
+    - S&P 500 futures
+    - Nasdaq futures
+    - VIX
+    - VIX3M
+    - VIX/VIX3M term-structure ratio
+    - US 10Y Treasury yield
+    - USD index (DXY)
+    - oil (WTI / Brent)
+    - gold
+    - today's US economic calendar
+    - Fed speakers today
+    - earnings before open and after close
+
+  perplexity:
+    # Perplexity's research-tier model. Any online model is fine; the
+    # client treats the response as opaque JSON.
+    model: sonar
+    timeout_seconds: 30
+
+  ibkr_news:
+    # Some accounts don't have a news subscription. Keep this off by
+    # default; the orchestrator will also auto-degrade.
+    enabled: true
+    # Maximum headlines per symbol.
+    max_headlines_per_symbol: 5
+    # Lookback window in days.
+    lookback_days: 2
+
+  output:
+    json_dir: data/pre_open_news
+    markdown_file: memory/NEWS-REPORT.md
+
+  telegram:
+    # Caps on number of items included in the Telegram message; the
+    # full report remains in the JSON / markdown output.
+    #
+    # ``max_news_items`` is the cap on *major* news lines surfaced in
+    # the short English digest (legacy behaviour, still used when
+    # ``news_report.telegram_language == "en"``). The Chinese full
+    # report has its own caps under ``news_report``.
+    max_news_items: 3
+    max_manual_review_items: 10
+    max_blocked_items: 10
+
+# -----------------------------------------------------------------------------
+# Chinese full report + Telegram digest configuration (Prompt 9.2).
+#
+# The Chinese full report is the default Telegram language so operators get
+# the full deterministic briefing (regime + news + earnings + analyst +
+# manual review + blocked + bot instruction). Any caps here apply to the
+# Telegram message body; the JSON / markdown report on disk is never
+# truncated.
+#
+# ``include_chinese_summary`` / ``include_english_headline`` let you turn
+# the per-item bilingual rendering on/off without code changes. The
+# summaries are deterministic templates keyed off headline text - we do
+# not invent facts, and we never call a live LLM from this path.
+# -----------------------------------------------------------------------------
+news_report:
+  telegram_language: zh      # "zh" (default) or "en"
+  report_depth: full         # "full" uses the seven-section Chinese layout
+  max_major_news_items: 20
+  max_analyst_rating_items: 20
+  max_earnings_items: 10
+  include_english_headline: true
+  include_chinese_summary: true

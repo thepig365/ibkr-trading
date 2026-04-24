@@ -1,0 +1,26 @@
+{
+  "market_regime": "neutral",
+  "regime_confidence": "medium",
+  "new_positions_allowed": false,
+  "research_scans_allowed": true,
+  "reason": "VIX missing; execution requires VIX; regime confidence=medium; config forbids medium-confidence entries; missing market data: VIX, VIX3M; VIX/VIX3M unavailable; using SPY/QQQ trend fallback",
+  "market_data": {
+    "spy_close": 708.45,
+    "spy_200ma": 668.2050999999999,
+    "spy_above_200ma": true,
+    "qqq_close": 651.42,
+    "qqq_200ma": 600.8196499999999,
+    "qqq_above_200ma": true,
+    "vix": null,
+    "vix3m": null,
+    "vix_vix3m_ratio": null,
+    "missing_fields": [
+      "VIX",
+      "VIX3M"
+    ]
+  },
+  "notes": [
+    "VIX unavailable from IBKR",
+    "VIX3M unavailable from IBKR"
+  ]
+}

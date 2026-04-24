@@ -1,0 +1,145 @@
+# Watchlist configuration.
+#
+# The bot supports two research scan sources:
+#
+# * static  — the ``static_core`` list below (+ ``equities`` for
+#             backwards compatibility). SMC scans this list directly.
+# * dynamic — a daily universe built by ``bot.watchlist_builder``
+#             using IBKR daily bars; ranks symbols by current /
+#             average dollar volume, relative volume, and ATR% as a
+#             beta fallback.
+#
+# ``default_source`` controls which one ``scan-smc-watchlist`` uses
+# when ``--source`` is not passed on the CLI. Both lists are research
+# only — ``execution_allowed`` stays false regardless of what appears
+# here.
+
+default_source: dynamic
+
+# Static "core" symbols always present in both static and dynamic
+# scans. Keep this list tight: these are the mega-caps you always
+# want eyes on.
+static_core:
+  - SPY
+  - QQQ
+  - AAPL
+  - MSFT
+  - NVDA
+  - AMZN
+  - GOOGL
+  - META
+  - TSLA
+  - AVGO
+  - AMD
+  - PLTR
+  - SMCI
+  - ARM
+  - MU
+  - TSM
+  - ORCL
+  - CRWV
+
+dynamic:
+  enabled: true
+  max_symbols: 50
+  min_price: 10
+  min_avg_20d_dollar_volume: 20000000
+  min_current_dollar_volume: 10000000
+
+  include_static_core: true
+  include_high_volume: true
+  include_high_relative_volume: true
+  include_high_beta_or_volatility: true
+
+  min_relative_volume_for_relvol_bucket: 1.5
+  strong_relative_volume: 2.0
+
+  top_current_dollar_volume_count: 30
+  top_relative_volume_count: 30
+  top_avg_dollar_volume_count: 30
+  top_high_volatility_count: 30
+
+  high_beta_threshold: 1.5
+  high_atr_pct_threshold: 4.0
+  high_realized_vol_20d_threshold: 50.0
+
+  exclude_leveraged_etfs: true
+  exclude_otc: true
+  exclude_blocked_symbols: true
+
+  # Seed universe for the dynamic scan. The builder queries IBKR
+  # daily bars for each of these symbols, computes the liquidity
+  # and volatility metrics, and then ranks / filters. Extend this
+  # list as your research universe grows. Kept compact by default
+  # to keep ``build-watchlist`` reasonably fast on paper accounts.
+  seed_universe:
+    - SPY
+    - QQQ
+    - IWM
+    - DIA
+    - AAPL
+    - MSFT
+    - NVDA
+    - AMZN
+    - GOOGL
+    - META
+    - TSLA
+    - AVGO
+    - AMD
+    - PLTR
+    - SMCI
+    - ARM
+    - MU
+    - TSM
+    - ORCL
+    - CRWV
+    - NFLX
+    - BABA
+    - COIN
+    - MARA
+    - RIOT
+    - MSTR
+    - UBER
+    - SHOP
+    - CRM
+    - ADBE
+    - INTC
+    - QCOM
+    - CSCO
+    - LLY
+    - UNH
+    - JPM
+    - BAC
+    - GS
+    - XOM
+    - CVX
+    - MRVL
+    - ASML
+    - PANW
+    - SNOW
+    - DDOG
+
+# Backwards-compatibility alias used by the pre-Prompt 8 pipeline.
+# Keep these so the older ``scan-smc-watchlist`` code path that reads
+# ``cfg.watchlist["equities"]`` still works when ``--source static``
+# is selected.
+equities:
+  - symbol: SPY
+    exchange: ARCA
+    currency: USD
+  - symbol: QQQ
+    exchange: NASDAQ
+    currency: USD
+  - symbol: AAPL
+    exchange: NASDAQ
+    currency: USD
+  - symbol: MSFT
+    exchange: NASDAQ
+    currency: USD
+  - symbol: NVDA
+    exchange: NASDAQ
+    currency: USD
+
+options: []
+crypto: []
+forex: []

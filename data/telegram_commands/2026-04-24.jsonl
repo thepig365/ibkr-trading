@@ -1,0 +1,17 @@
+{"timestamp": "2026-04-24T09:59:05+00:00", "chat_id_redacted": "85***39", "command": "/news", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T09:59:09+00:00", "chat_id_redacted": "85***39", "command": "buy AAPL", "status": "rejected", "execution_allowed": false, "details": "unsafe pattern matched"}
+{"timestamp": "2026-04-24T09:59:17+00:00", "chat_id_redacted": "85***39", "command": "/review", "status": "success", "execution_allowed": false, "details": "exit_code=0"}
+{"timestamp": "2026-04-24T11:01:57+00:00", "chat_id_redacted": "85***39", "command": "test2", "status": "rejected", "execution_allowed": false, "details": "unknown command"}
+{"timestamp": "2026-04-24T11:01:58+00:00", "chat_id_redacted": "85***39", "command": "Ask Cursor to always send me the news report in Chinese.", "status": "rejected", "execution_allowed": false, "details": "unknown command"}
+{"timestamp": "2026-04-24T11:01:59+00:00", "chat_id_redacted": "85***39", "command": "/help", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T11:02:01+00:00", "chat_id_redacted": "85***39", "command": "/status", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T11:02:24+00:00", "chat_id_redacted": "85***39", "command": "/news", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T11:02:27+00:00", "chat_id_redacted": "85***39", "command": "/review", "status": "success", "execution_allowed": false, "details": "exit_code=0"}
+{"timestamp": "2026-04-24T11:03:44+00:00", "chat_id_redacted": "85***39", "command": "/help", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T11:03:50+00:00", "chat_id_redacted": "85***39", "command": "/status", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T11:28:30+00:00", "chat_id_redacted": "85***39", "command": "Tell me if IBKR is on or not", "status": "rejected", "execution_allowed": false, "details": "unknown command"}
+{"timestamp": "2026-04-24T11:28:50+00:00", "chat_id_redacted": "85***39", "command": "/help IBKR on or off", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T11:30:00+00:00", "chat_id_redacted": "85***39", "command": "/watchlist", "status": "success", "execution_allowed": false, "details": "exit_code=0"}
+{"timestamp": "2026-04-24T11:33:06+00:00", "chat_id_redacted": "85***39", "command": "/news", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T13:04:01+00:00", "chat_id_redacted": "85***39", "command": "/status", "status": "success", "execution_allowed": false, "details": ""}
+{"timestamp": "2026-04-24T13:04:02+00:00", "chat_id_redacted": "85***39", "command": "buy AAPL", "status": "rejected", "execution_allowed": false, "details": "unsafe pattern matched"}

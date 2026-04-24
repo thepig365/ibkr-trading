@@ -1,0 +1,46 @@
+# Prompt 9 Part B — daily Telegram scheduler.
+#
+# The scheduler is report-only. It runs the pre-open news report at
+# 08:30 America/New_York (one hour before the regular US open) and
+# the opening SMC review sequence at 09:45 America/New_York (15
+# minutes after the open).
+#
+# Hard safety rules (enforced in bot/daily_scheduler.py):
+#   * reports_only: true
+#   * execution_allowed: false
+#   * broker.place_order is never called
+#   * any strategy command that could execute a trade is rejected
+#
+# V0 limitations:
+#   * Weekdays only (Mon-Fri); US exchange holiday calendar is a TODO.
+#   * Cron / launchd / GitHub Actions are recommended for production;
+#     `python -m bot.cli run-scheduler` is for local testing.
+
+schedule:
+  timezone: America/New_York
+  enabled: true
+
+  jobs:
+    pre_open_news:
+      enabled: true
+      time: "08:30"
+      days: ["mon", "tue", "wed", "thu", "fri"]
+      command: "pre-open-news"
+      telegram: true
+
+    opening_smc_review:
+      enabled: true
+      time: "09:45"
+      days: ["mon", "tue", "wed", "thu", "fri"]
+      sequence:
+        - "market-regime --ibkr"
+        - "build-watchlist --ibkr --limit 50"
+        - "export-tws-watchlist --latest --telegram"
+        - "scan-smc-watchlist --source dynamic --timeframe daily --ibkr --chart --limit 20 --telegram"
+        - "smc-review-queue --telegram --markdown --top 10 --include-charts"
+
+  safety:
+    reports_only: true
+    execution_allowed: false
+    skip_if_tws_unavailable: true
+    send_error_to_telegram: true

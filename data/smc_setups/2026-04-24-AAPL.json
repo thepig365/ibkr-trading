@@ -1,0 +1,253 @@
+{
+  "approved_for_dry_run": false,
+  "candle_count": 300,
+  "candles_end": "2026-04-23",
+  "candles_start": "2025-02-12",
+  "chart_path": "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-AAPL-daily-smc.png",
+  "detected_levels": {
+    "choch_close": 258.86,
+    "choch_pivot": 257.0,
+    "entry": 256.46,
+    "fvg_high": 256.46,
+    "fvg_low": 256.17,
+    "ob_high": 250.82,
+    "ob_low": 245.51,
+    "stop": 245.46,
+    "sweep_low": 245.51,
+    "swept_low": 246.0,
+    "target_1": 280.18
+  },
+  "execution_allowed": false,
+  "market_regime": "neutral",
+  "notes": [
+    "account_equity not provided; qty_by_risk not computed"
+  ],
+  "rejection_reasons": [
+    "price_extended_from_entry_pct 6.62 > 3.00 (no chasing)"
+  ],
+  "sequence": {
+    "choch": {
+      "bars_after_sweep": 4,
+      "close": 258.86,
+      "found": true,
+      "index": 286,
+      "pivot_high_broken": 257.0,
+      "pivot_high_index": 280,
+      "timestamp": "2026-04-06"
+    },
+    "fvg": {
+      "end_index": 286,
+      "found": true,
+      "high": 256.46,
+      "low": 256.17,
+      "size_pct": 0.1132,
+      "start_index": 284,
+      "timestamp": "2026-04-02"
+    },
+    "order_block": {
+      "close": 246.63,
+      "found": true,
+      "high": 250.82,
+      "index": 282,
+      "low": 245.51,
+      "open": 250.05,
+      "timestamp": "2026-03-30"
+    },
+    "sweep": {
+      "close": 246.63,
+      "closed_back_above": true,
+      "found": true,
+      "index": 282,
+      "sweep_low": 245.51,
+      "swept_low_index": 276,
+      "swept_low_price": 246.0,
+      "timestamp": "2026-03-30"
+    }
+  },
+  "strategy": "SMC_LIQUIDITY_REVERSAL_RESEARCH",
+  "symbol": "AAPL",
+  "target_debug": {
+    "candidates": [
+      {
+        "distance_pct_from_entry": 0.2106,
+        "price": 257.0,
+        "risk_reward": 0.0491,
+        "selected": false,
+        "timestamp": "2026-03-26",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 2.09,
+        "price": 261.82,
+        "risk_reward": 0.4873,
+        "selected": false,
+        "timestamp": "2026-01-14",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 2.1407,
+        "price": 261.95,
+        "risk_reward": 0.4991,
+        "selected": false,
+        "timestamp": "2026-01-27",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 2.3473,
+        "price": 262.48,
+        "risk_reward": 0.5473,
+        "selected": false,
+        "timestamp": "2026-03-10",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 4.0396,
+        "price": 266.82,
+        "risk_reward": 0.9418,
+        "selected": false,
+        "timestamp": "2026-02-18",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 7.662,
+        "price": 276.11,
+        "risk_reward": 1.7864,
+        "selected": false,
+        "timestamp": "2026-02-26",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 8.3366,
+        "price": 277.84,
+        "risk_reward": 1.9436,
+        "selected": false,
+        "timestamp": "2026-01-02",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 9.249,
+        "price": 280.18,
+        "risk_reward": 2.1564,
+        "selected": true,
+        "timestamp": "2026-02-11",
+        "type": "swing_high"
+      },
+      {
+        "distance_pct_from_entry": 9.5337,
+        "price": 280.91,
+        "risk_reward": 2.2227,
+        "selected": false,
+        "timestamp": "2026-02-06",
+        "type": "swing_high"
+      }
+    ],
+    "lookback_bars_before_sweep": 60,
+    "max_target_distance_pct": 25.0,
+    "method": "nearest_buy_side_liquidity",
+    "min_risk_reward": 2.0,
+    "rejection_reason": null
+  },
+  "timeframe": "daily",
+  "trade_plan": {
+    "entry_price": 256.46,
+    "entry_type": "limit_at_fvg_top",
+    "entry_zone": {
+      "high": 256.46,
+      "low": 256.17
+    },
+    "execution_allowed": false,
+    "extension_pct_vs_latest_close": 6.617,
+    "position_value": 0.0,
+    "qty_by_risk": 0,
+    "research_only": true,
+    "risk_per_share": 11.0,
+    "risk_reward_to_target_1": 2.1564,
+    "stop_distance_pct": 4.2892,
+    "structural_stop": 245.46,
+    "target_1": 280.18,
+    "target_debug": {
+      "candidates": [
+        {
+          "distance_pct_from_entry": 0.2106,
+          "price": 257.0,
+          "risk_reward": 0.0491,
+          "selected": false,
+          "timestamp": "2026-03-26",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 2.09,
+          "price": 261.82,
+          "risk_reward": 0.4873,
+          "selected": false,
+          "timestamp": "2026-01-14",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 2.1407,
+          "price": 261.95,
+          "risk_reward": 0.4991,
+          "selected": false,
+          "timestamp": "2026-01-27",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 2.3473,
+          "price": 262.48,
+          "risk_reward": 0.5473,
+          "selected": false,
+          "timestamp": "2026-03-10",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 4.0396,
+          "price": 266.82,
+          "risk_reward": 0.9418,
+          "selected": false,
+          "timestamp": "2026-02-18",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 7.662,
+          "price": 276.11,
+          "risk_reward": 1.7864,
+          "selected": false,
+          "timestamp": "2026-02-26",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 8.3366,
+          "price": 277.84,
+          "risk_reward": 1.9436,
+          "selected": false,
+          "timestamp": "2026-01-02",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 9.249,
+          "price": 280.18,
+          "risk_reward": 2.1564,
+          "selected": true,
+          "timestamp": "2026-02-11",
+          "type": "swing_high"
+        },
+        {
+          "distance_pct_from_entry": 9.5337,
+          "price": 280.91,
+          "risk_reward": 2.2227,
+          "selected": false,
+          "timestamp": "2026-02-06",
+          "type": "swing_high"
+        }
+      ],
+      "lookback_bars_before_sweep": 60,
+      "max_target_distance_pct": 25.0,
+      "method": "nearest_buy_side_liquidity",
+      "min_risk_reward": 2.0,
+      "rejection_reason": null
+    }
+  },
+  "validation_notes": [
+    "FVG size_pct=0.113% is very small; double-check on the chart."
+  ]
+}

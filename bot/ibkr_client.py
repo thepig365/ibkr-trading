@@ -1,0 +1,562 @@
+"""Read-only Interactive Brokers client wrapper.
+
+This module exposes a small, intentionally narrow surface around
+`ib_async` (the maintained successor of `ib_insync`). Only read
+operations are exposed. Order placement is NOT implemented here and
+must never be added to this file - the safety layer in `broker.py`
+must own any future write path.
+
+Behaviour notes:
+    * If `ib_async` (or `ib_insync`) is not installed, the module still
+      imports cleanly. Calling `connect()` raises a clear error so unit
+      tests that never connect can run without the dependency.
+    * `connect()` refuses to connect when settings indicate a live
+      account, regardless of which port the .env file points at.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING, Any
+
+from .config import AppConfig
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    pass
+
+logger = logging.getLogger(__name__)
+
+# Try ib_async first; fall back to ib_insync for older installs.
+_IB_BACKEND: str | None = None
+_IB = None
+try:  # pragma: no cover - import side-effect
+    from ib_async import IB  # type: ignore
+
+    _IB = IB
+    _IB_BACKEND = "ib_async"
+except Exception:  # noqa: BLE001
+    try:  # pragma: no cover - import side-effect
+        from ib_insync import IB  # type: ignore
+
+        _IB = IB
+        _IB_BACKEND = "ib_insync"
+    except Exception:  # noqa: BLE001
+        _IB = None
+        _IB_BACKEND = None
+
+
+# Ports that IBKR documents as paper-trading endpoints.
+PAPER_PORTS = {7497, 4002}
+
+
+@dataclass
+class AccountSummary:
+    account_id: str
+    net_liquidation: float | None = None
+    total_cash: float | None = None
+    buying_power: float | None = None
+    available_funds: float | None = None
+    currency: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PositionRow:
+    account: str
+    symbol: str
+    sec_type: str
+    exchange: str
+    currency: str
+    position: float
+    avg_cost: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class OpenOrderRow:
+    perm_id: int | None
+    order_id: int | None
+    account: str
+    symbol: str
+    sec_type: str
+    action: str
+    order_type: str
+    total_quantity: float
+    lmt_price: float | None
+    aux_price: float | None
+    tif: str | None
+    status: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class NewsHeadline:
+    """A single headline, normalised across IBKR news providers."""
+
+    symbol: str
+    provider_code: str
+    article_id: str
+    headline: str
+    time_utc: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ExecutionRow:
+    exec_id: str
+    perm_id: int | None
+    order_id: int | None
+    account: str
+    symbol: str
+    sec_type: str
+    side: str
+    shares: float
+    price: float
+    time: str | None
+    exchange: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+class IBKRClientError(RuntimeError):
+    """Raised on configuration or connection problems."""
+
+
+class LiveTradingBlocked(IBKRClientError):
+    """Raised when the configuration would route us to a live account."""
+
+
+class IBKRClient:
+    """Thin, read-only wrapper around ib_async.IB.
+
+    The wrapper deliberately exposes no order-placement methods. Any
+    attempt to add one should be reviewed against docs/safety-rules.md.
+    """
+
+    def __init__(self, cfg: AppConfig) -> None:
+        self.cfg = cfg
+        self._ib: Any = None
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+    def connect(self, timeout: float = 10.0) -> None:
+        """Open a connection to TWS / IB Gateway.
+
+        Refuses to connect if the configuration indicates a live account
+        and `account.block_live_trading` is true (the default).
+        """
+        self._enforce_paper_only()
+
+        if _IB is None:
+            raise IBKRClientError(
+                "Neither ib_async nor ib_insync is installed. "
+                "Run `pip install -r requirements.txt` before connecting."
+            )
+
+        ib = _IB()
+        logger.info(
+            "Connecting to IBKR via %s host=%s port=%s client_id=%s mode=%s",
+            _IB_BACKEND,
+            self.cfg.ibkr.host,
+            self.cfg.ibkr.port,
+            self.cfg.ibkr.client_id,
+            self.cfg.ibkr.account_mode,
+        )
+        ib.connect(
+            host=self.cfg.ibkr.host,
+            port=self.cfg.ibkr.port,
+            clientId=self.cfg.ibkr.client_id,
+            timeout=timeout,
+            readonly=True,  # extra defence: ib_async honours readonly mode
+        )
+        self._ib = ib
+
+    def disconnect(self) -> None:
+        if self._ib is not None:
+            try:
+                self._ib.disconnect()
+            finally:
+                self._ib = None
+
+    @property
+    def is_connected(self) -> bool:
+        return self._ib is not None and bool(getattr(self._ib, "isConnected", lambda: False)())
+
+    @property
+    def backend(self) -> str | None:
+        return _IB_BACKEND
+
+    # ------------------------------------------------------------------
+    # Read-only queries
+    # ------------------------------------------------------------------
+    def get_account_summary(self, account: str | None = None) -> list[AccountSummary]:
+        self._require_connection()
+        rows = self._ib.accountSummary(account or "")
+        # Group by account.
+        grouped: dict[str, AccountSummary] = {}
+        for r in rows:
+            acct = grouped.setdefault(
+                r.account, AccountSummary(account_id=r.account, raw={})
+            )
+            acct.raw[r.tag] = {"value": r.value, "currency": r.currency}
+            if acct.currency is None and r.currency:
+                acct.currency = r.currency
+
+            tag = r.tag
+            try:
+                val_f = float(r.value)
+            except (TypeError, ValueError):
+                continue
+            if tag == "NetLiquidation":
+                acct.net_liquidation = val_f
+            elif tag == "TotalCashValue":
+                acct.total_cash = val_f
+            elif tag == "BuyingPower":
+                acct.buying_power = val_f
+            elif tag == "AvailableFunds":
+                acct.available_funds = val_f
+        return list(grouped.values())
+
+    def get_positions(self) -> list[PositionRow]:
+        self._require_connection()
+        out: list[PositionRow] = []
+        for p in self._ib.positions():
+            c = p.contract
+            out.append(
+                PositionRow(
+                    account=p.account,
+                    symbol=getattr(c, "symbol", "") or "",
+                    sec_type=getattr(c, "secType", "") or "",
+                    exchange=getattr(c, "exchange", "") or "",
+                    currency=getattr(c, "currency", "") or "",
+                    position=float(p.position),
+                    avg_cost=float(p.avgCost),
+                )
+            )
+        return out
+
+    def get_open_orders(self) -> list[OpenOrderRow]:
+        self._require_connection()
+        out: list[OpenOrderRow] = []
+        # ib_async exposes openTrades(); each Trade has .contract, .order, .orderStatus
+        trades = self._ib.openTrades() if hasattr(self._ib, "openTrades") else []
+        for t in trades:
+            c = t.contract
+            o = t.order
+            st = getattr(t, "orderStatus", None)
+            out.append(
+                OpenOrderRow(
+                    perm_id=getattr(o, "permId", None),
+                    order_id=getattr(o, "orderId", None),
+                    account=getattr(o, "account", "") or "",
+                    symbol=getattr(c, "symbol", "") or "",
+                    sec_type=getattr(c, "secType", "") or "",
+                    action=getattr(o, "action", "") or "",
+                    order_type=getattr(o, "orderType", "") or "",
+                    total_quantity=float(getattr(o, "totalQuantity", 0) or 0),
+                    lmt_price=_as_optional_float(getattr(o, "lmtPrice", None)),
+                    aux_price=_as_optional_float(getattr(o, "auxPrice", None)),
+                    tif=getattr(o, "tif", None),
+                    status=getattr(st, "status", None) if st is not None else None,
+                )
+            )
+        return out
+
+    # ------------------------------------------------------------------
+    # Market data (read-only)
+    # ------------------------------------------------------------------
+    def _qualify(
+        self, symbol: str, sec_type: str, exchange: str, currency: str
+    ) -> Any | None:
+        """Build and qualify a contract. Returns None if unavailable."""
+        self._require_connection()
+        try:
+            from ib_async import Index, Stock  # type: ignore
+        except Exception:  # pragma: no cover - ib_async required for live calls
+            try:
+                from ib_insync import Index, Stock  # type: ignore
+            except Exception:
+                return None
+        if sec_type.upper() == "IND":
+            contract = Index(symbol, exchange or "CBOE", currency or "USD")
+        else:
+            contract = Stock(symbol, exchange or "SMART", currency or "USD")
+        try:
+            qualified = self._ib.qualifyContracts(contract)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("qualifyContracts failed for %s: %s", symbol, exc)
+            return None
+        return qualified[0] if qualified else None
+
+    def get_daily_closes(
+        self,
+        symbol: str,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+        days: int = 300,
+    ) -> list[float]:
+        """Return the most recent daily closes, oldest first.
+
+        Returns an empty list on any failure (no market-data subscription,
+        unrecognised symbol, IBKR error, etc.).
+        """
+        contract = self._qualify(symbol, sec_type, exchange, currency)
+        if contract is None:
+            return []
+        duration = f"{max(days, 1)} D"
+        what = "MIDPOINT" if sec_type.upper() == "IND" else "TRADES"
+        try:
+            bars = self._ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr=duration,
+                barSizeSetting="1 day",
+                whatToShow=what,
+                useRTH=True,
+                formatDate=1,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("reqHistoricalData failed for %s: %s", symbol, exc)
+            return []
+        return [float(b.close) for b in (bars or []) if b.close is not None]
+
+    def get_latest_close(
+        self,
+        symbol: str,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ) -> float | None:
+        closes = self.get_daily_closes(symbol, sec_type, exchange, currency, days=5)
+        return closes[-1] if closes else None
+
+    def get_simple_moving_average(
+        self,
+        symbol: str,
+        window: int = 200,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ) -> float | None:
+        closes = self.get_daily_closes(
+            symbol, sec_type, exchange, currency, days=max(window + 20, 220)
+        )
+        if len(closes) < window:
+            return None
+        window_closes = closes[-window:]
+        return sum(window_closes) / float(window)
+
+    def get_daily_bars(
+        self,
+        symbol: str,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+        days: int = 300,
+    ) -> list[dict[str, Any]]:
+        """Return up to ``days`` daily OHLCV bars, oldest first.
+
+        Each item is a plain dict with keys
+        ``timestamp / open / high / low / close / volume``. Returns an
+        empty list on any failure (no subscription, unrecognised
+        symbol, IBKR error). Read-only; never modifies broker state.
+        """
+        contract = self._qualify(symbol, sec_type, exchange, currency)
+        if contract is None:
+            return []
+        duration = f"{max(days, 1)} D"
+        what = "MIDPOINT" if sec_type.upper() == "IND" else "TRADES"
+        try:
+            bars = self._ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr=duration,
+                barSizeSetting="1 day",
+                whatToShow=what,
+                useRTH=True,
+                formatDate=1,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("reqHistoricalData (bars) failed for %s: %s", symbol, exc)
+            return []
+        out: list[dict[str, Any]] = []
+        for b in bars or []:
+            ts = getattr(b, "date", None)
+            if ts is None:
+                continue
+            out.append(
+                {
+                    "timestamp": str(ts),
+                    "open": float(getattr(b, "open", 0.0) or 0.0),
+                    "high": float(getattr(b, "high", 0.0) or 0.0),
+                    "low": float(getattr(b, "low", 0.0) or 0.0),
+                    "close": float(getattr(b, "close", 0.0) or 0.0),
+                    "volume": float(getattr(b, "volume", 0.0) or 0.0),
+                }
+            )
+        return out
+
+    # ------------------------------------------------------------------
+    # News (read-only)
+    # ------------------------------------------------------------------
+    def get_news_providers(self) -> list[str]:
+        """Return subscribed IBKR news provider codes."""
+        self._require_connection()
+        try:
+            providers = self._ib.reqNewsProviders()
+        except Exception as exc:  # noqa: BLE001
+            logger.info("reqNewsProviders unavailable: %s", exc)
+            return []
+        return [getattr(p, "code", "") for p in (providers or []) if getattr(p, "code", None)]
+
+    def get_historical_news(
+        self,
+        symbol: str,
+        provider_codes: list[str] | None = None,
+        max_results: int = 5,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ) -> list[NewsHeadline]:
+        """Return the most recent headlines for ``symbol``.
+
+        Silently returns an empty list when the account has no news
+        subscription, when the symbol cannot be qualified, or when the
+        API raises. Callers must not treat an empty list as an error.
+        """
+        contract = self._qualify(symbol, sec_type, exchange, currency)
+        if contract is None:
+            return []
+        providers = provider_codes or self.get_news_providers()
+        if not providers:
+            return []
+
+        con_id = int(getattr(contract, "conId", 0) or 0)
+        if con_id <= 0:
+            return []
+
+        codes = "+".join(providers)
+        try:
+            items = self._ib.reqHistoricalNews(
+                con_id, codes, "", "", max_results
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.info("reqHistoricalNews failed for %s: %s", symbol, exc)
+            return []
+
+        out: list[NewsHeadline] = []
+        for it in items or []:
+            out.append(
+                NewsHeadline(
+                    symbol=symbol,
+                    provider_code=getattr(it, "providerCode", "") or "",
+                    article_id=getattr(it, "articleId", "") or "",
+                    headline=getattr(it, "headline", "") or "",
+                    time_utc=str(getattr(it, "time", "")) or None,
+                )
+            )
+        return out
+
+    def get_executions(self) -> list[ExecutionRow]:
+        self._require_connection()
+        out: list[ExecutionRow] = []
+        fills = self._ib.fills() if hasattr(self._ib, "fills") else []
+        for f in fills:
+            c = f.contract
+            e = f.execution
+            out.append(
+                ExecutionRow(
+                    exec_id=getattr(e, "execId", "") or "",
+                    perm_id=getattr(e, "permId", None),
+                    order_id=getattr(e, "orderId", None),
+                    account=getattr(e, "acctNumber", "") or "",
+                    symbol=getattr(c, "symbol", "") or "",
+                    sec_type=getattr(c, "secType", "") or "",
+                    side=getattr(e, "side", "") or "",
+                    shares=float(getattr(e, "shares", 0) or 0),
+                    price=float(getattr(e, "price", 0) or 0),
+                    time=str(getattr(e, "time", "")) or None,
+                    exchange=getattr(e, "exchange", None),
+                )
+            )
+        return out
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+    def _enforce_paper_only(self) -> None:
+        acct_mode = self.cfg.ibkr.account_mode
+        block_live = self.cfg.settings.account.block_live_trading
+        cfg_mode = self.cfg.settings.account.mode
+
+        if block_live and (acct_mode != "paper" or cfg_mode != "paper"):
+            raise LiveTradingBlocked(
+                f"Refusing to connect: account.block_live_trading=true but "
+                f"settings.account.mode={cfg_mode!r}, env IBKR_ACCOUNT_MODE={acct_mode!r}."
+            )
+
+        if block_live and self.cfg.ibkr.port not in PAPER_PORTS:
+            raise LiveTradingBlocked(
+                f"Refusing to connect: IBKR_PORT={self.cfg.ibkr.port} is not a known "
+                f"paper port {sorted(PAPER_PORTS)}. Set IBKR_PORT=7497 or 4002, "
+                f"or disable block_live_trading explicitly (not recommended)."
+            )
+
+    def _require_connection(self) -> None:
+        if not self.is_connected:
+            raise IBKRClientError("Not connected. Call connect() first.")
+
+
+def _as_optional_float(v: Any) -> float | None:
+    if v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    # ib_async uses sentinel large values for "unset" prices.
+    if f >= 1e308 or f <= -1e308:
+        return None
+    return f
+
+
+# ----------------------------------------------------------------------
+# Module-level convenience wrappers (match the spec's function names).
+# ----------------------------------------------------------------------
+def connect(cfg: AppConfig) -> IBKRClient:
+    client = IBKRClient(cfg)
+    client.connect()
+    return client
+
+
+def disconnect(client: IBKRClient) -> None:
+    client.disconnect()
+
+
+def get_account_summary(client: IBKRClient) -> list[AccountSummary]:
+    return client.get_account_summary()
+
+
+def get_positions(client: IBKRClient) -> list[PositionRow]:
+    return client.get_positions()
+
+
+def get_open_orders(client: IBKRClient) -> list[OpenOrderRow]:
+    return client.get_open_orders()
+
+
+def get_executions(client: IBKRClient) -> list[ExecutionRow]:
+    return client.get_executions()

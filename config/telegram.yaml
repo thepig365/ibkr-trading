@@ -1,0 +1,34 @@
+# Telegram command interface (Prompt 9.2, Part B).
+#
+# The bot can accept a small, safe set of Telegram commands. Polling is
+# used for the V0 implementation; no webhook is required. All commands
+# are REPORT-ONLY - any message that looks like a trade instruction is
+# hard-rejected with a Chinese safety reply. See docs/telegram-commands.md.
+#
+# Safety invariants enforced at runtime regardless of this file:
+#   * execution_allowed=false
+#   * research_only=true
+#   * no calls to Broker.place_order
+#   * buy / sell / trade / order / execute / short / options / close
+#     position / place order / enable trading / live -> rejected
+#
+# ``allowed_chat_ids`` accepts either literal chat IDs (strings) or the
+# placeholder ``${TELEGRAM_CHAT_ID}`` which expands to the env variable
+# at load time. Messages from any other chat are ignored with an
+# ``unauthorized`` log entry.
+telegram:
+  command_interface:
+    enabled: true
+    allowed_chat_ids:
+      - "${TELEGRAM_CHAT_ID}"
+    language: zh
+    polling_interval_seconds: 5
+    reports_only: true
+    execution_allowed: false
+    # Hard cap on the Telegram message body length - each outgoing
+    # part is split below this limit. Telegram's hard API limit is
+    # 4096; we keep headroom for HTML tags / severity prefixes.
+    max_message_length: 3500
+    # Directory (relative to project root) where command logs are
+    # appended as JSONL, one line per incoming message.
+    log_dir: data/telegram_commands

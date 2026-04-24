@@ -1,0 +1,65 @@
+# Global runtime configuration for the bot.
+# This file is the single source of truth for safety toggles.
+# Anything potentially dangerous defaults to OFF.
+
+account:
+  # `paper` is the only allowed value while block_live_trading is true.
+  mode: paper
+  # Hard switch: if true, any attempt to connect to a live account or to
+  # place an order is rejected by the safety layer.
+  block_live_trading: true
+
+trading:
+  # Master switch. While false, broker.place_order() raises immediately.
+  enabled: false
+  # If a place_order call somehow runs, default to dry_run = True.
+  dry_run_default: true
+  # Even with trading.enabled = true, every order requires explicit
+  # confirmation from the operator.
+  require_manual_confirmation: true
+  # Asset class allow-list. All disabled in the foundation milestone.
+  allow_options: false
+  allow_crypto: false
+  allow_forex: false
+  allow_shorting: false
+
+risk:
+  max_account_risk_per_trade_pct: 1.0
+  max_equity_per_position_pct: 10
+  max_open_positions: 5
+  # If reconciliation fails, the risk engine refuses to authorize any
+  # new trades on the next bar.
+  block_new_trades_if_reconciliation_fails: true
+
+notifications:
+  telegram:
+    enabled: true
+    # privacy_mode redacts account numbers, bot tokens, dollar amounts and
+    # exact account values (NetLiquidation, TotalCash, etc.) before the
+    # message leaves the bot. Leave this on unless you fully trust the
+    # chat you're sending to.
+    privacy_mode: true
+    # Telegram Bot API parse_mode. HTML is safer than Markdown because
+    # we can html.escape() body text and keep the tags we control.
+    parse_mode: HTML
+
+paths:
+  data_dir: data
+  memory_dir: memory
+  sqlite_file: data/trading_bot.sqlite
+  orders_jsonl: data/orders.jsonl
+  executions_jsonl: data/executions.jsonl
+  account_snapshots_jsonl: data/account_snapshots.jsonl
+  daily_summary_md: memory/DAILY-SUMMARY.md
+
+logging:
+  level: INFO
+
+market_regime:
+  # These knobs drive bot.market_regime.evaluate_regime() only. They
+  # never enable execution - execution remains disabled globally.
+  allow_medium_confidence_for_research: true
+  allow_medium_confidence_for_new_positions: false
+  require_vix_for_execution: true
+  require_spy_200ma_for_execution: true
+  require_qqq_200ma_for_execution: false

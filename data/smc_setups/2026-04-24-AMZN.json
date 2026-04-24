@@ -1,0 +1,60 @@
+{
+  "approved_for_dry_run": false,
+  "candle_count": 300,
+  "candles_end": "2026-04-23",
+  "candles_start": "2025-02-12",
+  "chart_path": "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-AMZN-daily-smc.png",
+  "detected_levels": {
+    "choch_close": null,
+    "choch_pivot": null,
+    "entry": null,
+    "fvg_high": null,
+    "fvg_low": null,
+    "ob_high": null,
+    "ob_low": null,
+    "stop": null,
+    "sweep_low": 196.0,
+    "swept_low": 200.31,
+    "target_1": null
+  },
+  "execution_allowed": false,
+  "market_regime": "neutral",
+  "notes": [],
+  "rejection_reasons": [
+    "no_choch_after_sweep"
+  ],
+  "sequence": {
+    "choch": {
+      "found": false
+    },
+    "fvg": {
+      "found": false
+    },
+    "order_block": {
+      "found": false
+    },
+    "sweep": {
+      "close": 201.15,
+      "closed_back_above": true,
+      "found": true,
+      "index": 253,
+      "sweep_low": 196.0,
+      "swept_low_index": 247,
+      "swept_low_price": 200.31,
+      "timestamp": "2026-02-17"
+    }
+  },
+  "strategy": "SMC_LIQUIDITY_REVERSAL_RESEARCH",
+  "symbol": "AMZN",
+  "target_debug": {
+    "candidates": [],
+    "lookback_bars_before_sweep": null,
+    "max_target_distance_pct": null,
+    "method": "nearest_buy_side_liquidity",
+    "min_risk_reward": null,
+    "rejection_reason": null
+  },
+  "timeframe": "daily",
+  "trade_plan": null,
+  "validation_notes": []
+}

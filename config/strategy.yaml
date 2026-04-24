@@ -1,0 +1,118 @@
+# Strategy configuration.
+#
+# IMPORTANT: The legacy ``strategy:`` block is the foundation-milestone
+# placeholder. Real strategies live under ``strategies:`` and are loaded
+# by name. The bot must NOT execute trades from any strategy here -
+# every per-strategy ``execution_allowed`` flag is hard-overridden to
+# ``false`` by ``bot/strategy_engine.py`` while we are in V0.
+
+strategy:
+  name: none
+  enabled: false
+  description: "Placeholder. No SMC, breakout, momentum, RSI or ORB logic in this milestone."
+
+# Reserved for future use; intentionally left empty.
+parameters: {}
+
+# ---------------------------------------------------------------------------
+# Per-strategy blocks. V0 ships only the SMC liquidity-reversal research
+# module (no execution).
+# ---------------------------------------------------------------------------
+strategies:
+  SMC_LIQUIDITY_REVERSAL_RESEARCH:
+    enabled: true
+    research_only: true
+    execution_allowed: false   # V0 hard rule; engine forces false anyway.
+    dry_run_only: true
+
+    market_filter:
+      # Block setups whenever the pre-open news report classifies the
+      # regime as one of these. ``unknown`` is included on purpose:
+      # we don't open new structural longs without confirming trend
+      # data.
+      block_if_market_regime:
+        - risk_off
+        - crisis
+        - unknown
+
+    swing_detection:
+      left_bars: 2
+      right_bars: 2
+
+    sweep:
+      lookback_period: 20
+      require_close_back_above_swept_low: true
+      allow_intraday_wick_sweep: true
+
+    choch:
+      max_bars_after_sweep: 10
+      require_close_above_pivot_high: true
+
+    fvg:
+      require_fvg: true
+      min_fvg_size_pct: 0.10
+      max_fvg_distance_from_choch_bars: 3
+
+    order_block:
+      enabled: true
+      method: last_down_close_before_choch
+
+    entry:
+      type: limit_at_fvg_top
+      max_days_to_fill_limit: 3
+      reject_if_price_extended_from_entry_pct: 3
+
+    stop:
+      type: structural
+      buffer_cents: 0.05
+      max_allowed_stop_pct: 5.0
+
+    risk:
+      max_account_risk_per_trade_pct: 1.0
+      max_equity_per_position_pct: 10
+      min_reward_to_risk: 2.0
+
+    # Target 1 selection. The V0 "highest prior swing high" rule was
+    # replaced in V1 because it produced unrealistic R/R on extended
+    # uptrends (e.g. TSLA target_1 ≈ 498, R/R ≈ 5.95). ``nearest_buy_
+    # side_liquidity`` picks the closest swing high above entry within
+    # the lookback window that still satisfies min_risk_reward.
+    target:
+      method: nearest_buy_side_liquidity
+      lookback_bars_before_sweep: 60
+      max_target_distance_pct: 25.0
+      min_risk_reward: 2.0
+
+    profit_management:
+      target_method: prior_swing_high
+      partial_sell_pct: 50
+      move_stop_to_breakeven_after_partial: true
+      trail_method: close_below_ema
+      trail_ema_period: 10
+
+# ---------------------------------------------------------------------------
+# Review queue (Prompt 9 Part A).
+#
+# Research-only. The queue groups SMC scanner rows into human review
+# buckets and sorts them for manual chart inspection. It NEVER
+# approves trades; ``execution_allowed`` stays ``false`` on every
+# item and on the envelope.
+# ---------------------------------------------------------------------------
+review_queue:
+  enabled: true
+  max_items: 50
+  top_items_for_telegram: 5
+  min_review_priority_score: 0
+
+  thresholds:
+    max_stop_distance_pct: 5.0
+    max_extension_pct: 3.0
+    near_entry_pct: 1.5
+    min_risk_reward: 2.0
+
+  include_categories:
+    - READY_FOR_MANUAL_CHART_REVIEW
+    - PULLBACK_WATCH
+    - INVALID_RISK_REJECT
+    - STRUCTURE_WATCH
+    - BLOCKED_BY_REGIME_OR_NEWS

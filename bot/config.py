@@ -1,0 +1,265 @@
+"""Configuration loader.
+
+Loads `config/settings.yaml`, `config/strategy.yaml`, `config/watchlist.yaml`
+and environment variables (via python-dotenv). All callers should obtain
+configuration through `load_config()` rather than reading files directly.
+
+Pydantic models enforce that safety-relevant fields exist and have the
+expected types. Anything dangerous defaults to OFF.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any
+
+import yaml
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field, field_validator
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONFIG_DIR = PROJECT_ROOT / "config"
+
+
+class AccountConfig(BaseModel):
+    mode: str = "paper"
+    block_live_trading: bool = True
+
+    @field_validator("mode")
+    @classmethod
+    def _normalize_mode(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class TradingConfig(BaseModel):
+    enabled: bool = False
+    dry_run_default: bool = True
+    require_manual_confirmation: bool = True
+    allow_options: bool = False
+    allow_crypto: bool = False
+    allow_forex: bool = False
+    allow_shorting: bool = False
+
+
+class RiskConfig(BaseModel):
+    max_account_risk_per_trade_pct: float = 1.0
+    max_equity_per_position_pct: float = 10.0
+    max_open_positions: int = 5
+    block_new_trades_if_reconciliation_fails: bool = True
+
+
+class TelegramConfig(BaseModel):
+    enabled: bool = True
+    privacy_mode: bool = True
+    parse_mode: str = "HTML"
+
+    @field_validator("parse_mode")
+    @classmethod
+    def _normalize_parse_mode(cls, v: str) -> str:
+        v = (v or "").strip()
+        allowed = {"HTML", "Markdown", "MarkdownV2", ""}
+        if v not in allowed:
+            raise ValueError(
+                f"parse_mode must be one of {sorted(allowed)!r}, got {v!r}"
+            )
+        return v
+
+
+class NotificationsConfig(BaseModel):
+    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
+
+
+class PathsConfig(BaseModel):
+    data_dir: str = "data"
+    memory_dir: str = "memory"
+    sqlite_file: str = "data/trading_bot.sqlite"
+    orders_jsonl: str = "data/orders.jsonl"
+    executions_jsonl: str = "data/executions.jsonl"
+    account_snapshots_jsonl: str = "data/account_snapshots.jsonl"
+    daily_summary_md: str = "memory/DAILY-SUMMARY.md"
+
+
+class LoggingConfig(BaseModel):
+    level: str = "INFO"
+
+
+class MarketRegimeConfig(BaseModel):
+    """Knobs for :func:`bot.market_regime.evaluate_regime`.
+
+    These flags tighten or loosen the confidence floor but they
+    cannot enable execution globally - that remains off until the
+    broker layer is re-wired. See docs/market-regime.md.
+    """
+
+    allow_medium_confidence_for_research: bool = True
+    allow_medium_confidence_for_new_positions: bool = False
+    require_vix_for_execution: bool = True
+    require_spy_200ma_for_execution: bool = True
+    require_qqq_200ma_for_execution: bool = False
+
+
+class IBKREnv(BaseModel):
+    host: str = "127.0.0.1"
+    port: int = 7497
+    client_id: int = 1
+    account_mode: str = "paper"
+
+    @field_validator("account_mode")
+    @classmethod
+    def _normalize_account_mode(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class TelegramEnv(BaseModel):
+    bot_token: str | None = None
+    chat_id: str | None = None
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.bot_token) and bool(self.chat_id)
+
+
+class PerplexityEnv(BaseModel):
+    api_key: str | None = None
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+
+
+class StrategyConfig(BaseModel):
+    name: str = "none"
+    enabled: bool = False
+    description: str = ""
+
+
+class Settings(BaseModel):
+    account: AccountConfig = Field(default_factory=AccountConfig)
+    trading: TradingConfig = Field(default_factory=TradingConfig)
+    risk: RiskConfig = Field(default_factory=RiskConfig)
+    notifications: NotificationsConfig = Field(default_factory=NotificationsConfig)
+    paths: PathsConfig = Field(default_factory=PathsConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    market_regime: MarketRegimeConfig = Field(default_factory=MarketRegimeConfig)
+
+
+class AppConfig(BaseModel):
+    """Top-level configuration object passed around the bot."""
+
+    settings: Settings
+    strategy: StrategyConfig
+    # Raw `strategies:` mapping from config/strategy.yaml. Each entry
+    # is a per-strategy block (e.g. ``SMC_LIQUIDITY_REVERSAL_RESEARCH``)
+    # that downstream modules read directly. The legacy ``strategy``
+    # field above is the placeholder kept for backwards compatibility.
+    strategies: dict[str, Any] = Field(default_factory=dict)
+    # Raw ``review_queue:`` block from config/strategy.yaml. Read by
+    # :mod:`bot.review_queue` and the ``smc-review-queue`` CLI. Kept
+    # loose-typed so the queue can evolve without a schema migration.
+    review_queue: dict[str, Any] = Field(default_factory=dict)
+    # Raw ``schedule.yaml`` block. Consumed by :mod:`bot.daily_scheduler`.
+    schedule: dict[str, Any] = Field(default_factory=dict)
+    # Raw ``telegram.yaml`` block. Consumed by
+    # :mod:`bot.telegram_commands` for command polling / authorization.
+    # Kept loose-typed so the command interface can evolve without
+    # a schema migration.
+    telegram_cfg: dict[str, Any] = Field(default_factory=dict)
+    watchlist: dict[str, Any]
+    news: dict[str, Any]
+    ibkr: IBKREnv
+    telegram: TelegramEnv
+    perplexity: PerplexityEnv
+    project_root: Path
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    def absolute(self, relative: str) -> Path:
+        """Resolve a path that may be relative to the project root."""
+        p = Path(relative)
+        return p if p.is_absolute() else (self.project_root / p)
+
+
+def _read_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"YAML root must be a mapping: {path}")
+    return data
+
+
+def _load_env(project_root: Path) -> tuple[IBKREnv, TelegramEnv, PerplexityEnv]:
+    env_path = project_root / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+
+    ibkr = IBKREnv(
+        host=os.getenv("IBKR_HOST", "127.0.0.1"),
+        port=int(os.getenv("IBKR_PORT", "7497")),
+        client_id=int(os.getenv("IBKR_CLIENT_ID", "1")),
+        account_mode=os.getenv("IBKR_ACCOUNT_MODE", "paper"),
+    )
+    telegram = TelegramEnv(
+        bot_token=os.getenv("TELEGRAM_BOT_TOKEN") or None,
+        chat_id=os.getenv("TELEGRAM_CHAT_ID") or None,
+    )
+    perplexity = PerplexityEnv(api_key=os.getenv("PERPLEXITY_API_KEY") or None)
+    return ibkr, telegram, perplexity
+
+
+def load_config(
+    project_root: Path | None = None,
+    settings_path: Path | None = None,
+    strategy_path: Path | None = None,
+    watchlist_path: Path | None = None,
+    news_path: Path | None = None,
+    schedule_path: Path | None = None,
+    telegram_path: Path | None = None,
+) -> AppConfig:
+    """Load and validate configuration from disk and environment.
+
+    Parameters are exposed mainly for tests; production code calls
+    `load_config()` with no arguments.
+    """
+    root = project_root or PROJECT_ROOT
+    s_path = settings_path or (root / "config" / "settings.yaml")
+    st_path = strategy_path or (root / "config" / "strategy.yaml")
+    w_path = watchlist_path or (root / "config" / "watchlist.yaml")
+    n_path = news_path or (root / "config" / "news.yaml")
+
+    settings_raw = _read_yaml(s_path)
+    strategy_yaml = _read_yaml(st_path)
+    strategy_raw = strategy_yaml.get("strategy", {})
+    strategies_raw = strategy_yaml.get("strategies", {}) or {}
+    review_queue_raw = strategy_yaml.get("review_queue", {}) or {}
+    watchlist_raw = _read_yaml(w_path)
+    news_raw = _read_yaml(n_path)
+    sch_path = schedule_path or (root / "config" / "schedule.yaml")
+    schedule_yaml = _read_yaml(sch_path)
+    schedule_raw = schedule_yaml.get("schedule", {}) or {}
+
+    tel_path = telegram_path or (root / "config" / "telegram.yaml")
+    telegram_yaml = _read_yaml(tel_path)
+    telegram_raw = telegram_yaml.get("telegram", {}) or {}
+
+    settings = Settings(**settings_raw)
+    strategy = StrategyConfig(**strategy_raw)
+
+    ibkr, telegram, perplexity = _load_env(root)
+
+    return AppConfig(
+        settings=settings,
+        strategy=strategy,
+        strategies=strategies_raw,
+        review_queue=review_queue_raw,
+        schedule=schedule_raw,
+        telegram_cfg=telegram_raw,
+        watchlist=watchlist_raw,
+        news=news_raw,
+        ibkr=ibkr,
+        telegram=telegram,
+        perplexity=perplexity,
+        project_root=root,
+    )
