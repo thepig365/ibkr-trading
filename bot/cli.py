@@ -2567,6 +2567,9 @@ def mtf_diagnostic_report(
         help="YYYY-MM-DD; default: today in UTC. Ignored if --latest is set.",
     ),
     top: int = typer.Option(10, "--top", min=1, help="How many 'nearest' rows in the JSON top list."),
+    min_score: int = typer.Option(
+        55, "--min-score", min=0, max=100, help="Min MTF score for near-alignment (THIRTY etc.).",
+    ),
     telegram: bool = typer.Option(False, "--telegram", help="Send Chinese digest to Telegram (if configured)."),
 ) -> None:
     """Build MTF no-trade diagnostic from saved per-symbol mtf_smc JSON (10D, no orders)."""
@@ -2576,6 +2579,7 @@ def mtf_diagnostic_report(
         build_diagnostic_report,
         find_latest_mtf_date,
         format_mtf_diagnostic_digest_zh,
+        format_mtf_near_alignment_digest_zh,
         list_mtf_smc_per_symbol_jsons,
         load_mtf_json,
     )
@@ -2606,7 +2610,7 @@ def mtf_diagnostic_report(
         except OSError:  # pragma: no cover
             pass
     rep = build_diagnostic_report(
-        d, source_summary=src, items=items, top=top
+        d, source_summary=src, items=items, top=top, min_score_near=min_score, max_near_alignment=top
     )
     out = mtf_dir / f"{d}-mtf-diagnostic-report.json"
     with out.open("w", encoding="utf-8") as f:
@@ -2616,11 +2620,88 @@ def mtf_diagnostic_report(
         dtxt = format_mtf_diagnostic_digest_zh(rep, paper_gate_disabled=True)
         body = f"<b>{escape('【MTF SMC/ICT 未入场诊断】')}{escape(d)}</b>\n<pre>" + escape(dtxt) + "</pre>"
         send_telegram_message(body, cfg=cfg, journal=journal)
+        near = rep.get("near_alignment_candidates") or []
+        if near:
+            ntxt = format_mtf_near_alignment_digest_zh(d, near)
+            body2 = f"<b>{escape('【MTF SMC/ICT 接近入场观察】')}{escape(d)}</b>\n<pre>" + escape(ntxt) + "</pre>"
+            send_telegram_message(body2, cfg=cfg, journal=journal)
     journal.record_event(
         category="mtf_diagnostic",
         level="INFO",
         message="mtf-diagnostic-report",
         payload={"date": d, "n": len(items), "path": str(out)},
+    )
+    raise typer.Exit(0)
+
+
+@app.command("mtf-near-alignment-alert")
+def mtf_near_alignment_alert(
+    use_latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Use latest date with a mtf-diagnostic-report.json under data/mtf_smc/.",
+    ),
+    report_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="YYYY-MM-DD; default today UTC. Ignored if --latest.",
+    ),
+    top: int = typer.Option(10, "--top", min=1, help="Max candidates to show and send."),
+    min_score: int = typer.Option(55, "--min-score", min=0, max=100),
+    telegram: bool = typer.Option(False, "--telegram", help="Send near-alignment digest (if configured)."),
+) -> None:
+    """Prompt 10E: list near-FULL symbols (alert-only, no orders)."""
+    from html import escape
+
+    from .mtf_diagnostic import (
+        find_latest_mtf_date,
+        format_mtf_near_alignment_digest_zh,
+        load_mtf_json,
+        select_near_alignment_candidates,
+    )
+
+    cfg, journal = _bootstrap()
+    mtf_dir = cfg.absolute("data/mtf_smc")
+    if use_latest:
+        d = find_latest_mtf_date(mtf_dir) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    elif report_date:
+        d = report_date
+    else:
+        d = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    path = mtf_dir / f"{d}-mtf-diagnostic-report.json"
+    if not path.exists():
+        console.print(
+            f"[red]Missing {path.name}. Run: python -m bot.cli mtf-diagnostic-report --date {d}[/red]"
+        )
+        raise typer.Exit(2)
+    rep = load_mtf_json(path)
+    near = select_near_alignment_candidates(rep, min_score=min_score, max_items=top)
+    rep["near_alignment_candidates"] = near
+    tbl = Table(title=f"MTF near-alignment ({d}) min_score={min_score}")
+    tbl.add_column("symbol", style="cyan")
+    tbl.add_column("score", justify="right")
+    tbl.add_column("category", max_width=28)
+    tbl.add_column("blocking", max_width=18)
+    tbl.add_column("next (short)", max_width=40)
+    for r in near:
+        tbl.add_row(
+            str(r.get("symbol", "")),
+            str(r.get("mtf_alignment_score", "")),
+            str(r.get("alignment_category", ""))[:26],
+            str(r.get("blocking_layer", ""))[:16],
+            str(r.get("next_condition_to_watch", ""))[:38],
+        )
+    console.print(tbl)
+    console.print(f"[dim]Candidates: {len(near)} (alert-only, no orders)[/dim]")
+    if telegram and cfg.telegram.is_configured:
+        ntxt = format_mtf_near_alignment_digest_zh(d, near)
+        body = f"<b>{escape('【MTF SMC/ICT 接近入场观察】')}{escape(d)}</b>\n<pre>" + escape(ntxt) + "</pre>"
+        send_telegram_message(body, cfg=cfg, journal=journal)
+    journal.record_event(
+        category="mtf_near_alignment",
+        level="INFO",
+        message="mtf-near-alignment-alert",
+        payload={"date": d, "n": len(near)},
     )
     raise typer.Exit(0)
 

@@ -20,6 +20,26 @@ BlockingLayer = Literal[
     "CONFLICTED",
 ]
 
+# Near-alignment (10E): never include these blocking layers
+_NEAR_EXCLUDE_LAYERS = frozenset(
+    {
+        "RISK",
+        "NEWS_OR_REGIME",
+        "DAILY_BIAS",
+        "DATA_MISSING",
+        "CONFLICTED",
+        "NONE",
+        "FOUR_H_STRUCTURE",
+    }
+)
+
+# Sort: FIVE first, THIRTY second, PREMIUM third
+_BLOCK_PRIORITY: dict[str, int] = {
+    "FIVE_MIN_TRIGGER": 0,
+    "THIRTY_MIN_SETUP": 1,
+    "PREMIUM_DISCOUNT": 2,
+}
+
 def _tfd(m: dict) -> dict[str, Any]:
     return m.get("timeframes") or {}
 
@@ -273,12 +293,76 @@ def _explanation_zh(
     return f"日{bzh}，4H {s4}，30m {s30}，5m {t5}，溢价 {pz}；{r30} {r5}"
 
 
+def _item_passes_near_alignment(
+    item: dict[str, Any],
+    *,
+    min_score: int,
+) -> bool:
+    """Prompt 10E: SETUP_READY or score cap; FIVE/THIRTY/PREMIUM; no RISK/NEWS/DAILY; not eligible."""
+    if item.get("eligible_for_future_paper_trade"):
+        return False
+    d = item.get("diagnostics")
+    if not d:
+        d = compute_mtf_diagnostics(item)
+    bl = str(d.get("blocking_layer") or "")
+    if bl in _NEAR_EXCLUDE_LAYERS or not bl:
+        return False
+    if bl not in ("FIVE_MIN_TRIGGER", "THIRTY_MIN_SETUP", "PREMIUM_DISCOUNT"):
+        return False
+    cat = str(item.get("alignment_category") or "")
+    sc = int(item.get("mtf_alignment_score") or 0)
+    setup_ready = cat == "SETUP_READY_WAITING_TRIGGER"
+    if bl == "THIRTY_MIN_SETUP" and sc < min_score:
+        return False
+    if not setup_ready and sc < min_score:
+        return False
+    return True
+
+
+def select_near_alignment_candidates(
+    report: dict[str, Any],
+    *,
+    min_score: int = 55,
+    max_items: int = 10,
+) -> list[dict[str, Any]]:
+    """Extract near-FULL items (FIVE/THIRTY/PREMIUM, not RISK/NEWS/DAILY, alert-only; no orders)."""
+    items = list(report.get("items") or [])
+    out: list[dict[str, Any]] = []
+    for m in items:
+        if not _item_passes_near_alignment(m, min_score=min_score):
+            continue
+        d = m.get("diagnostics") or compute_mtf_diagnostics(m)
+        out.append(
+            {
+                "symbol": str(m.get("symbol", "")).upper(),
+                "mtf_alignment_score": m.get("mtf_alignment_score"),
+                "alignment_category": m.get("alignment_category"),
+                "blocking_layer": d.get("blocking_layer"),
+                "primary_missing_condition": d.get("primary_missing_condition", ""),
+                "next_condition_to_watch": d.get("next_condition_to_watch", ""),
+                "eligible_for_future_paper_trade": bool(
+                    m.get("eligible_for_future_paper_trade", False)
+                ),
+            }
+        )
+    out.sort(
+        key=lambda r: (
+            _BLOCK_PRIORITY.get(str(r.get("blocking_layer") or ""), 99),
+            -int(r.get("mtf_alignment_score") or 0),
+            str(r.get("symbol", "")).upper(),
+        )
+    )
+    return out[: max(0, int(max_items))]
+
+
 def build_diagnostic_report(
     date: str,
     *,
     source_summary: str,
     items: list[dict[str, Any]],
     top: int = 10,
+    min_score_near: int = 55,
+    max_near_alignment: int = 10,
 ) -> dict[str, Any]:
     """聚合诊断 JSON 主体。"""
     enriched: list[dict[str, Any]] = []
@@ -317,7 +401,7 @@ def build_diagnostic_report(
         }
         for x in near
     ]
-    return {
+    rep0: dict[str, Any] = {
         "date": date,
         "source_summary": source_summary,
         "full_alignment_count": full_n,
@@ -325,6 +409,10 @@ def build_diagnostic_report(
         "top_nearest_to_full_alignment": top_list,
         "items": enriched,
     }
+    rep0["near_alignment_candidates"] = select_near_alignment_candidates(
+        rep0, min_score=min_score_near, max_items=max_near_alignment
+    )
+    return rep0
 
 
 def _parse_date_from_filename(name: str) -> str | None:
@@ -391,11 +479,41 @@ def format_mtf_diagnostic_digest_zh(
     return "\n".join(lines)
 
 
+def format_mtf_near_alignment_digest_zh(
+    day: str,
+    near: list[dict[str, Any]],
+) -> str:
+    """高优先级：接近入场的仅观察提醒（不代替 FULL，不触发下单）。"""
+    n = len(near)
+    lines = [
+        f"【MTF SMC/ICT 接近入场观察】{day}",
+        f"接近度候选数：{n}（非 FULL、未发单）",
+        "──",
+    ]
+    for r in near:
+        sym = r.get("symbol", "?")
+        sc = r.get("mtf_alignment_score", "-")
+        cat = r.get("alignment_category", "-")
+        bl = r.get("blocking_layer", "-")
+        miss = str(r.get("primary_missing_condition", "") or "")[:200]
+        nxt = str(r.get("next_condition_to_watch", "") or "")[:240]
+        lines.append(f"{sym} — score {sc} — {cat}")
+        lines.append(f"  阻碍层：{bl}")
+        lines.append(f"  缺失/当前条件：{miss}")
+        lines.append(f"  下一步：{nxt}")
+        lines.append("  状态：未下单，仅观察。")
+        lines.append("──")
+    lines.append("警告：尚未 FULL_ALIGNMENT，系统未下单。仅提醒。")
+    return "\n".join(lines)
+
+
 __all__ = [
     "build_diagnostic_report",
     "compute_mtf_diagnostics",
     "find_latest_mtf_date",
     "format_mtf_diagnostic_digest_zh",
+    "format_mtf_near_alignment_digest_zh",
     "list_mtf_smc_per_symbol_jsons",
     "load_mtf_json",
+    "select_near_alignment_candidates",
 ]
