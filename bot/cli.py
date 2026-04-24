@@ -1229,18 +1229,32 @@ def _gather_candles(
     use_ibkr: bool,
     ibkr_days: int,
     client: IBKRClient | None = None,
+    timeframe_spec: Any | None = None,
 ) -> tuple[list[dict[str, object]], str, IBKRClient | None]:
     """Load OHLCV candles for ``symbol``.
 
     Returns ``(rows, source, client)``. When ``client`` is provided we
     reuse it (useful for batch scanning); otherwise we may open a new
     one when ``--ibkr`` is requested.
+
+    ``timeframe_spec`` (a :class:`bot.smc_timeframes.TimeframeSpec`)
+    routes intraday timeframes through :meth:`IBKRClient.
+    get_bars_for_timeframe`. Legacy callers may omit it — the daily
+    path with ``--ibkr-days`` is preserved for backward compatibility.
     """
     if csv_path is not None:
         return _load_candles_from_csv(csv_path), f"csv:{csv_path}", client
     if use_ibkr:
         if client is None:
             client = _connect(cfg)
+        if timeframe_spec is not None:
+            rows = client.get_bars_for_timeframe(symbol, timeframe_spec)
+            src = (
+                f"ibkr:{timeframe_spec.bar_size}"
+                if getattr(timeframe_spec, "is_intraday", False)
+                else f"ibkr:{timeframe_spec.bar_size}@{timeframe_spec.duration}"
+            )
+            return rows, src, client
         rows = client.get_daily_bars(symbol, days=ibkr_days)
         return rows, "ibkr", client
     raise typer.BadParameter(
@@ -1332,7 +1346,14 @@ def _render_chart_for(
 def scan_smc(
     symbol: str = typer.Option(..., "--symbol", "-s", help="Ticker, e.g. AAPL."),
     timeframe: str = typer.Option(
-        "daily", "--timeframe", help="Bar timeframe (recorded in the report only)."
+        "daily",
+        "--timeframe",
+        help=(
+            "Bar timeframe: 'daily' or '30min'. 30min fetches "
+            "IBKR intraday bars (RTH only) and applies stricter "
+            "risk thresholds (see docs/30min-smc-test-mode.md). "
+            "Research-only; no execution."
+        ),
     ),
     csv_path: Optional[Path] = typer.Option(
         None,
@@ -1406,7 +1427,11 @@ def scan_smc(
     ``--no-save`` is used. With ``--chart`` we additionally write a PNG
     to ``data/debug_charts/`` for visual validation.
     """
+    from .smc_timeframes import normalise_timeframe, resolve_timeframe_spec
+
     cfg, journal = _bootstrap()
+    timeframe = normalise_timeframe(timeframe)
+    tf_spec = resolve_timeframe_spec(timeframe, cfg)
     regime_ctx = _resolve_regime_context(cfg, market_regime)
     regime = str(regime_ctx["market_regime"])
 
@@ -1415,6 +1440,10 @@ def scan_smc(
     regime_conf = regime_ctx["regime_confidence"]
     regime_missing = regime_ctx.get("regime_missing_fields") or []
     src = regime_ctx.get("source_file")
+    console.print(
+        f"[dim]timeframe={timeframe} duration={tf_spec.duration} "
+        f"bar_size={tf_spec.bar_size} RTH={tf_spec.use_rth}[/dim]"
+    )
     console.print(
         f"[dim]regime={regime} confidence={regime_conf}"
         + (f" missing={','.join(regime_missing)}" if regime_missing else "")
@@ -1433,6 +1462,7 @@ def scan_smc(
                 use_ibkr=use_ibkr,
                 ibkr_days=ibkr_days,
                 client=client,
+                timeframe_spec=tf_spec,
             )
         except (FileNotFoundError, ValueError) as exc:
             console.print(
@@ -1508,7 +1538,15 @@ def scan_smc(
 
 @app.command("scan-smc-watchlist")
 def scan_smc_watchlist(
-    timeframe: str = typer.Option("daily", "--timeframe"),
+    timeframe: str = typer.Option(
+        "daily",
+        "--timeframe",
+        help=(
+            "Bar timeframe: 'daily' or '30min'. 30min fetches "
+            "IBKR intraday bars (RTH only) and applies stricter "
+            "risk thresholds. Research-only; no execution."
+        ),
+    ),
     candles_dir: Optional[Path] = typer.Option(
         None,
         "--candles-dir",
@@ -1577,9 +1615,12 @@ def scan_smc_watchlist(
         save_batch_summary,
         today_utc_iso,
     )
+    from .smc_timeframes import normalise_timeframe, resolve_timeframe_spec
     from .strategy_engine import DEFAULT_STRATEGY_CFG
 
     cfg, journal = _bootstrap()
+    timeframe = normalise_timeframe(timeframe)
+    tf_spec = resolve_timeframe_spec(timeframe, cfg)
     regime_ctx = _resolve_regime_context(cfg, market_regime)
     regime = str(regime_ctx["market_regime"])
 
@@ -1686,7 +1727,11 @@ def scan_smc_watchlist(
             "run `python -m bot.cli market-regime --ibkr` for a "
             "deterministic SPY/QQQ evaluation.[/yellow]"
         )
-    regime_bits = [f"regime={regime}", f"confidence={regime_conf}"]
+    regime_bits = [
+        f"timeframe={timeframe}",
+        f"regime={regime}",
+        f"confidence={regime_conf}",
+    ]
     if regime_missing:
         regime_bits.append("missing=" + ",".join(regime_missing))
     regime_bits.append(f"new_pos={'yes' if new_pos_allowed else 'no'}")
@@ -1739,8 +1784,12 @@ def scan_smc_watchlist(
             elif use_ibkr:
                 if client is None:
                     client = _connect(cfg)
-                rows = client.get_daily_bars(symbol, days=ibkr_days)
-                source = "ibkr"
+                rows = client.get_bars_for_timeframe(symbol, tf_spec)
+                source = (
+                    f"ibkr:{tf_spec.bar_size}"
+                    if tf_spec.is_intraday
+                    else f"ibkr:{tf_spec.bar_size}@{tf_spec.duration}"
+                )
 
             if not rows:
                 table.add_row(
@@ -1866,6 +1915,14 @@ def smc_review_queue_cmd(
         None, "--date",
         help="YYYY-MM-DD. Defaults to the most recent scan summary on disk.",
     ),
+    timeframe: str = typer.Option(
+        "daily",
+        "--timeframe",
+        help=(
+            "Timeframe of the scan summary to build the queue from: "
+            "'daily' or '30min'. Prompt 10A; research-only."
+        ),
+    ),
     source: str = typer.Option(
         "latest", "--source",
         help="Currently only 'latest' is supported; kept for future sources.",
@@ -1915,8 +1972,11 @@ def smc_review_queue_cmd(
         save_review_queue,
         SummaryNotFoundError,
     )
+    from .smc_timeframes import normalise_timeframe
+    from .strategy_engine import DEFAULT_STRATEGY_CFG
 
     cfg, journal = _bootstrap()
+    timeframe = normalise_timeframe(timeframe)
 
     if source != "latest":
         console.print(
@@ -1926,7 +1986,9 @@ def smc_review_queue_cmd(
         raise typer.Exit(code=2)
 
     try:
-        summary, summary_path = load_latest_summary(cfg, date=date)
+        summary, summary_path = load_latest_summary(
+            cfg, date=date, timeframe=timeframe
+        )
     except SummaryNotFoundError as exc:
         console.print(
             f"[red]No SMC scan summary found:[/red] {exc}\n"
@@ -1944,6 +2006,12 @@ def smc_review_queue_cmd(
     include_categories = rq_cfg.get("include_categories") or None
     effective_min = max(min_score, int(rq_cfg.get("min_review_priority_score") or 0))
 
+    strategy_block = (
+        getattr(cfg, "strategies", None) or {}
+    ).get(SMC_STRATEGY_NAME) or DEFAULT_STRATEGY_CFG
+
+    now_et_hhmm = _now_et_hhmm()
+
     queue = build_review_queue(
         summary,
         source_path=summary_path,
@@ -1951,11 +2019,15 @@ def smc_review_queue_cmd(
         max_items=max_items,
         min_review_priority_score=effective_min,
         include_categories=include_categories,
+        timeframe=timeframe,
+        now_et_hhmm=now_et_hhmm,
+        strategy_block=strategy_block,
     )
 
     # Console output
     title = (
-        f"SMC Review Queue — {queue.date} | regime={queue.market_regime} "
+        f"SMC Review Queue — {queue.date} ({queue.timeframe}) | "
+        f"regime={queue.market_regime} "
         f"confidence={queue.regime_confidence}"
         + (" | missing=" + ",".join(queue.regime_missing_fields)
            if queue.regime_missing_fields else "")
@@ -2057,6 +2129,21 @@ def _fmt_num(x: object, *, suffix: str = "") -> str:
     if isinstance(x, (int, float)):
         return f"{float(x):.2f}{suffix}"
     return "-"
+
+
+def _now_et_hhmm() -> str | None:
+    """Return the current America/New_York wall-clock as ``'HH:MM'``.
+
+    Used by :command:`smc-review-queue` to drive the 30min session
+    guard. Returns ``None`` on any failure so callers fall back to
+    "session filter not applied" rather than crashing.
+    """
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/New_York")).strftime("%H:%M")
+    except Exception:  # noqa: BLE001 - best-effort clock lookup
+        return None
 
 
 # ---------------------------------------------------------------------------

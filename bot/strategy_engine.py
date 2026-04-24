@@ -24,6 +24,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .config import AppConfig
+from .smc_timeframes import (
+    apply_thresholds_to_block,
+    normalise_timeframe,
+    resolve_strategy_thresholds,
+)
 from .market_structure import (
     Candles,
     calculate_structural_stop,
@@ -175,7 +180,10 @@ def evaluate_smc_liquidity_reversal(
         else candles_from_records(candles)  # type: ignore[arg-type]
     )
 
-    sm = _strategy_block(cfg)
+    # Normalise the timeframe early so every downstream caller sees the
+    # canonical label. Unknown labels fall back to ``daily``.
+    timeframe = normalise_timeframe(timeframe)
+    sm = _strategy_block(cfg, timeframe=timeframe)
     rejections: list[str] = []
     notes: list[str] = []
 
@@ -472,23 +480,43 @@ def _build_trade_plan(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _strategy_block(cfg: AppConfig | None) -> dict[str, Any]:
-    """Resolve the SMC strategy config block."""
+def _strategy_block(
+    cfg: AppConfig | None, *, timeframe: str = "daily"
+) -> dict[str, Any]:
+    """Resolve the SMC strategy config block for ``timeframe``.
+
+    The resolution order is:
+
+    1. Start from :data:`DEFAULT_STRATEGY_CFG`.
+    2. Shallow-merge the ``strategies.SMC_LIQUIDITY_REVERSAL_RESEARCH``
+       block from ``config/strategy.yaml`` (if present).
+    3. Apply the per-timeframe thresholds from
+       :func:`bot.smc_timeframes.resolve_strategy_thresholds` on top of
+       the nested sub-blocks (``sweep`` / ``stop`` / ``entry`` /
+       ``risk`` / ``target``). This is how the 30min profile tightens
+       ``max_allowed_stop_pct``, ``min_risk_reward``, ``max_extension
+       _pct`` and ``risk_per_trade_pct``.
+
+    Note: the function is pure — it never reads from disk, never
+    opens an IBKR socket, and never calls :meth:`bot.broker.Broker.
+    place_order` (which itself refuses to send anything in V0).
+    """
     if cfg is None:
-        return DEFAULT_STRATEGY_CFG
-    raw = getattr(cfg, "strategies", None) or {}
-    block = raw.get(STRATEGY_NAME) if isinstance(raw, dict) else None
-    if not block:
-        return DEFAULT_STRATEGY_CFG
-    # Shallow-merge over the defaults so missing keys keep their
-    # safety-relevant defaults.
+        raw_block = None
+    else:
+        raw = getattr(cfg, "strategies", None) or {}
+        raw_block = raw.get(STRATEGY_NAME) if isinstance(raw, dict) else None
+
     merged = {**DEFAULT_STRATEGY_CFG}
-    for k, v in block.items():
-        if isinstance(v, dict) and isinstance(merged.get(k), dict):
-            merged[k] = {**merged[k], **v}
-        else:
-            merged[k] = v
-    return merged
+    if raw_block:
+        for k, v in raw_block.items():
+            if isinstance(v, dict) and isinstance(merged.get(k), dict):
+                merged[k] = {**merged[k], **v}
+            else:
+                merged[k] = v
+
+    thresholds = resolve_strategy_thresholds(timeframe, merged)
+    return apply_thresholds_to_block(merged, thresholds)
 
 
 def _normalise_sequence_entry(entry: dict[str, Any] | None) -> dict[str, Any]:

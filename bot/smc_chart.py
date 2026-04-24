@@ -390,7 +390,13 @@ def _decorate(ax, evaluation: "StrategyEvaluation", candles: "Candles") -> None:
     if seen:
         ax.legend(seen.values(), seen.keys(), loc="upper left", fontsize=8)
 
-    ax.set_xlabel("bar index (0 = oldest)")
+    if str(getattr(evaluation, "timeframe", "") or "") == "30min":
+        ax.set_xlabel(
+            "bar index (0 = oldest) — 30m bars: use sweep/ChoCH/FVG/OB text "
+            "and subtitle range=… for full NY-session timestamps (RTH)"
+        )
+    else:
+        ax.set_xlabel("bar index (0 = oldest)")
     ax.set_ylabel("price")
 
 

@@ -25,6 +25,33 @@ strategies:
     execution_allowed: false   # V0 hard rule; engine forces false anyway.
     dry_run_only: true
 
+    # ------------------------------------------------------------------
+    # Per-timeframe thresholds (Prompt 10A).
+    #
+    # ``daily`` keeps the V0 profile. ``30min`` tightens risk and adds
+    # session filters so the faster-but-noisier research mode cannot
+    # surface candidates during the dangerous first/last 15 minutes of
+    # the US RTH session. These affect RESEARCH numbers only.
+    # execution_allowed stays false globally.
+    # ------------------------------------------------------------------
+    timeframes:
+      daily:
+        lookback_period_for_sweep: 20
+        max_allowed_stop_pct: 5.0
+        max_extension_pct: 3.0
+        min_risk_reward: 2.0
+        risk_per_trade_pct: 1.0
+
+      30min:
+        lookback_period_for_sweep: 20
+        max_allowed_stop_pct: 2.0
+        max_extension_pct: 1.0
+        min_risk_reward: 1.8
+        risk_per_trade_pct: 0.25
+        avoid_first_minutes_after_open: 15
+        avoid_last_minutes_before_close: 15
+        max_hold_bars: 13
+
     market_filter:
       # Block setups whenever the pre-open news report classifies the
       # regime as one of these. ``unknown`` is included on purpose:

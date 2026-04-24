@@ -55,6 +55,26 @@ paths:
 logging:
   level: INFO
 
+# Per-timeframe IBKR candle presets used by the SMC/ICT research
+# scanner (Prompt 10A). These govern how candles are pulled, NOT
+# whether the bot can trade. execution_allowed stays false globally.
+smc_timeframes:
+  daily:
+    enabled: true
+    duration: "1 Y"
+    bar_size: "1 day"
+    use_rth: true
+    min_bars: 150
+    max_bars: 400
+
+  30min:
+    enabled: true
+    duration: "20 D"
+    bar_size: "30 mins"
+    use_rth: true
+    min_bars: 100
+    max_bars: 300
+
 market_regime:
   # These knobs drive bot.market_regime.evaluate_regime() only. They
   # never enable execution - execution remains disabled globally.

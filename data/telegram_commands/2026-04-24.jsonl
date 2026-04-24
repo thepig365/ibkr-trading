@@ -15,3 +15,4 @@
 {"timestamp": "2026-04-24T11:33:06+00:00", "chat_id_redacted": "85***39", "command": "/news", "status": "success", "execution_allowed": false, "details": ""}
 {"timestamp": "2026-04-24T13:04:01+00:00", "chat_id_redacted": "85***39", "command": "/status", "status": "success", "execution_allowed": false, "details": ""}
 {"timestamp": "2026-04-24T13:04:02+00:00", "chat_id_redacted": "85***39", "command": "buy AAPL", "status": "rejected", "execution_allowed": false, "details": "unsafe pattern matched"}
+{"timestamp": "2026-04-24T13:24:58+00:00", "chat_id_redacted": "85***39", "command": "/news", "status": "success", "execution_allowed": false, "details": ""}

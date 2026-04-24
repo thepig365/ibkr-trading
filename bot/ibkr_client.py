@@ -366,8 +366,14 @@ class IBKRClient:
         exchange: str = "SMART",
         currency: str = "USD",
         days: int = 300,
+        duration_str: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return up to ``days`` daily OHLCV bars, oldest first.
+        """Return daily OHLCV bars, oldest first.
+
+        When ``duration_str`` is set (e.g. ``"1 Y"`` from
+        :class:`bot.smc_timeframes.TimeframeSpec`), it is passed to
+        ``reqHistoricalData`` as ``durationStr``; otherwise
+        ``f"{days} D"`` is used for backward compatibility.
 
         Each item is a plain dict with keys
         ``timestamp / open / high / low / close / volume``. Returns an
@@ -377,7 +383,10 @@ class IBKRClient:
         contract = self._qualify(symbol, sec_type, exchange, currency)
         if contract is None:
             return []
-        duration = f"{max(days, 1)} D"
+        if duration_str:
+            duration = duration_str
+        else:
+            duration = f"{max(days, 1)} D"
         what = "MIDPOINT" if sec_type.upper() == "IND" else "TRADES"
         try:
             bars = self._ib.reqHistoricalData(
@@ -408,6 +417,113 @@ class IBKRClient:
                 }
             )
         return out
+
+    def get_intraday_bars(
+        self,
+        symbol: str,
+        *,
+        duration: str = "20 D",
+        bar_size: str = "30 mins",
+        what_to_show: str = "TRADES",
+        use_rth: bool = True,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ) -> list[dict[str, Any]]:
+        """Return intraday OHLCV bars, oldest first.
+
+        Thin, read-only wrapper around IBKR's historical-data request
+        with the knobs the SMC 30min scanner needs. Returns an empty
+        list on any failure (no subscription, unrecognised symbol,
+        IBKR error). Never places orders, never mutates broker state.
+
+        Parameters mirror IBKR's ``reqHistoricalData``:
+
+        * ``duration`` — e.g. ``"20 D"``.
+        * ``bar_size`` — e.g. ``"30 mins"``.
+        * ``what_to_show`` — ``"TRADES"`` by default.
+        * ``use_rth`` — regular trading hours only (True for 30min).
+        """
+        contract = self._qualify(symbol, sec_type, exchange, currency)
+        if contract is None:
+            return []
+        try:
+            bars = self._ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr=duration,
+                barSizeSetting=bar_size,
+                whatToShow=what_to_show,
+                useRTH=use_rth,
+                formatDate=1,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(
+                "reqHistoricalData (intraday %s) failed for %s: %s",
+                bar_size, symbol, exc,
+            )
+            return []
+        out: list[dict[str, Any]] = []
+        for b in bars or []:
+            ts = getattr(b, "date", None)
+            if ts is None:
+                continue
+            out.append(
+                {
+                    "timestamp": str(ts),
+                    "open": float(getattr(b, "open", 0.0) or 0.0),
+                    "high": float(getattr(b, "high", 0.0) or 0.0),
+                    "low": float(getattr(b, "low", 0.0) or 0.0),
+                    "close": float(getattr(b, "close", 0.0) or 0.0),
+                    "volume": float(getattr(b, "volume", 0.0) or 0.0),
+                }
+            )
+        return out
+
+    def get_bars_for_timeframe(
+        self,
+        symbol: str,
+        spec: Any,
+        *,
+        sec_type: str = "STK",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ) -> list[dict[str, Any]]:
+        """Return bars for the :class:`bot.smc_timeframes.TimeframeSpec`.
+
+        Dispatches to :meth:`get_daily_bars` or
+        :meth:`get_intraday_bars` based on ``spec.is_intraday``.
+        Returns an empty list on any failure and logs a debug line.
+        This path is read-only; execution remains disabled globally.
+        """
+        if getattr(spec, "is_intraday", False):
+            out = self.get_intraday_bars(
+                symbol,
+                duration=getattr(spec, "duration", "20 D"),
+                bar_size=getattr(spec, "bar_size", "30 mins"),
+                what_to_show=getattr(spec, "what_to_show", "TRADES"),
+                use_rth=bool(getattr(spec, "use_rth", True)),
+                sec_type=sec_type,
+                exchange=exchange,
+                currency=currency,
+            )
+            mx = int(getattr(spec, "max_bars", 300) or 300)
+            if len(out) > mx:
+                out = out[-mx:]
+            return out
+        # Daily: use smc_timeframes duration (e.g. 1 Y), then cap rows.
+        daily_rows = self.get_daily_bars(
+            symbol,
+            sec_type=sec_type,
+            exchange=exchange,
+            currency=currency,
+            days=1,  # ignored when duration_str is set
+            duration_str=str(getattr(spec, "duration", None) or "1 Y"),
+        )
+        mx = int(getattr(spec, "max_bars", 400) or 400)
+        if len(daily_rows) > mx:
+            daily_rows = daily_rows[-mx:]
+        return daily_rows
 
     # ------------------------------------------------------------------
     # News (read-only)

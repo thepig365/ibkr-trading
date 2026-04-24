@@ -355,22 +355,91 @@ def build_scan_row(
 # ---------------------------------------------------------------------------
 # Persistence
 # ---------------------------------------------------------------------------
+def batch_summary_filename(date: str, timeframe: str) -> str:
+    """Return the on-disk filename for a batch summary.
+
+    Prompt 10A: the timeframe is part of the filename so the daily and
+    30min research scans live side-by-side without clobbering each
+    other. ``daily`` also gets the suffix — the legacy
+    ``{date}-watchlist-summary.json`` is still recognised by
+    :func:`load_batch_summary_for_timeframe` for backward compatibility.
+    """
+    from .smc_timeframes import normalise_timeframe
+
+    return f"{date}-{normalise_timeframe(timeframe)}-watchlist-summary.json"
+
+
 def save_batch_summary(
     cfg: AppConfig, batch: ScanBatch, *, directory: str = "data/smc_setups"
 ) -> Path:
     """Write the batch summary JSON.
 
-    Filename follows ``YYYY-MM-DD-watchlist-summary.json`` so a human
-    can tell at a glance which day the scan was produced for.
+    Filename follows ``YYYY-MM-DD-{timeframe}-watchlist-summary.json``
+    so a human can tell at a glance which day *and* which timeframe
+    the scan was produced for.
     """
     out_dir = cfg.absolute(directory)
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{batch.date}-watchlist-summary.json"
+    path = out_dir / batch_summary_filename(batch.date, batch.timeframe)
     path.write_text(
         json.dumps(batch.to_dict(), indent=2, default=str),
         encoding="utf-8",
     )
     return path
+
+
+class BatchSummaryNotFoundError(FileNotFoundError):
+    """Raised when no scan summary matches ``(date, timeframe)``."""
+
+
+def load_batch_summary_for_timeframe(
+    cfg: AppConfig,
+    *,
+    timeframe: str,
+    date: str | None = None,
+    directory: str = "data/smc_setups",
+) -> tuple[dict[str, Any], Path]:
+    """Return ``(summary_dict, path)`` for ``timeframe`` on ``date``.
+
+    * ``date=None`` → latest matching file for the timeframe.
+    * For ``daily`` we also accept the legacy
+      ``{date}-watchlist-summary.json`` filename so older scans keep
+      working.
+    """
+    from .smc_timeframes import normalise_timeframe
+
+    tf = normalise_timeframe(timeframe)
+    dir_ = cfg.absolute(directory)
+    if not dir_.is_dir():
+        raise BatchSummaryNotFoundError(
+            f"{directory} directory does not exist: {dir_}"
+        )
+    candidates: list[Path] = []
+    if date:
+        candidates.append(dir_ / f"{date}-{tf}-watchlist-summary.json")
+        if tf == "daily":
+            candidates.append(dir_ / f"{date}-watchlist-summary.json")
+    else:
+        candidates.extend(
+            sorted(dir_.glob(f"*-{tf}-watchlist-summary.json"))
+        )
+        if tf == "daily":
+            # Legacy filenames without a timeframe component.
+            legacy = [
+                p for p in sorted(dir_.glob("*-watchlist-summary.json"))
+                if not any(p.name.endswith(f"-{ttf}-watchlist-summary.json")
+                           for ttf in ("daily", "30min"))
+            ]
+            candidates.extend(legacy)
+    candidates = [p for p in candidates if p.exists()]
+    if not candidates:
+        raise BatchSummaryNotFoundError(
+            f"no scan summary for timeframe={tf!r} "
+            f"{('date=' + date) if date else ''} under {dir_}"
+        )
+    path = candidates[-1]
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f), path
 
 
 # ---------------------------------------------------------------------------
@@ -408,10 +477,12 @@ def format_telegram_digest(
 
     if parse_mode == "HTML":
         out: list[str] = [
-            f"<b>SMC Watchlist Research Digest — {batch.date}</b>",
+            f"<b>SMC Watchlist Research Digest — {batch.date} "
+            f"({batch.timeframe})</b>",
         ]
         if source_label:
             out.append(f"Watchlist source: {source_label}")
+        out.append(f"Timeframe: {batch.timeframe}")
         out.append(regime_line)
         if missing_line:
             out.append(missing_line)
@@ -446,10 +517,11 @@ def format_telegram_digest(
 
     # Plain-text fallback.
     lines: list[str] = [
-        f"SMC Watchlist Research Digest — {batch.date}",
+        f"SMC Watchlist Research Digest — {batch.date} ({batch.timeframe})",
     ]
     if source_label:
         lines.append(f"Watchlist source: {source_label}")
+    lines.append(f"Timeframe: {batch.timeframe}")
     lines.append(regime_line)
     if missing_line:
         lines.append(missing_line)
@@ -510,14 +582,17 @@ def today_utc_iso() -> str:
 
 __all__ = [
     "BUCKETS",
+    "BatchSummaryNotFoundError",
     "NEAR_ENTRY_THRESHOLD_PCT",
     "TOO_EXTENDED_THRESHOLD_PCT",
     "ScanRow",
     "ScanBatch",
+    "batch_summary_filename",
     "build_scan_row",
     "classify_bucket",
-    "score_setup",
-    "save_batch_summary",
     "format_telegram_digest",
+    "load_batch_summary_for_timeframe",
+    "save_batch_summary",
+    "score_setup",
     "today_utc_iso",
 ]

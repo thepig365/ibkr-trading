@@ -84,6 +84,47 @@ class LoggingConfig(BaseModel):
     level: str = "INFO"
 
 
+class TimeframeConfig(BaseModel):
+    """One entry under ``settings.smc_timeframes``.
+
+    All fields are optional so the default registry in
+    :mod:`bot.smc_timeframes` stays authoritative. Operators only set
+    the keys they want to override.
+    """
+
+    enabled: bool | None = True
+    duration: str | None = None
+    bar_size: str | None = None
+    use_rth: bool | None = None
+    min_bars: int | None = None
+    max_bars: int | None = None
+    what_to_show: str | None = None
+
+    model_config = {"extra": "ignore"}
+
+
+class SmcTimeframesConfig(BaseModel):
+    """``settings.smc_timeframes`` container.
+
+    Use populate-by-name so both ``30min`` (the canonical label) and
+    ``m30`` (a pydantic-friendly alias) round-trip cleanly.
+    """
+
+    daily: TimeframeConfig | None = None
+    m30: TimeframeConfig | None = Field(default=None, alias="30min")
+
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:  # type: ignore[override]
+        """Always dump with the canonical ``30min`` key."""
+        data = super().model_dump(by_alias=True, **kwargs)
+        # Back-fill from the alias-free attribute when only ``m30`` was set.
+        if "30min" not in data and data.get("m30") is not None:
+            data["30min"] = data.pop("m30")
+        data.pop("m30", None)
+        return data
+
+
 class MarketRegimeConfig(BaseModel):
     """Knobs for :func:`bot.market_regime.evaluate_regime`.
 
@@ -142,6 +183,10 @@ class Settings(BaseModel):
     paths: PathsConfig = Field(default_factory=PathsConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     market_regime: MarketRegimeConfig = Field(default_factory=MarketRegimeConfig)
+    # Per-timeframe IBKR candle presets for SMC/ICT scanning (Prompt 10A).
+    # Research-only; these control how candles are fetched, never
+    # whether the bot can trade.
+    smc_timeframes: SmcTimeframesConfig = Field(default_factory=SmcTimeframesConfig)
 
 
 class AppConfig(BaseModel):

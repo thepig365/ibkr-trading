@@ -20,6 +20,12 @@ from pathlib import Path
 from typing import Any, Iterable, Literal
 
 from .config import AppConfig
+from .smc_timeframes import (
+    SessionGuard,
+    evaluate_session_guard,
+    normalise_timeframe,
+    resolve_strategy_thresholds,
+)
 
 # ---------------------------------------------------------------------------
 # Categories
@@ -95,6 +101,7 @@ class ReviewItem:
     market_regime: str
     regime_confidence: str
     new_positions_allowed: bool
+    timeframe: str = "daily"
     execution_allowed: bool = False
     research_only: bool = True
     structure: dict[str, bool] = field(default_factory=dict)
@@ -125,6 +132,8 @@ class ReviewQueue:
     regime_missing_fields: list[str]
     new_positions_allowed: bool
     research_scans_allowed: bool
+    timeframe: str = "daily"
+    session_guard: dict[str, Any] = field(default_factory=dict)
     items: list[ReviewItem] = field(default_factory=list)
 
     # Always false / true; these are included on the envelope so any
@@ -164,12 +173,14 @@ class ReviewQueue:
     def to_dict(self) -> dict[str, Any]:
         return {
             "date": self.date,
+            "timeframe": self.timeframe,
             "source_summary": self.source_summary,
             "market_regime": self.market_regime,
             "regime_confidence": self.regime_confidence,
             "regime_missing_fields": list(self.regime_missing_fields),
             "new_positions_allowed": self.new_positions_allowed,
             "research_scans_allowed": self.research_scans_allowed,
+            "session_guard": dict(self.session_guard),
             "execution_allowed": False,
             "research_only": True,
             "counts": self.counts(),
@@ -412,8 +423,19 @@ def _iter_summary_rows(summary: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def load_latest_summary(cfg: AppConfig, date: str | None = None) -> tuple[dict[str, Any], Path]:
-    """Return (summary, path) for ``date`` or the latest on disk.
+def load_latest_summary(
+    cfg: AppConfig,
+    date: str | None = None,
+    *,
+    timeframe: str | None = None,
+) -> tuple[dict[str, Any], Path]:
+    """Return (summary, path) for ``date`` / ``timeframe`` or the latest.
+
+    Prompt 10A: ``timeframe='30min'`` looks for
+    ``{date}-30min-watchlist-summary.json``; ``timeframe='daily'`` (the
+    default) first checks ``{date}-daily-watchlist-summary.json`` then
+    falls back to the legacy ``{date}-watchlist-summary.json`` for
+    scans produced before timeframe-aware filenames were introduced.
 
     Raises :class:`SummaryNotFoundError` if nothing matches. The
     caller is responsible for presenting a friendly CLI error.
@@ -423,19 +445,48 @@ def load_latest_summary(cfg: AppConfig, date: str | None = None) -> tuple[dict[s
         raise SummaryNotFoundError(
             f"data/smc_setups directory does not exist: {dir_}"
         )
+
+    tf = normalise_timeframe(timeframe) if timeframe else None
+    candidates: list[Path] = []
     if date:
-        path = dir_ / f"{date}-watchlist-summary.json"
-        if not path.exists():
+        if tf:
+            candidates.append(dir_ / f"{date}-{tf}-watchlist-summary.json")
+            if tf == "daily":
+                candidates.append(dir_ / f"{date}-watchlist-summary.json")
+        else:
+            candidates.append(dir_ / f"{date}-daily-watchlist-summary.json")
+            candidates.append(dir_ / f"{date}-watchlist-summary.json")
+        candidates = [p for p in candidates if p.exists()]
+        if not candidates:
             raise SummaryNotFoundError(
-                f"no scan summary for {date}: {path}"
+                f"no scan summary for {date}"
+                + (f" timeframe={tf!r}" if tf else "")
+                + f" under {dir_}"
             )
+        path = candidates[0]
     else:
-        summaries = sorted(dir_.glob("*-watchlist-summary.json"))
-        if not summaries:
-            raise SummaryNotFoundError(
-                f"no *-watchlist-summary.json under {dir_}"
+        if tf:
+            candidates = sorted(dir_.glob(f"*-{tf}-watchlist-summary.json"))
+            if tf == "daily":
+                legacy = [
+                    p for p in sorted(dir_.glob("*-watchlist-summary.json"))
+                    if not any(
+                        p.name.endswith(f"-{ttf}-watchlist-summary.json")
+                        for ttf in ("daily", "30min")
+                    )
+                ]
+                candidates.extend(legacy)
+        else:
+            candidates = sorted(dir_.glob("*-watchlist-summary.json"))
+        if not candidates:
+            pattern = (
+                f"*-{tf}-watchlist-summary.json" if tf
+                else "*-watchlist-summary.json"
             )
-        path = summaries[-1]
+            raise SummaryNotFoundError(
+                f"no {pattern} under {dir_}"
+            )
+        path = candidates[-1]
     with path.open("r", encoding="utf-8") as f:
         return json.load(f), path
 
@@ -451,16 +502,49 @@ def build_review_queue(
     max_items: int = 50,
     min_review_priority_score: int = 0,
     include_categories: Iterable[str] | None = None,
+    timeframe: str | None = None,
+    now_et_hhmm: str | None = None,
+    strategy_block: dict[str, Any] | None = None,
 ) -> ReviewQueue:
-    """Turn a scanner batch-summary dict into a :class:`ReviewQueue`."""
+    """Turn a scanner batch-summary dict into a :class:`ReviewQueue`.
+
+    Prompt 10A: a 30min scan that falls inside the first/last 15
+    minutes of US RTH never surfaces READY/NEAR_ENTRY candidates. The
+    session guard demotes them to ``STRUCTURE_WATCH`` with an explicit
+    ``review_notes`` entry so reviewers can see *why* they were held
+    back. The safety invariants still hold — the queue never approves
+    any trade.
+    """
 
     thresholds = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
     rows = _iter_summary_rows(summary)
+
+    tf = normalise_timeframe(
+        timeframe
+        if timeframe is not None
+        else summary.get("timeframe") or "daily"
+    )
+    tf_thresholds = resolve_strategy_thresholds(tf, strategy_block)
+    guard = evaluate_session_guard(
+        tf, now_et_hhmm=now_et_hhmm, thresholds=tf_thresholds
+    )
 
     items: list[ReviewItem] = []
     for row in rows:
         category = classify_review_category(row, thresholds)
         score = review_priority_score(row, thresholds)
+        # 30min session filter: never surface READY / NEAR_ENTRY during
+        # the avoid window. Demote to STRUCTURE_WATCH so a reviewer
+        # still sees the symbol but cannot mistake it for entry-ready.
+        extra_notes: list[str] = []
+        if (
+            not guard.allowed
+            and tf == "30min"
+            and category
+            in ("READY_FOR_MANUAL_CHART_REVIEW", "PULLBACK_WATCH")
+        ):
+            extra_notes.append(guard.reason)
+            category = "STRUCTURE_WATCH"
         reason = human_review_reason(row, category, thresholds)
         item = ReviewItem(
             symbol=str(row.get("symbol") or "").upper(),
@@ -468,6 +552,7 @@ def build_review_queue(
             review_priority_score=score,
             scanner_bucket=str(row.get("bucket") or ""),
             smc_quality_score=int(row.get("smc_quality_score") or 0),
+            timeframe=tf,
             market_regime=str(
                 summary.get("market_regime") or row.get("market_regime") or "unknown"
             ),
@@ -493,7 +578,7 @@ def build_review_queue(
             human_review_reason=reason,
             what_to_watch_next=WHAT_TO_WATCH_NEXT.get(category, ""),
             chart_path=str(row.get("chart_path") or ""),
-            review_notes=[],
+            review_notes=list(extra_notes),
         )
         items.append(item)
 
@@ -516,12 +601,14 @@ def build_review_queue(
 
     queue = ReviewQueue(
         date=str(summary.get("date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+        timeframe=tf,
         source_summary=str(source_path),
         market_regime=str(summary.get("market_regime") or "unknown"),
         regime_confidence=str(summary.get("regime_confidence") or "low"),
         regime_missing_fields=list(summary.get("regime_missing_fields") or []),
         new_positions_allowed=bool(summary.get("new_positions_allowed", False)),
         research_scans_allowed=bool(summary.get("research_scans_allowed", True)),
+        session_guard=guard.to_dict(),
         items=items,
     )
     return queue
@@ -531,9 +618,16 @@ def build_review_queue(
 # Persistence
 # ---------------------------------------------------------------------------
 def save_review_queue(cfg: AppConfig, queue: ReviewQueue) -> Path:
+    """Persist the review queue under ``data/review_queue/``.
+
+    Filename: ``{date}-{timeframe}-smc-review-queue.json``. Backward
+    compatible with the legacy ``{date}-smc-review-queue.json`` layout
+    because loaders accept both.
+    """
     out_dir = cfg.absolute("data/review_queue")
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{queue.date}-smc-review-queue.json"
+    tf = normalise_timeframe(queue.timeframe)
+    path = out_dir / f"{queue.date}-{tf}-smc-review-queue.json"
     with path.open("w", encoding="utf-8") as f:
         json.dump(queue.to_dict(), f, indent=2, default=str)
     return path
@@ -555,8 +649,9 @@ def format_markdown(queue: ReviewQueue, *, top: int = 10) -> str:
     """Return a markdown block to append to memory/SMC-REVIEW-QUEUE.md."""
     counts = queue.counts()
     lines: list[str] = [
-        f"# SMC Review Queue — {queue.date}",
+        f"# SMC Review Queue — {queue.date} ({queue.timeframe})",
         "",
+        f"Timeframe: {queue.timeframe}",
         f"Market regime: {queue.market_regime}",
         f"Confidence: {queue.regime_confidence}",
         "Missing fields: "
@@ -564,6 +659,12 @@ def format_markdown(queue: ReviewQueue, *, top: int = 10) -> str:
         f"New positions allowed: {'yes' if queue.new_positions_allowed else 'no'}",
         "Execution allowed: no",
         "Research only: yes",
+    ]
+    if queue.session_guard and not queue.session_guard.get("allowed", True):
+        lines.append(
+            f"Session guard: {queue.session_guard.get('reason', '')}"
+        )
+    lines += [
         "",
         "## Summary",
         "",
@@ -655,10 +756,17 @@ def format_telegram_digest(
     )
 
     out: list[str] = [
-        bold(f"SMC Review Queue — {queue.date}"),
+        bold(f"SMC Review Queue — {queue.date} ({queue.timeframe})"),
+        f"Timeframe: {queue.timeframe}",
         f"Regime: {queue.market_regime} (confidence={queue.regime_confidence})",
         f"New positions allowed: {'yes' if queue.new_positions_allowed else 'no'}",
         "Execution: disabled",
+    ]
+    if queue.session_guard and not queue.session_guard.get("allowed", True):
+        out.append(
+            f"Session guard: {esc(queue.session_guard.get('reason', ''))}"
+        )
+    out += [
         "",
         f"READY_FOR_MANUAL_CHART_REVIEW: {counts.get('READY_FOR_MANUAL_CHART_REVIEW', 0)}",
         f"PULLBACK_WATCH: {counts.get('PULLBACK_WATCH', 0)}",
