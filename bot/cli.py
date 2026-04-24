@@ -2706,6 +2706,173 @@ def mtf_near_alignment_alert(
     raise typer.Exit(0)
 
 
+@app.command("mtf-trigger-check")
+def mtf_trigger_check_cmd(
+    use_latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Use the newest *-mtf-diagnostic-report.json under data/mtf_smc/.",
+    ),
+    report_date: Optional[str] = typer.Option(
+        None, "--date", help="Report date (YYYY-MM-DD) if not --latest.",
+    ),
+    top: int = typer.Option(5, "--top", min=1, help="Max watch symbols to refresh."),
+    include_premium: bool = typer.Option(
+        False, "--include-premium", help="Actively poll PREMIUM_DISCOUNT rows.",
+    ),
+    symbol: Optional[str] = typer.Option(
+        None, "--symbol", help="Only this ticker if present in near-alignment list.",
+    ),
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr", help="Refresh candles from IBKR (read-only).",
+    ),
+    telegram: bool = typer.Option(False, "--telegram", help="Send trigger Telegram (if configured)."),
+) -> None:
+    """One-shot 5m trigger refresh from near-alignment (10F, alert-only, no orders)."""
+    from .mtf_trigger_watch import find_latest_diagnostic_report_path, run_mtf_trigger_check
+    from .mtf_trigger_watch import RUNTIME_STATE_FILENAME
+
+    cfg, journal = _bootstrap()
+    mtf_dir = cfg.absolute("data/mtf_smc")
+    mtf_dir.mkdir(parents=True, exist_ok=True)
+    if use_latest:
+        res = find_latest_diagnostic_report_path(mtf_dir)
+        if not res:
+            console.print(
+                "[red]No *-mtf-diagnostic-report.json. Run mtf-diagnostic-report first.[/red]"
+            )
+            raise typer.Exit(2)
+        d, _path = res
+    elif report_date:
+        d = report_date
+    else:
+        d = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not (mtf_dir / f"{d}-mtf-diagnostic-report.json").exists():
+        console.print(
+            f"[red]Missing {d}-mtf-diagnostic-report.json. "
+            f"Run: python -m bot.cli mtf-diagnostic-report --date {d}[/red]"
+        )
+        raise typer.Exit(2)
+    if not use_ibkr:
+        console.print("[red]5m trigger check needs live data: pass --ibkr.[/red]")
+        raise typer.Exit(2)
+    out, _meta = run_mtf_trigger_check(
+        cfg,
+        journal,
+        mtf_dir=mtf_dir,
+        report_date=d,
+        use_ibkr=True,
+        top=top,
+        include_premium=include_premium,
+        symbol_filter=symbol,
+        telegram=telegram,
+        state_path=mtf_dir / RUNTIME_STATE_FILENAME,
+    )
+    console.print(
+        Panel.fit(
+            json.dumps(out, indent=2, default=str, ensure_ascii=False),
+            title="mtf-trigger-check",
+        )
+    )
+    journal.record_event(
+        category="mtf_trigger_watch",
+        level="INFO",
+        message="mtf-trigger-check",
+        payload={
+            "date": d,
+            "symbols_checked": out.get("symbols_checked"),
+            "execution_allowed": False,
+        },
+    )
+    raise typer.Exit(0)
+
+
+@app.command("mtf-trigger-watch")
+def mtf_trigger_watch_cmd(
+    use_latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Use the newest mtf diagnostic report under data/mtf_smc/.",
+    ),
+    report_date: Optional[str] = typer.Option(
+        None, "--date", help="YYYY-MM-DD; ignored with --latest.",
+    ),
+    top: int = typer.Option(5, "--top", min=1),
+    include_premium: bool = typer.Option(
+        False, "--include-premium", help="Include premium-discount near rows.",
+    ),
+    symbol: Optional[str] = typer.Option(
+        None, "--symbol", help="Single-symbol filter.",
+    ),
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr", help="Refresh from IBKR each cycle (read-only).",
+    ),
+    interval_minutes: int = typer.Option(
+        5, "--interval-minutes", min=1, help="Minutes between check cycles.",
+    ),
+    duration_minutes: int = typer.Option(
+        120, "--duration-minutes", min=1, help="Total watch window.",
+    ),
+    telegram: bool = typer.Option(False, "--telegram"),
+) -> None:
+    """Loop mtf-trigger-check: JSONL log only; alert-only, no orders (10F)."""
+    from .mtf_trigger_watch import (
+        RUNTIME_STATE_FILENAME,
+        find_latest_diagnostic_report_path,
+        run_mtf_trigger_watch_loop,
+    )
+
+    cfg, journal = _bootstrap()
+    mtf_dir = cfg.absolute("data/mtf_smc")
+    mtf_dir.mkdir(parents=True, exist_ok=True)
+    if use_latest:
+        res = find_latest_diagnostic_report_path(mtf_dir)
+        if not res:
+            console.print(
+                "[red]No mtf diagnostic report. Run mtf-diagnostic-report first.[/red]"
+            )
+            raise typer.Exit(2)
+        d, _ = res
+    elif report_date:
+        d = report_date
+    else:
+        d = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not (mtf_dir / f"{d}-mtf-diagnostic-report.json").exists():
+        console.print(
+            f"[red]Missing {d}-mtf-diagnostic-report.json. Run mtf-diagnostic-report.[/red]"
+        )
+        raise typer.Exit(2)
+    if not use_ibkr:
+        console.print("[red]Loop requires --ibkr.[/red]")
+        raise typer.Exit(2)
+    console.print(
+        f"[cyan]mtf-trigger-watch date={d} every {interval_minutes}m "
+        f"for {duration_minutes}m; Ctrl+C to stop. Log: "
+        f"{d}-trigger-watch.jsonl[/cyan]"
+    )
+    run_mtf_trigger_watch_loop(
+        cfg,
+        journal,
+        mtf_dir=mtf_dir,
+        report_date=d,
+        use_ibkr=True,
+        top=top,
+        include_premium=include_premium,
+        symbol_filter=symbol,
+        telegram=telegram,
+        state_path=mtf_dir / RUNTIME_STATE_FILENAME,
+        interval_minutes=interval_minutes,
+        duration_minutes=duration_minutes,
+    )
+    journal.record_event(
+        category="mtf_trigger_watch",
+        level="INFO",
+        message="mtf-trigger-watch",
+        payload={"date": d, "execution_allowed": False},
+    )
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # Daily scheduler commands (Prompt 9 Part B)
 # ---------------------------------------------------------------------------
