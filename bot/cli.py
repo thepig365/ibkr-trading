@@ -2371,33 +2371,13 @@ def scan_mtf_smc_watchlist(
     ),
 ) -> None:
     """Scan many symbols; optional paper bracket for FULL_ALIGNMENT (10C)."""
-    from .mtf_smc_engine import format_mtf_watchlist_digest_zh, run_mtf_smc
-    from .mtf_chart import render_mtf_smc_charts
+    from .mtf_smc_batch import run_mtf_smc_watchlist_scan
 
     cfg, journal = _bootstrap()
-    regime_ctx = _resolve_regime_context(cfg, None)
-    regime = str(regime_ctx["market_regime"])
-    conf = str(regime_ctx.get("regime_confidence") or "medium")
     chosen = (source or str(cfg.watchlist.get("default_source") or "static")).lower()
     if chosen not in {"static", "dynamic"}:
         console.print("[red]--source must be static or dynamic[/red]")
         raise typer.Exit(2)
-    symbols: list[str] = []
-    if chosen == "dynamic":
-        dw = load_dynamic_watchlist(cfg)
-        if dw is None:
-            console.print("[red]Build dynamic watchlist first (build-watchlist).[/red]")
-            raise typer.Exit(3)
-        symbols = [r.symbol for r in dw.symbols if not r.blocked]
-    else:
-        eqs = (cfg.watchlist or {}).get("equities") or []
-        symbols = [e.get("symbol") for e in eqs if e.get("symbol")]
-        if not symbols:
-            symbols = list(cfg.watchlist.get("static_core") or [])
-    if not symbols:
-        raise typer.Exit(0)
-    if limit is not None:
-        symbols = symbols[:limit]
     if not use_ibkr:
         console.print("[red]--ibkr is required.[/red]")
         raise typer.Exit(2)
@@ -2405,119 +2385,32 @@ def scan_mtf_smc_watchlist(
         console.print(
             "[yellow]--paper-bracket ignored: enable trading.mtf_paper_bracket_enabled.[/yellow]"
         )
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    items: list[dict] = []
-    full_reports: list[tuple[str, dict]] = []
-    counts: dict[str, int] = {
-        "FULL_ALIGNMENT": 0,
-        "SETUP_READY_WAITING_TRIGGER": 0,
-        "BIAS_OK_SETUP_INCOMPLETE": 0,
-        "CONFLICTED": 0,
-        "BLOCKED": 0,
-    }
-    for sym in symbols:
-        b, w, client = _mtf_connect_and_fetch(
-            sym, cfg, include_5min=include_5min, include_daily=include_daily
+    try:
+        summary = run_mtf_smc_watchlist_scan(
+            cfg,
+            journal,
+            use_ibkr=use_ibkr,
+            chart=chart,
+            telegram=telegram,
+            limit=limit,
+            source=source,
+            save_json=save_json,
+            include_5min=include_5min,
+            include_daily=include_daily,
+            paper_bracket=paper_bracket,
+            max_paper_trades=max_paper_trades,
         )
-        if client is not None:
-            try:
-                client.disconnect()
-            except Exception:  # noqa: BLE001
-                pass
-        out_ev: dict = {}
-        rep = run_mtf_smc(
-            sym, cfg, b, market_regime=regime, regime_confidence=conf,
-            include_5min=include_5min, include_daily=include_daily, out_eval=out_ev,
+    except FileNotFoundError:
+        console.print(
+            "[red]Build dynamic watchlist first (build-watchlist).[/red]"
         )
-        rep["warnings"] = list(dict.fromkeys((rep.get("warnings") or []) + w))
-        if chart and out_ev:
-            rep["chart_paths"] = render_mtf_smc_charts(
-                sym,
-                {
-                    "daily": b.daily,
-                    "4h": b.h4,
-                    "30min": b.m30,
-                    "5min": b.m5,
-                },
-                {k: out_ev.get(k) for k in ("daily", "4h", "30min", "5min")},
-                output_dir=cfg.absolute("data/debug_charts"),
-            )
-        if save_json:
-            _mtf_save_json(cfg, rep)
-        full_reports.append((sym, rep))
-        cat = str(rep.get("alignment_category") or "BLOCKED")
-        if cat in counts:
-            counts[cat] = counts[cat] + 1
-        items.append(
-            {
-                "symbol": sym.upper(),
-                "mtf_alignment_score": rep.get("mtf_alignment_score", 0),
-                "alignment_category": cat,
-                "eligible_for_future_paper_trade": rep.get(
-                    "eligible_for_future_paper_trade", False
-                ),
-            }
-        )
-    items.sort(key=lambda r: -float(r.get("mtf_alignment_score", 0)))
-    top5 = items[:5]
-    elig_names = [i["symbol"] for i in items if i.get("eligible_for_future_paper_trade")]
-    paper_runs: list[dict] = []
-    n_exec = 0
-    if (
-        paper_bracket
-        and max_paper_trades > 0
-        and cfg.settings.trading.mtf_paper_bracket_enabled
-    ):
-        for sym, rep in full_reports:
-            if n_exec >= max_paper_trades:
-                break
-            if (
-                rep.get("alignment_category") == "FULL_ALIGNMENT"
-                and rep.get("eligible_for_future_paper_trade")
-            ):
-                paper_runs.append(
-                    {
-                        "symbol": sym.upper(),
-                        "result": _maybe_mtf_paper_bracket(cfg, journal, rep),
-                    }
-                )
-                n_exec += 1
-    elif paper_bracket and max_paper_trades > 0 and not cfg.settings.trading.mtf_paper_bracket_enabled:
-        paper_runs = [
-            {
-                "symbol": None,
-                "result": {
-                    "submitted": False,
-                    "skipped_reasons": ["mtf_paper_bracket_enabled is false"],
-                },
-            }
-        ]
-    summary = {
-        "date": day,
-        "source": chosen,
-        "symbols_scanned": len(symbols),
-        "research_only": True,
-        "execution_allowed": False,
-        "counts": counts,
-        "top_by_alignment_score": top5,
-        "eligible_for_future_paper_trade": elig_names,
-        "mtf_paper_bracket_runs": paper_runs,
-        "items": items,
-    }
-    p = _mtf_save_watchlist_summary(cfg, summary) if save_json else None
+        raise typer.Exit(3)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)
+    p = summary.get("_saved_summary_path")
     if p:
         console.print(f"[green]Saved summary:[/green] {p}")
-    if telegram and cfg.telegram.is_configured:
-        from html import escape
-        digest = format_mtf_watchlist_digest_zh(summary)
-        body = "<pre>" + escape(digest) + "</pre>"
-        send_telegram_message(body, cfg=cfg, journal=journal)
-    journal.record_event(
-        category="mtf_smc",
-        level="INFO",
-        message="scan-mtf-smc-watchlist",
-        payload={"n": len(symbols), "execution_allowed": False},
-    )
     raise typer.Exit(0)
 
 
@@ -2860,6 +2753,105 @@ def mtf_trigger_watch_cmd(
             "date": d,
             "auto_paper_bracket": bool(auto_paper_bracket),
         },
+    )
+    raise typer.Exit(0)
+
+
+# ---------------------------------------------------------------------------
+# Automatic MTF paper (Prompt 10H, PAPER only)
+# ---------------------------------------------------------------------------
+
+
+@app.command("paper-reconcile")
+def paper_reconcile_cmd() -> None:
+    """Same as [bold]reconcile[/bold]: read-only broker check (PAPER, no new orders)."""
+    import subprocess
+    import sys
+
+    r = subprocess.run(
+        [sys.executable, "-m", "bot.cli", "reconcile"],
+        cwd=str(Path(__file__).resolve().parent.parent),
+    )
+    raise typer.Exit(int(r.returncode or 0))
+
+
+@app.command("auto-paper-mtf")
+def auto_paper_mtf_cmd(
+    source: str = typer.Option("dynamic", "--source", help="static or dynamic watchlist source."),
+    limit: int = typer.Option(20, "--limit", min=1),
+    max_paper_trades: int = typer.Option(
+        1, "--max-paper-trades", min=0, help="Max bracket submissions this pass."
+    ),
+    telegram: bool = typer.Option(False, "--telegram"),
+    chart: bool = typer.Option(False, "--chart", help="Render MTF debug charts."),
+    bypass_runtime_guard: bool = typer.Option(
+        False,
+        "--bypass-runtime-guard",
+        help="Ignore data/runtime/mtf_auto_paper_enabled (operator override).",
+    ),
+) -> None:
+    """One pass: preflight, MTF watchlist scan, PAPER bracket only if FULL+eligible (config + runtime)."""
+    from dataclasses import asdict
+
+    from .auto_paper_mtf import run_auto_paper_mtf
+
+    cfg, journal = _bootstrap()
+    r = run_auto_paper_mtf(
+        cfg,
+        journal,
+        source=source,
+        limit=limit,
+        max_paper_trades=max_paper_trades,
+        telegram=telegram,
+        chart=chart,
+        bypass_runtime_guard=bypass_runtime_guard,
+    )
+    d = asdict(r)
+    console.print(
+        Panel.fit(
+            json.dumps(d, indent=2, default=str, ensure_ascii=False),
+            title="auto-paper-mtf",
+        )
+    )
+    raise typer.Exit(0 if r.ok else 2)
+
+
+@app.command("run-auto-paper-mtf-loop")
+def run_auto_paper_mtf_loop_cmd(
+    source: str = typer.Option("dynamic", "--source"),
+    limit: int = typer.Option(20, "--limit", min=1),
+    max_paper_trades: int = typer.Option(1, "--max-paper-trades", min=0),
+    interval_minutes: int = typer.Option(5, "--interval-minutes", min=1),
+    market_hours_only: bool = typer.Option(
+        True, "--market-hours-only/--all-hours", help="US RTH 09:45-15:30 NY for trading steps.",
+    ),
+    telegram: bool = typer.Option(False, "--telegram"),
+    once: bool = typer.Option(
+        False, "--once", help="Single cycle and exit (health check / dry).",
+    ),
+    stop_after_minutes: Optional[float] = typer.Option(
+        None, "--stop-after-minutes", help="Stop the loop after this many minutes.",
+    ),
+) -> None:
+    """Background-style loop: regime, watchlist, auto-paper, diagnostic. PAPER only."""
+    from .auto_paper_loop import run_auto_paper_mtf_loop
+
+    cfg, journal = _bootstrap()
+    console.print(
+        "[cyan]run-auto-paper-mtf-loop: PAPER only; block_live_trading must stay true. "
+        "Ctrl+C to stop.[/cyan]"
+    )
+    run_auto_paper_mtf_loop(
+        cfg,
+        journal,
+        source=source,
+        limit=limit,
+        max_paper_trades=max_paper_trades,
+        interval_minutes=interval_minutes,
+        market_hours_only=market_hours_only,
+        telegram=telegram,
+        once=once,
+        stop_after_minutes=stop_after_minutes,
     )
     raise typer.Exit(0)
 

@@ -176,7 +176,27 @@ def connect_and_run_mtf_paper_bracket(
     try:
         ex = IBKRClient(cfg)
         ex.connect(readonly=False)
+        symu = str(rep.get("symbol") or "").upper()
         pos = ex.get_positions()
+        if symu:
+            for p in pos:
+                if str(p.symbol).upper() == symu and abs(float(p.position)) >= 0.5:
+                    return {
+                        "submitted": False,
+                        "skipped_reasons": [
+                            f"existing position in {symu} — skip duplicate paper entry",
+                        ],
+                        "order_ids": [],
+                    }
+            for o in ex.get_open_orders():
+                if str(o.symbol).upper() == symu:
+                    return {
+                        "submitted": False,
+                        "skipped_reasons": [
+                            f"open order exists for {symu} — skip duplicate",
+                        ],
+                        "order_ids": [],
+                    }
         summ = ex.get_account_summary()
         eq = 0.0
         for a in summ:
@@ -185,7 +205,7 @@ def connect_and_run_mtf_paper_bracket(
                 break
         npos = sum(1 for p in pos if abs(p.position) >= 1e-4)
         br = Broker(cfg, ex, journal=journal)
-        return run_mtf_paper_bracket(
+        out = run_mtf_paper_bracket(
             br,
             cfg,
             rep,
@@ -193,6 +213,23 @@ def connect_and_run_mtf_paper_bracket(
             open_positions=npos,
             reconciliation_ok=True,
         )
+        oids = list(out.get("order_ids") or [])
+        if cfg.telegram.is_configured and (oids or out.get("submitted")) and not out.get("error"):
+            from html import escape
+
+            from .notifications import send_telegram_message
+
+            t30 = (rep.get("timeframes") or {}).get("30min") or {}
+            body = (
+                f"<b>{escape('【MTF 纸面 Bracket 已提交】')}</b>\n"
+                f"<pre>{escape(symu)}  order_ids={oids}\n"
+                f"entry={t30.get('entry_price')} stop={t30.get('stop_price')} "
+                f"target={t30.get('target_1')}\n"
+                f"submitted={out.get('submitted', False)}"
+                f"</pre>"
+            )
+            send_telegram_message(body, cfg=cfg, journal=journal)
+        return out
     except Exception as exc:  # noqa: BLE001
         return {
             "submitted": False,

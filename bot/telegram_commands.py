@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -66,6 +67,11 @@ _UNSAFE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bshort\b", re.I),
     re.compile(r"\boptions?\b", re.I),
     re.compile(r"\blong\b", re.I),
+    re.compile(r"\bmarket\s+order\b", re.I),
+    re.compile(r"\bcrypto\b", re.I),
+    re.compile(r"\bforex\b", re.I),
+    re.compile(r"\bfutures?\b", re.I),
+    re.compile(r"\bnaked\s+", re.I),
 )
 
 SAFETY_MESSAGE_ZH = (
@@ -225,7 +231,16 @@ HELP_REPLY_ZH = (
     "/opening    - 完整 opening review 流程"
     "（regime → watchlist → TWS 导出 → smc → review）\n"
     "/status    - 返回 TWS / 最近报告 / scheduler 状态\n"
-    "\n安全规则：所有命令仅用于研究和人工复核，execution_allowed=false。"
+    "/auto_mtf_status - MTF 纸面自动循环：KILL、runtime 开关、最近 FULL/订单\n"
+    "/auto_mtf_on    - 写 runtime 允许纸面提交（不启用 live）\n"
+    "/auto_mtf_off   - 写 runtime 禁止纸面提交（可覆盖配置里的 fully_automatic）\n"
+    "/kill          - 创建 KILL_SWITCH，阻止新纸面单\n"
+    "/resume        - 移除 KILL_SWITCH（纸面研究用）\n"
+    "/paper_orders  - 今日 orders.jsonl 尾部摘要\n"
+    "/loop_status   - LaunchAgent/循环状态线索\n"
+    "/heartbeat     - 最近循环心跳/周期时间\n"
+    "\n安全规则：所有命令仅用于研究和纸面门控，execution_allowed=false；"
+    "禁止 live/期权/短空等。"
 )
 
 
@@ -263,6 +278,139 @@ def _latest_file(path: Path, pattern: str) -> Path | None:
     except Exception:  # noqa: BLE001
         return None
     return candidates[-1] if candidates else None
+
+
+# LaunchAgent label (10H); matches launchd/com.leon.ibkr-trading-bot.auto-paper.plist
+_LAUNCHD_LABEL = "com.leon.ibkr-trading-bot.auto-paper"
+
+
+def _set_runtime_mtf_paper_file(cfg: AppConfig, on: bool) -> None:
+    p = cfg.absolute("data/runtime/mtf_auto_paper_enabled")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("1\n" if on else "0\n", encoding="utf-8")
+
+
+def _auto_mtf_status_reply_zh(cfg: AppConfig) -> str:
+    """Aggregate loop state, kill switch, and paper-only flags for Telegram."""
+    lines: list[str] = [
+        "【MTF 纸面自动】",
+        "- execution_allowed=false；仅 PAPER/配置门控。",
+    ]
+    ks = cfg.absolute("data/KILL_SWITCH")
+    lines.append(f"- KILL_SWITCH: {'是' if ks.is_file() else '否'}")
+    rtf = cfg.absolute("data/runtime/mtf_auto_paper_enabled")
+    if rtf.is_file():
+        try:
+            lines.append(f"- runtime mtf 文件: {rtf.read_text().strip()!r}")
+        except OSError:
+            lines.append("- runtime mtf 文件: 读取失败")
+    else:
+        lines.append("- runtime mtf 文件: 无")
+    stp = cfg.absolute("data/runtime/auto_paper_loop_state.json")
+    if stp.is_file():
+        try:
+            st = json.loads(stp.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            st = {}
+        lines.append(f"- 最近周期 UTC: {st.get('last_cycle_utc', '—')}")
+        lines.append(f"- 上次 FULL_ALIGNMENT: {st.get('last_full_alignment_count', '—')}")
+        lines.append(f"- 上次提交单数: {st.get('last_orders_submitted', '—')}")
+        lines.append(
+            f"- 上次 status/reason: {st.get('last_status', '—')}"
+            f" / {st.get('last_reason', '')!s}"
+        )
+    else:
+        lines.append("- auto_paper_loop_state.json: 无（循环尚未写状态）")
+    t = cfg.settings.trading
+    ap = t.mtf_auto_paper
+    lines.append(
+        f"- trading: enabled={t.enabled} mtf_paper_bracket={t.mtf_paper_bracket_enabled} "
+        f"mtf_paper_dry_run={t.mtf_paper_dry_run} mtf_auto_paper: enabled={ap.enabled} "
+        f"fully_automatic={ap.fully_automatic} allow_live_trading={ap.allow_live_trading}"
+    )
+    a = cfg.settings.account
+    lines.append(
+        f"- account: mode={a.mode!r} block_live_trading={a.block_live_trading}"
+    )
+    return "\n".join(lines)
+
+
+def _paper_orders_reply_zh(cfg: AppConfig) -> str:
+    p = cfg.absolute(cfg.settings.paths.orders_jsonl)
+    if not p.is_file():
+        return f"尚无 {p.name}。execution_allowed=false。"
+    try:
+        all_lines = p.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:  # noqa: BLE001
+        return f"读取 orders 失败: {exc}"
+    if not all_lines:
+        return "orders.jsonl 为空。"
+    tail = all_lines[-60:]
+    body = "\n".join(tail)
+    if len(body) > 3600:
+        body = "…(截断)\n" + body[-3600:]
+    return f"orders.jsonl 尾部 (最多 60 行，execution_allowed=false)：\n{body}"
+
+
+def _loop_status_reply_zh(cfg: AppConfig) -> str:
+    agent = Path.home() / "Library" / "LaunchAgents" / f"{_LAUNCHD_LABEL}.plist"
+    parts = [
+        "【循环 / LaunchAgent】",
+        f"- 预期 LaunchAgents plist: {agent}",
+    ]
+    if not agent.is_file():
+        parts.append("- plist: 未安装 (可运行 scripts/install_launch_agent.sh)")
+    else:
+        try:
+            txt = agent.read_text(encoding="utf-8")
+        except OSError as exc:  # noqa: BLE001
+            parts.append(f"- plist: 读失败 {exc}")
+        else:
+            parts.append(
+                "- plist: 无 Telegram token/账户号"
+                if "TELEGRAM" not in txt and "token" not in txt.lower()
+                else "- plist: 已检查(仍请人工确认无密钥)"
+            )
+    try:
+        r = subprocess.run(
+            ["/bin/launchctl", "list", _LAUNCHD_LABEL],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        out = (r.stdout or r.stderr or "").strip()
+        parts.append(
+            f"- launchctl list: exit={r.returncode} {out[:500]!s}"
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        parts.append(f"- launchctl: 不可用 ({exc!s})")
+    stp = cfg.absolute("data/runtime/auto_paper_loop_state.json")
+    if stp.is_file():
+        try:
+            st = json.loads(stp.read_text(encoding="utf-8"))
+            parts.append(f"- 最近周期: {st.get('last_cycle_utc', '—')}")
+        except (OSError, json.JSONDecodeError):
+            parts.append("- 状态文件解析失败")
+    return "\n".join(parts)
+
+
+def _heartbeat_reply_zh(cfg: AppConfig) -> str:
+    stp = cfg.absolute("data/runtime/auto_paper_loop_state.json")
+    if not stp.is_file():
+        return "无 auto_paper_loop_state.json 心跳数据。"
+    try:
+        st = json.loads(stp.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "状态文件损坏。"
+    return "\n".join(
+        [
+            "【auto-paper 心跳】",
+            f"- last_cycle_utc: {st.get('last_cycle_utc', '—')}",
+            f"- last_heartbeat_ts: {st.get('last_heartbeat_ts', '—')}",
+            f"- last_full_alignment_count: {st.get('last_full_alignment_count', '—')}",
+        ]
+    )
 
 
 def _regime_reply_zh(cfg: AppConfig, stdout: str) -> str:
@@ -481,6 +629,88 @@ class Dispatcher:
                     "完整 opening review 流程已执行，分步骤 Telegram 已单独发送。",
                 ),
                 details=f"exit_codes={exit_codes}",
+            )
+
+        if head in {"/auto_mtf_status", "auto_mtf_status"}:
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh=_auto_mtf_status_reply_zh(self.cfg),
+                details="auto_mtf status",
+            )
+
+        if head in {"/auto_mtf_on", "auto_mtf_on"}:
+            _set_runtime_mtf_paper_file(self.cfg, True)
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh="已写 runtime=1；纸面可提交门仍受 config+KILL+对账+FULL 等约束。",
+                details="mtf runtime on",
+            )
+
+        if head in {"/auto_mtf_off", "auto_mtf_off"}:
+            _set_runtime_mtf_paper_file(self.cfg, False)
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh="已写 runtime=0；与 fully_automatic 同时存在时以显式 0 为优先，停止纸面提交。",
+                details="mtf runtime off",
+            )
+
+        if head in {"/kill", "kill"}:
+            kp = self.cfg.absolute("data/KILL_SWITCH")
+            kp.parent.mkdir(parents=True, exist_ok=True)
+            kp.write_text(
+                f"{datetime.now(timezone.utc).isoformat()} via telegram /kill\n",
+                encoding="utf-8",
+            )
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh="已创建 KILL_SWITCH；新纸面单将被阻止。",
+                details="kill switch",
+            )
+
+        if head in {"/resume", "resume"}:
+            kp = self.cfg.absolute("data/KILL_SWITCH")
+            try:
+                if kp.is_file():
+                    kp.unlink()
+            except OSError as exc:  # noqa: BLE001
+                return CommandResult(
+                    command=raw,
+                    status="failed",
+                    reply_zh=f"无法移除 KILL_SWITCH: {exc}",
+                )
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh="已移除 KILL_SWITCH（若存在）。",
+                details="kill resume",
+            )
+
+        if head in {"/paper_orders", "paper_orders"}:
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh=_paper_orders_reply_zh(self.cfg),
+                details="paper orders tail",
+            )
+
+        if head in {"/loop_status", "loop_status"}:
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh=_loop_status_reply_zh(self.cfg),
+                details="launchd",
+            )
+
+        if head in {"/heartbeat", "heartbeat"}:
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh=_heartbeat_reply_zh(self.cfg),
+                details="heartbeat",
             )
 
         return CommandResult(

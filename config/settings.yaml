@@ -32,6 +32,12 @@ trading:
   # to call the same IBKR path as --paper-bracket (still requires trading.enabled,
   # mtf_paper_bracket_enabled, account paper, etc.).
   mtf_paper_auto_bracket_enabled: false
+  # 10H / full-auto paper: loop + `auto-paper-mtf` check this + data/runtime/mtf_auto_paper_enabled
+  mtf_auto_paper:
+    enabled: false
+    account_mode: paper
+    allow_live_trading: false
+    fully_automatic: false
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

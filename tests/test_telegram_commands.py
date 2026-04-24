@@ -82,7 +82,7 @@ def test_help_lists_all_supported_commands(tmp_project: Path, monkeypatch) -> No
 
     assert result.status == "success"
     for cmd in ("/help", "/news", "/regime", "/watchlist", "/smc", "/review",
-                "/opening", "/status"):
+                "/opening", "/status", "/auto_mtf_status", "/kill"):
         assert cmd in result.reply_zh
     assert "execution_allowed=false" in result.reply_zh
 

@@ -32,6 +32,17 @@ class AccountConfig(BaseModel):
         return v.strip().lower()
 
 
+class MtfAutoPaperConfig(BaseModel):
+    """10H/Full prompt: auto paper MTF loop settings (PAPER only; never live)."""
+
+    enabled: bool = False
+    account_mode: str = "paper"
+    allow_live_trading: bool = False
+    fully_automatic: bool = False
+
+    model_config = {"extra": "ignore"}
+
+
 class TradingConfig(BaseModel):
     enabled: bool = False
     dry_run_default: bool = True
@@ -49,6 +60,7 @@ class TradingConfig(BaseModel):
     # 10G: explicit 5m trigger + optional auto from trigger-check/watch
     mtf_paper_require_confirmed_5m: bool = True
     mtf_paper_auto_bracket_enabled: bool = False
+    mtf_auto_paper: MtfAutoPaperConfig = Field(default_factory=MtfAutoPaperConfig)
 
 
 class RiskConfig(BaseModel):
