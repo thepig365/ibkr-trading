@@ -271,6 +271,12 @@
             audit: <code>{{ intraday_paper_loop.latest_audit_log_path }}</code>
           </div>
         {% endif %}
+        {% if not intraday_paper_loop.is_empty and intraday_paper_loop.last_bracket_incomplete %}
+          <div class="card-sub text-small mt-12" style="color: var(--warn, #c45);">
+            <strong>Bracket integrity</strong> · worst: <code>{{ intraday_paper_loop.last_worst_bracket_integrity or 'incomplete' }}</code>
+            — at least one leg was rejected or cancelled. Verify in TWS; see Journal for details.
+          </div>
+        {% endif %}
       </div>
     </div>
 

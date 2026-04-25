@@ -463,23 +463,16 @@ def run_first_paper_pass(
         _write_first_pass_state(cfg, out)
         return out
 
-    from .execution.intraday_paper_execution import run_intraday_paper_pass  # noqa: PLC0415
+    from .execution.intraday_paper_execution import (  # noqa: PLC0415
+        run_intraday_paper_pass,
+        serialize_paper_submission,
+    )
 
     result = run_intraday_paper_pass(
         cfg, journal, source=source, limit=limit, telegram=telegram, chart=False
     )
     pld = asdict(result)
-    pld["submissions"] = [
-        {
-            "symbol": s.symbol,
-            "submitted": s.submitted,
-            "skipped_reasons": list(s.skipped_reasons),
-            "order_ids": list(s.order_ids),
-            "intent": s.intent.as_audit_dict() if s.intent else None,
-            "error": s.error,
-        }
-        for s in result.submissions
-    ]
+    pld["submissions"] = [serialize_paper_submission(s) for s in result.submissions]
     out["execution"] = pld
     out["result"] = "ok" if result.last_status not in {"failed", "error"} else "error"
 

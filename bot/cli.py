@@ -3755,7 +3755,10 @@ def auto_paper_intraday_smc_cmd(
     """
     from dataclasses import asdict
 
-    from .execution.intraday_paper_execution import run_intraday_paper_pass
+    from .execution.intraday_paper_execution import (
+        run_intraday_paper_pass,
+        serialize_paper_submission,
+    )
 
     if source not in {"static", "dynamic", "manual"}:
         console.print("[red]--source must be static|dynamic|manual[/red]")
@@ -3771,17 +3774,7 @@ def auto_paper_intraday_smc_cmd(
         chart=chart,
     )
     payload = asdict(result)
-    payload["submissions"] = [
-        {
-            "symbol": s.symbol,
-            "submitted": s.submitted,
-            "skipped_reasons": list(s.skipped_reasons),
-            "order_ids": list(s.order_ids),
-            "intent": s.intent.as_audit_dict() if s.intent else None,
-            "error": s.error,
-        }
-        for s in result.submissions
-    ]
+    payload["submissions"] = [serialize_paper_submission(s) for s in result.submissions]
     console.print(
         Panel.fit(
             json.dumps(payload, indent=2, default=str, ensure_ascii=False),
@@ -3789,6 +3782,13 @@ def auto_paper_intraday_smc_cmd(
             style="cyan",
         )
     )
+    for s in result.submissions:
+        if s.submitted_to_broker and not s.submitted:
+            console.print(
+                "[bold red]Paper order reached broker, but bracket protection is incomplete. "
+                "Verify/cancel in TWS.[/bold red]"
+            )
+            break
     journal.record_event(
         category="ict_smc_intraday_paper",
         level="INFO",
@@ -3918,6 +3918,10 @@ def intraday_paper_status_cmd(
         "loop_state_exists": state_path.exists(),
         "loop_state": state_payload,
         "latest_audit_log_path": str(latest_audit) if latest_audit else None,
+        "last_worst_bracket_integrity": state_payload.get("last_worst_bracket_integrity"),
+        "last_bracket_incomplete": bool(
+            state_payload.get("last_bracket_incomplete", False)
+        ),
     }
     if as_json:
         console.print_json(data=payload)
@@ -4092,6 +4096,14 @@ def first_paper_pass_cmd(
             style="cyan",
         )
     )
+    ex = out.get("execution") or {}
+    for row in ex.get("submissions") or []:
+        if row.get("submitted_to_broker") and not row.get("submitted"):
+            console.print(
+                "[bold red]Paper order reached broker, but bracket protection is incomplete. "
+                "Verify/cancel in TWS.[/bold red]"
+            )
+            break
     if out.get("result") in {"failed", "error"}:
         raise typer.Exit(2)
     raise typer.Exit(0)

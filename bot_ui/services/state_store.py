@@ -315,6 +315,8 @@ class IntradayPaperLoopStatus:
     strict_ready_count: int = 0
     aggressive_ready_count: int = 0
     orders_submitted: int = 0
+    last_worst_bracket_integrity: str = ""
+    last_bracket_incomplete: bool = False
     skipped_reasons: list[str] = field(default_factory=list)
     kill_switch: bool = False
     runtime_intraday_on: bool = False
@@ -339,6 +341,7 @@ class IntradayPaperOrderRow:
     direction: str = ""
     signal_category: str = ""
     submitted: bool = False
+    submitted_to_broker: bool = False
     skipped_reasons: list[str] = field(default_factory=list)
     entry: float | None = None
     stop: float | None = None
@@ -351,6 +354,16 @@ class IntradayPaperOrderRow:
     source_scan_path: str | None = None
     chart_paths: list[str] = field(default_factory=list)
     source_jsonl_path: str | None = None
+    original_entry: float | None = None
+    original_stop: float | None = None
+    original_target: float | None = None
+    min_tick: str | None = None
+    min_tick_source: str | None = None
+    bracket_integrity: str = ""
+    bracket_protected: bool | None = None
+    broker_errors: list[str] = field(default_factory=list)
+    broker_error_codes: list[int] = field(default_factory=list)
+    verify_in_tws_required: bool = False
 
 
 @dataclass(frozen=True)
@@ -1237,6 +1250,10 @@ class LocalFileStateStore:
             strict_ready_count=int(data.get("strict_ready_count") or 0),
             aggressive_ready_count=int(data.get("aggressive_ready_count") or 0),
             orders_submitted=int(data.get("orders_submitted") or 0),
+            last_worst_bracket_integrity=str(
+                data.get("last_worst_bracket_integrity") or ""
+            ),
+            last_bracket_incomplete=bool(data.get("last_bracket_incomplete")),
             skipped_reasons=skipped,
             kill_switch=bool(data.get("kill_switch")),
             runtime_intraday_on=bool(data.get("runtime_intraday_on")),
@@ -1652,6 +1669,22 @@ def _row_from_paper_order(
         if isinstance(chart_paths_raw, list)
         else []
     )
+    be_raw = obj.get("broker_error_codes") or []
+    be_codes: list[int] = []
+    if isinstance(be_raw, list):
+        for c in be_raw:
+            try:
+                be_codes.append(int(c))
+            except (TypeError, ValueError):
+                continue
+    berr = obj.get("broker_errors") or []
+    berr_l = [str(m) for m in berr if m] if isinstance(berr, list) else []
+    bprot = obj.get("bracket_protected")
+    bprot_t: bool | None
+    if bprot is None:
+        bprot_t = None
+    else:
+        bprot_t = bool(bprot)
     return IntradayPaperOrderRow(
         timestamp=str(obj.get("timestamp") or obj.get("ts") or ""),
         strategy_id=str(obj.get("strategy_id") or ""),
@@ -1659,6 +1692,7 @@ def _row_from_paper_order(
         direction=str(obj.get("direction") or ""),
         signal_category=str(obj.get("signal_category") or ""),
         submitted=bool(obj.get("submitted")),
+        submitted_to_broker=bool(obj.get("submitted_to_broker", False)),
         skipped_reasons=[str(r) for r in skipped_raw if r],
         entry=_to_float(obj.get("entry")),
         stop=_to_float(obj.get("stop")),
@@ -1672,6 +1706,18 @@ def _row_from_paper_order(
         if obj.get("source_scan_path") else None,
         chart_paths=chart_paths,
         source_jsonl_path=source_path,
+        original_entry=_to_float(obj.get("original_entry")),
+        original_stop=_to_float(obj.get("original_stop")),
+        original_target=_to_float(obj.get("original_target")),
+        min_tick=(str(obj.get("min_tick")) if obj.get("min_tick") is not None else None),
+        min_tick_source=str(obj.get("min_tick_source"))
+        if obj.get("min_tick_source")
+        else None,
+        bracket_integrity=str(obj.get("bracket_integrity") or ""),
+        bracket_protected=bprot_t,
+        broker_errors=berr_l,
+        broker_error_codes=be_codes,
+        verify_in_tws_required=bool(obj.get("verify_in_tws_required", False)),
     )
 
 

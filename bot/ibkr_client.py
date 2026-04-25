@@ -704,6 +704,51 @@ class IBKRClient:
             )
         return out
 
+    def fetch_stock_min_tick(
+        self, symbol: str, *, exchange: str = "SMART", currency: str = "USD"
+    ) -> dict[str, Any]:
+        """Request ``minTick`` for a qualified US stock (read-only, Prompt 13J.1).
+
+        Used only when building paper bracket orders. Does **not** place orders.
+        If contract details are unavailable, returns ``0.01`` with
+        ``min_tick_source='fallback_us_stock_0.01'`` and an error string suitable
+        for audit (``min_tick_fetch_error``).
+        """
+        from decimal import Decimal
+
+        out: dict[str, Any] = {
+            "min_tick": Decimal("0.01"),
+            "min_tick_source": "fallback_us_stock_0.01",
+            "min_tick_fetch_error": None,
+        }
+        self._require_connection()
+        contract = self._qualify(str(symbol).upper(), "STK", exchange, currency)
+        if contract is None:
+            out["min_tick_fetch_error"] = "qualify_failed"
+            return out
+        try:
+            cds = self._ib.reqContractDetails(contract)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("reqContractDetails failed for %s: %s", symbol, exc)
+            out["min_tick_fetch_error"] = str(exc)
+            return out
+        if not cds:
+            out["min_tick_fetch_error"] = "empty_contract_details"
+            return out
+        cd0 = cds[0]
+        mt = getattr(cd0, "minTick", None)
+        if mt is None or float(mt) <= 0:
+            out["min_tick_fetch_error"] = "min_tick_missing_or_zero"
+            return out
+        try:
+            out["min_tick"] = Decimal(str(float(mt)))
+        except (TypeError, ValueError, ArithmeticError):
+            out["min_tick_fetch_error"] = "min_tick_parse_failed"
+            return out
+        out["min_tick_source"] = "contract_details"
+        out["min_tick_fetch_error"] = None
+        return out
+
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------

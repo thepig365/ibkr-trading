@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -39,6 +40,7 @@ from bot.execution.intraday_paper_execution import (
     is_intraday_paper_runtime_enabled,
     submit_intraday_paper_bracket,
     validate_intraday_paper_intent,
+    verify_intraday_paper_bracket_trades,
 )
 from bot.journal import Journal
 
@@ -460,9 +462,32 @@ def _make_broker_with_fake_ib(cfg) -> tuple[Broker, MagicMock]:
         o.orderId = oid
     fake_ib.bracketOrder = MagicMock(return_value=(fo, so, to))
     fake_ib.placeOrder = MagicMock()
+
+    def _mk_trade(oid: int, status: str = "Submitted", log: list | None = None) -> MagicMock:
+        tr = MagicMock()
+        tr.order.orderId = oid
+        tr.orderStatus.status = status
+        tr.log = log or []
+        return tr
+
+    fake_ib.trades = MagicMock(
+        return_value=[
+            _mk_trade(1, "Submitted"),
+            _mk_trade(2, "Submitted"),
+            _mk_trade(3, "Submitted"),
+        ]
+    )
+    fake_ib.sleep = MagicMock()
     client = MagicMock()
     client._ib = fake_ib
     client.is_connected = True
+    client.fetch_stock_min_tick = MagicMock(
+        return_value={
+            "min_tick": Decimal("0.01"),
+            "min_tick_source": "contract_details",
+            "min_tick_fetch_error": None,
+        }
+    )
     broker = Broker(cfg, client=client, journal=None)
     return broker, fake_ib
 
@@ -477,6 +502,7 @@ def test_submit_returns_dry_run_skip_when_dry_run_true(
         _intent_long(), _broker_state_paper_clean(), cfg, broker=broker,
     )
     assert sub.submitted is False
+    assert sub.submitted_to_broker is False
     assert sub.skipped_reasons == ["dry-run"]
     fake_ib.placeOrder.assert_not_called()
     fake_ib.bracketOrder.assert_not_called()
@@ -496,12 +522,15 @@ def test_submit_places_bracket_when_dry_run_false(
         _intent_long(), _broker_state_paper_clean(), cfg, broker=broker,
     )
     assert sub.submitted is True
+    assert sub.submitted_to_broker is True
+    assert sub.bracket_integrity == "complete"
     assert sub.order_ids == [1, 2, 3]
     assert fake_ib.bracketOrder.call_count == 1
     args, _ = fake_ib.bracketOrder.call_args
     side, qty, entry, target, stop = args
     assert side == "BUY"
-    assert qty == 10.0
+    # Quantity is recomputed from equity + risk% after tick normalization.
+    assert qty == 100.0
     assert entry == 100.0 and target == 102.0 and stop == 99.0
     assert fake_ib.placeOrder.call_count == 3
 
@@ -607,8 +636,15 @@ def test_audit_log_path_constructed_under_paper_orders_dir(
     sub = IntradayPaperSubmissionResult(
         symbol=intent.symbol,
         submitted=True,
+        submitted_to_broker=True,
+        bracket_integrity="complete",
         intent=intent,
         order_ids=[101, 102, 103],
+        tick_meta={
+            "min_tick": "0.01",
+            "min_tick_source": "contract_details",
+            "original_entry": 100.0,
+        },
     )
     p = _record_submission_audit(cfg, sub)
     assert p
@@ -619,6 +655,8 @@ def test_audit_log_path_constructed_under_paper_orders_dir(
     assert row["symbol"] == "AAPL"
     assert row["order_ids"] == [101, 102, 103]
     assert row["submitted"] is True
+    assert row.get("min_tick") == "0.01"
+    assert row.get("bracket_integrity") == "complete"
 
 
 # ---------------------------------------------------------------------------
@@ -714,3 +752,49 @@ def test_format_intraday_paper_digest_zh_contains_chinese_keywords() -> None:
     ]:
         assert needle in text, f"digest missing {needle!r}"
     assert "实盘" not in text or "不会触发实盘" in text
+
+
+def test_verify_intraday_error_110_marks_incomplete() -> None:
+    fake_ib = MagicMock()
+
+    def _mk(oid: int, status: str, log: list | None = None) -> MagicMock:
+        tr = MagicMock()
+        tr.order.orderId = oid
+        tr.orderStatus.status = status
+        tr.log = log or []
+        return tr
+
+    le = MagicMock()
+    le.errorCode = 110
+    le.message = "min tick"
+    fake_ib.trades = MagicMock(
+        return_value=[
+            _mk(1, "Submitted"),
+            _mk(2, "Submitted"),
+            _mk(3, "Cancelled", [le]),
+        ]
+    )
+    fake_ib.sleep = MagicMock()
+    r = verify_intraday_paper_bracket_trades(fake_ib, [1, 2, 3], timeout=0.5)
+    assert r["bracket_integrity"] == "incomplete"
+    assert r["bracket_protected"] is False
+    assert 110 in r["broker_error_codes"]
+
+
+def test_verify_all_legs_submitted_marks_complete() -> None:
+    fake_ib = MagicMock()
+
+    def _mk(oid: int, status: str = "Submitted") -> MagicMock:
+        tr = MagicMock()
+        tr.order.orderId = oid
+        tr.orderStatus.status = status
+        tr.log = []
+        return tr
+
+    fake_ib.trades = MagicMock(
+        return_value=[_mk(1), _mk(2), _mk(3)]
+    )
+    fake_ib.sleep = MagicMock()
+    r = verify_intraday_paper_bracket_trades(fake_ib, [1, 2, 3], timeout=0.4)
+    assert r["bracket_integrity"] == "complete"
+    assert r["bracket_protected"] is True

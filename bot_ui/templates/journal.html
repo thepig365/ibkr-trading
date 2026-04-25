@@ -52,17 +52,20 @@
               <th>Entry</th>
               <th>Stop</th>
               <th>Target</th>
+              <th>Orig (E/SL/TP)</th>
+              <th>minTick</th>
               <th>R/R</th>
               <th>Qty</th>
+              <th>Integrity</th>
               <th>Status</th>
               <th>Order IDs</th>
-              <th>Reason / Skipped</th>
+              <th>Reason / Skipped / Broker</th>
               <th>Charts</th>
             </tr>
           </thead>
           <tbody>
             {% for r in j.paper_orders %}
-              <tr>
+              <tr{% if r.bracket_integrity and r.bracket_integrity != 'complete' %} class="row-warn" style="background: color-mix(in srgb, var(--warn, #a60) 12%, transparent);"{% endif %}>
                 <td><code>{{ r.timestamp[:19] }}Z</code></td>
                 <td><strong>{{ r.symbol }}</strong></td>
                 <td><code>{{ r.strategy_id }}</code></td>
@@ -75,17 +78,36 @@
                 <td>{% if r.entry is not none %}{{ "%.2f"|format(r.entry) }}{% else %}—{% endif %}</td>
                 <td>{% if r.stop is not none %}{{ "%.2f"|format(r.stop) }}{% else %}—{% endif %}</td>
                 <td>{% if r.target is not none %}{{ "%.2f"|format(r.target) }}{% else %}—{% endif %}</td>
+                <td class="text-small">
+                  {% if r.original_entry is not none or r.original_stop is not none or r.original_target is not none %}
+                    E{% if r.original_entry is not none %}{{ "%.2f"|format(r.original_entry) }}{% else %}—{% endif %}
+                    /SL{% if r.original_stop is not none %}{{ "%.2f"|format(r.original_stop) }}{% else %}—{% endif %}
+                    /TP{% if r.original_target is not none %}{{ "%.2f"|format(r.original_target) }}{% else %}—{% endif %}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-small">{% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} <span class="text-dim">({{ r.min_tick_source }})</span>{% endif %}{% else %}—{% endif %}</td>
                 <td>{% if r.planned_rr is not none %}{{ "%.2f"|format(r.planned_rr) }}{% else %}—{% endif %}</td>
                 <td>{% if r.quantity is not none %}{{ r.quantity|int }}{% else %}—{% endif %}</td>
                 <td>
-                  {% if r.submitted %}<span class="pill good">submitted</span>
-                  {% else %}<span class="pill warn">skipped</span>{% endif %}
+                  {% if r.bracket_integrity == 'complete' %}<span class="pill good">complete</span>
+                  {% elif r.bracket_integrity == 'incomplete' %}<span class="pill warn">incomplete</span>
+                  {% elif r.bracket_integrity %}<span class="pill neutral">{{ r.bracket_integrity }}</span>
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if r.submitted %}<span class="pill good">submitted (complete)</span>
+                  {% elif r.submitted_to_broker %}<span class="pill warn">reached TWS, incomplete</span>
+                  {% else %}<span class="pill warn">skipped / not to broker</span>{% endif %}
                 </td>
                 <td>{% if r.order_ids %}{{ r.order_ids|join(', ') }}{% else %}—{% endif %}</td>
                 <td class="text-small">
                   {% if r.skipped_reasons %}
                     {% for reason in r.skipped_reasons %}<span class="pill warn">{{ reason }}</span> {% endfor %}
-                  {% else %}—{% endif %}
+                  {% endif %}
+                  {% if r.broker_error_codes %}[codes: {{ r.broker_error_codes|join(', ') }}] {% endif %}
+                  {% if r.broker_errors %}{% for m in r.broker_errors %}{{ m }} {% endfor %}{% endif %}
+                  {% if r.verify_in_tws_required %}<span class="pill warn">verify TWS</span>{% endif %}
+                  {% if not r.skipped_reasons and not r.broker_errors and not r.broker_error_codes %}—{% endif %}
                 </td>
                 <td class="text-small">
                   {% if r.chart_paths %}

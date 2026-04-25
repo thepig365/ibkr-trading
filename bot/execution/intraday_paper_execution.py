@@ -134,7 +134,13 @@ class IntradayPaperIntent:
 
 @dataclass(frozen=True)
 class IntradayPaperSubmissionResult:
-    """Outcome of one symbol's submission attempt."""
+    """Outcome of one symbol's submission attempt.
+
+    **submitted** is only ``True`` when the bracket is fully accepted
+    (``bracket_integrity == "complete"``), not when a child leg is rejected
+    (e.g. IBKR Error 110 on stop price). See *submitted_to_broker* for
+    "we called ``placeOrder``" without implying protection.
+    """
 
     symbol: str
     submitted: bool
@@ -143,6 +149,23 @@ class IntradayPaperSubmissionResult:
     order_ids: list[int] = field(default_factory=list)
     error: str | None = None
     audit_path: str | None = None
+    # --- Prompt 13J.1: tick + integrity ---
+    submitted_to_broker: bool = False
+    bracket_integrity: str = "not_submitted"  # complete|incomplete|unknown|not_submitted
+    bracket_protected: bool | None = None
+    parent_order_id: int | None = None
+    stop_order_id: int | None = None
+    target_order_id: int | None = None
+    parent_order_status: str | None = None
+    stop_order_status: str | None = None
+    target_order_status: str | None = None
+    rejected_legs: list[str] = field(default_factory=list)
+    cancelled_legs: list[str] = field(default_factory=list)
+    broker_errors: list[str] = field(default_factory=list)
+    broker_error_codes: list[int] = field(default_factory=list)
+    verified_at_utc: str | None = None
+    verify_in_tws_required: bool = False
+    tick_meta: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -459,6 +482,245 @@ def _order_symbol(o: Any) -> str:
     return str(getattr(o, "symbol", "") or "").upper()
 
 
+def _rebuild_intent_after_tick_normalization(
+    base: IntradayPaperIntent,
+    norm: Any,  # BracketTickNormalization
+    equity: float,
+    cfg: AppConfig,
+) -> tuple[IntradayPaperIntent | None, list[str]]:
+    """Recompute size from normalized prices; same risk % rules as the scanner."""
+    from .price_ticks import BracketTickNormalization  # noqa: PLC0415
+
+    if not isinstance(norm, BracketTickNormalization) or not norm.valid:
+        return None, ["tick normalization not valid"]
+    if norm.entry is None or norm.stop is None or norm.target is None:
+        return None, ["normalized prices missing"]
+    entry = float(norm.entry)
+    stop = float(norm.stop)
+    target = float(norm.target)
+    direction = base.direction
+    ip = cfg.settings.trading.intraday_paper
+    if direction == DIRECTION_LONG:
+        per_share_risk = entry - stop
+        per_share_reward = target - entry
+    else:
+        per_share_risk = stop - entry
+        per_share_reward = entry - target
+    if per_share_risk <= 0:
+        return None, ["zero per-share risk after tick normalization"]
+    rr = per_share_reward / per_share_risk
+    if rr < float(ip.min_rr):
+        return None, [f"R/R {rr:.4f} below min_rr after tick normalization"]
+    risk_dollars = equity * (float(base.risk_per_trade_pct) / 100.0)
+    qty = int(math.floor(risk_dollars / per_share_risk))
+    if qty < 1:
+        return None, [
+            f"position size rounds to 0 after tick normalization (per_share_risk={per_share_risk:.4f})"
+        ]
+    notional = qty * entry
+    cap_pct = float(cfg.settings.risk.max_equity_per_position_pct)
+    cap = equity * (cap_pct / 100.0) if cap_pct > 0 else 0.0
+    if cap > 0 and notional > cap:
+        q2 = int(math.floor(cap / entry))
+        if q2 < 1:
+            return None, [
+                "max_equity_per_position caps size below 1 after tick normalization"
+            ]
+        qty = q2
+    rebuilt = IntradayPaperIntent(
+        strategy_id=base.strategy_id,
+        symbol=base.symbol,
+        direction=base.direction,
+        signal_category=base.signal_category,
+        entry_price=entry,
+        stop_price=stop,
+        target_price=target,
+        planned_rr=float(rr),
+        quantity=int(qty),
+        risk_amount=float(qty * per_share_risk),
+        risk_per_trade_pct=base.risk_per_trade_pct,
+        reason=base.reason,
+        source_scan_path=base.source_scan_path,
+        chart_paths=base.chart_paths,
+        research_flags=base.research_flags,
+    )
+    return rebuilt, []
+
+
+def verify_intraday_paper_bracket_trades(
+    ib: Any,
+    order_ids: list[int],
+    *,
+    timeout: float = 2.0,
+) -> dict[str, Any]:
+    """Poll ``ib.trades()`` after a bracket ``placeOrder`` to classify integrity."""
+    oids: list[int] = []
+    for o in order_ids:
+        if o is None:
+            continue
+        try:
+            oids.append(int(o))
+        except (TypeError, ValueError):
+            continue
+    ver_ts = _utc_now_str()
+    if len(oids) < 3:
+        return {
+            "bracket_integrity": "unknown",
+            "bracket_protected": None,
+            "parent_order_id": oids[0] if oids else None,
+            "target_order_id": oids[1] if len(oids) > 1 else None,
+            "stop_order_id": oids[2] if len(oids) > 2 else None,
+            "parent_order_status": None,
+            "target_order_status": None,
+            "stop_order_status": None,
+            "rejected_legs": [],
+            "cancelled_legs": [],
+            "broker_errors": ["Fewer than three order ids; cannot verify bracket."],
+            "broker_error_codes": [],
+            "verified_at_utc": ver_ts,
+            "verify_in_tws_required": True,
+        }
+    parent_id, target_id, stop_id = oids[0], oids[1], oids[2]
+    good = {
+        "Presubmitted",
+        "PreSubmitted",
+        "Submitted",
+        "PendingSubmit",
+        "Filled",
+        "PartiallyFilled",
+        "ApiPending",
+    }
+    bad = {"Cancelled", "Inactive", "ApiCancelled"}
+    t0 = time.time()
+    best_status: dict[int, str] = {}
+    all_codes: list[int] = []
+    all_errs: list[str] = []
+    while time.time() - t0 < timeout:
+        for tr in ib.trades() if hasattr(ib, "trades") else []:
+            try:
+                oid = int(
+                    getattr(getattr(tr, "order", object()), "orderId", 0) or 0
+                )
+            except (TypeError, ValueError):
+                continue
+            if oid not in oids:
+                continue
+            st = (
+                str(getattr(getattr(tr, "orderStatus", None), "status", None) or "")
+            )
+            best_status[oid] = st
+            for le in list(getattr(tr, "log", None) or []):
+                ec = int(getattr(le, "errorCode", 0) or 0)
+                if ec:
+                    all_codes.append(ec)
+                    all_errs.append(
+                        f"order {oid} error {ec}: {getattr(le, 'message', '')!s}"
+                    )
+        if hasattr(ib, "sleep"):
+            ib.sleep(0.25)  # type: ignore[operator]
+        else:
+            time.sleep(0.25)
+
+    pstat = best_status.get(parent_id)
+    tstat = best_status.get(target_id)
+    sstat = best_status.get(stop_id)
+    for oid in oids:
+        if oid not in best_status:
+            return {
+                "bracket_integrity": "unknown",
+                "bracket_protected": None,
+                "parent_order_id": parent_id,
+                "target_order_id": target_id,
+                "stop_order_id": stop_id,
+                "parent_order_status": pstat,
+                "target_order_status": tstat,
+                "stop_order_status": sstat,
+                "rejected_legs": [],
+                "cancelled_legs": [],
+                "broker_errors": all_errs
+                or ["Could not read trade status for all bracket legs after submission."],
+                "broker_error_codes": sorted(set(all_codes)),
+                "verified_at_utc": ver_ts,
+                "verify_in_tws_required": True,
+            }
+
+    def _is_bad(st: str | None) -> bool:
+        return st is not None and st in bad
+
+    cancelled: list[str] = []
+    for label, st in (
+        ("parent", pstat),
+        ("target", tstat),
+        ("stop", sstat),
+    ):
+        if _is_bad(st):
+            cancelled.append(label)
+    if 110 in all_codes and "stop" not in cancelled:
+        cancelled.append("stop")
+
+    incomplete = any(
+        _is_bad(st) for st in (pstat, tstat, sstat)
+    ) or (110 in all_codes)
+    if incomplete:
+        msg = "Submitted to broker, but bracket protection is incomplete."
+        rej = [x for x in cancelled if x in {"stop", "parent", "target"}]
+        if 110 in all_codes and "stop" not in rej:
+            rej.append("stop")
+        return {
+            "bracket_integrity": "incomplete",
+            "bracket_protected": False,
+            "parent_order_id": parent_id,
+            "target_order_id": target_id,
+            "stop_order_id": stop_id,
+            "parent_order_status": pstat,
+            "target_order_status": tstat,
+            "stop_order_status": sstat,
+            "rejected_legs": rej,
+            "cancelled_legs": [x for x in cancelled if x in {"parent", "target", "stop"}],
+            "broker_errors": [msg] + all_errs,
+            "broker_error_codes": sorted(set(all_codes)),
+            "verified_at_utc": ver_ts,
+            "verify_in_tws_required": bool(110 in all_codes),
+        }
+    if (
+        pstat in good
+        and tstat in good
+        and sstat in good
+    ):
+        return {
+            "bracket_integrity": "complete",
+            "bracket_protected": True,
+            "parent_order_id": parent_id,
+            "target_order_id": target_id,
+            "stop_order_id": stop_id,
+            "parent_order_status": pstat,
+            "target_order_status": tstat,
+            "stop_order_status": sstat,
+            "rejected_legs": [],
+            "cancelled_legs": [],
+            "broker_errors": [],
+            "broker_error_codes": [],
+            "verified_at_utc": ver_ts,
+            "verify_in_tws_required": False,
+        }
+    return {
+        "bracket_integrity": "unknown",
+        "bracket_protected": None,
+        "parent_order_id": parent_id,
+        "target_order_id": target_id,
+        "stop_order_id": stop_id,
+        "parent_order_status": pstat,
+        "target_order_status": tstat,
+        "stop_order_status": sstat,
+        "rejected_legs": [],
+        "cancelled_legs": [],
+        "broker_errors": all_errs,
+        "broker_error_codes": sorted(set(all_codes)),
+        "verified_at_utc": ver_ts,
+        "verify_in_tws_required": True,
+    }
+
+
 def submit_intraday_paper_bracket(
     intent: IntradayPaperIntent,
     broker_state: Mapping[str, Any],
@@ -469,34 +731,148 @@ def submit_intraday_paper_bracket(
 ) -> IntradayPaperSubmissionResult:
     """Submit (or skip) one paper bracket via :class:`bot.broker.Broker`.
 
-    Pre-flight: ``validate_intraday_paper_intent`` is re-run; broker safety
-    gates re-check live trading + dry_run + recon. The broker is the only
-    code allowed to call ``ib.placeOrder``.
+    Min-tick normalization (Prompt 13J.1) runs **before** ``placeOrder``.
+    ``submitted`` is only true when post-trade verification shows all three
+    legs in an acceptable state (see ``bracket_integrity``).
     """
+    from .price_ticks import (  # noqa: PLC0415
+        BracketTickNormalization,
+        MIN_TICK_US_STOCK_DEFAULT,
+        normalize_bracket_prices,
+    )
+
+    tick_meta: dict[str, Any] = {
+        "min_tick": None,
+        "min_tick_source": None,
+        "min_tick_fetch_error": None,
+        "min_tick_fallback_warning": None,
+    }
     ok, reasons = validate_intraday_paper_intent(intent, broker_state, cfg)
     if not ok:
         return IntradayPaperSubmissionResult(
             symbol=intent.symbol,
             submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
             skipped_reasons=reasons,
             intent=intent,
+            tick_meta=tick_meta,
         )
-    # Local import keeps state-store / tests free of broker imports.
     from ..broker import Broker, LiveTradingBlocked, ManualConfirmationRequired, TradingDisabled
 
     if Broker is None or not hasattr(broker, "place_order"):
         return IntradayPaperSubmissionResult(
             symbol=intent.symbol,
             submitted=False,
+            submitted_to_broker=False,
             skipped_reasons=["invalid broker"],
             intent=intent,
+            tick_meta=tick_meta,
         )
-    equity = _f(broker_state.get("net_liquidation")) or _f(broker_state.get("equity"))
+    if not hasattr(broker, "client") or not hasattr(
+        broker.client, "fetch_stock_min_tick"
+    ):
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            skipped_reasons=["broker client missing fetch_stock_min_tick"],
+            intent=intent,
+            tick_meta=tick_meta,
+        )
+    mti = broker.client.fetch_stock_min_tick(intent.symbol)
+    min_t = mti.get("min_tick", MIN_TICK_US_STOCK_DEFAULT)
+    tick_meta["min_tick"] = str(min_t)
+    tick_meta["min_tick_source"] = mti.get("min_tick_source")
+    tick_meta["min_tick_fetch_error"] = mti.get("min_tick_fetch_error")
+    if mti.get("min_tick_source") == "fallback_us_stock_0.01":
+        tick_meta["min_tick_fallback_warning"] = "min_tick_fallback_used"
+
+    ip = cfg.settings.trading.intraday_paper
+    norm: BracketTickNormalization = normalize_bracket_prices(
+        intent.direction,
+        intent.entry_price,
+        intent.stop_price,
+        intent.target_price,
+        min_t,
+        float(ip.min_rr),
+    )
+    tick_meta["original_entry"] = float(norm.original_entry)
+    tick_meta["original_stop"] = float(norm.original_stop)
+    tick_meta["original_target"] = float(norm.original_target)
+    tick_meta["entry"] = float(norm.entry) if norm.entry is not None else None
+    tick_meta["stop"] = float(norm.stop) if norm.stop is not None else None
+    tick_meta["target"] = float(norm.target) if norm.target is not None else None
+    tick_meta["planned_rr_before"] = (
+        float(norm.planned_rr_before) if norm.planned_rr_before is not None else None
+    )
+    tick_meta["planned_rr_after"] = (
+        float(norm.planned_rr_after) if norm.planned_rr_after is not None else None
+    )
+    tick_meta["tick_rounding_applied"] = bool(norm.tick_rounding_applied)
+    for k in ("original_entry_f", "original_stop_f", "original_target_f"):
+        if hasattr(norm, k):
+            tick_meta[k] = float(getattr(norm, k, 0.0) or 0.0)
+    if not norm.valid:
+        rsn = list(norm.rejection_reasons) or ["invalid_after_tick_rounding"]
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
+            skipped_reasons=rsn,
+            intent=intent,
+            tick_meta=tick_meta,
+        )
+
+    equity = _f(broker_state.get("net_liquidation")) or _f(
+        broker_state.get("equity")
+    )
+    if equity is None or float(equity) <= 0:
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
+            skipped_reasons=["net_liquidation / equity not available for ret sizing"],
+            intent=intent,
+            tick_meta=tick_meta,
+        )
+    rebuilt, rsz = _rebuild_intent_after_tick_normalization(
+        intent, norm, float(equity), cfg
+    )
+    if rebuilt is None:
+        rsn2 = list(rsz) or ["rebuild after tick failed"]
+        if "rr_below_min" not in " ".join(rsn2) and "below min" in " ".join(rsn2):
+            rsn2.append("rr_below_min_after_rounding")
+        if not any("invalid" in x for x in rsn2) and "tick" in " ".join(rsn2).lower():
+            rsn2.insert(0, "invalid_after_tick_rounding")
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
+            skipped_reasons=rsn2,
+            intent=intent,
+            tick_meta=tick_meta,
+        )
+    v_ok, vrs = validate_intraday_paper_intent(rebuilt, broker_state, cfg)
+    if not v_ok:
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
+            skipped_reasons=vrs,
+            intent=rebuilt,
+            tick_meta=tick_meta,
+        )
+
     open_count = int(broker_state.get("open_positions_count") or 0)
     recon_ok = bool(broker_state.get("reconciliation_passed", True))
     try:
         ticket = broker.place_order(
-            intent.to_trade_intent(),
+            rebuilt.to_trade_intent(),
             dry_run=cfg.settings.trading.intraday_paper.dry_run,
             confirmed=False,
             reconciliation_passed=recon_ok,
@@ -508,9 +884,22 @@ def submit_intraday_paper_bracket(
         return IntradayPaperSubmissionResult(
             symbol=intent.symbol,
             submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
             skipped_reasons=[type(exc).__name__],
-            intent=intent,
+            intent=rebuilt,
             error=str(exc),
+            tick_meta=tick_meta,
+        )
+    if ticket.dry_run:
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="not_submitted",
+            skipped_reasons=["dry-run"],
+            intent=rebuilt,
+            tick_meta=tick_meta,
         )
     detail = ticket.intraday_paper or {}
     raw_oids = detail.get("order_ids") if isinstance(detail, dict) else None
@@ -523,14 +912,73 @@ def submit_intraday_paper_bracket(
                 oids.append(int(o))
             except (TypeError, ValueError):
                 continue
-    submitted = (not ticket.dry_run) and bool(oids)
-    skipped = [] if submitted else (["dry-run"] if ticket.dry_run else ["broker returned no order ids"])
+    if not oids:
+        return IntradayPaperSubmissionResult(
+            symbol=intent.symbol,
+            submitted=False,
+            submitted_to_broker=False,
+            bracket_integrity="incomplete",
+            skipped_reasons=["broker returned no order ids after placeOrder"],
+            intent=rebuilt,
+            order_ids=oids,
+            tick_meta=tick_meta,
+        )
+    ib = getattr(broker.client, "_ib", None)
+    integ: dict[str, Any] = {
+        "bracket_integrity": "unknown",
+        "bracket_protected": None,
+    }
+    if ib is not None:
+        integ = verify_intraday_paper_bracket_trades(ib, oids, timeout=2.0)
+    bint = str(integ.get("bracket_integrity") or "unknown")
+    wprot = integ.get("bracket_protected")
+    wprot_typed: bool | None
+    if wprot is None:
+        wprot_typed = None
+    else:
+        wprot_typed = bool(wprot)
+    submitted_ok = bint == "complete"
+    sk: list[str] = []
+    if not submitted_ok:
+        sk = list(
+            integ.get("broker_errors", [])
+        ) or [
+            "Paper order reached broker, but bracket protection is incomplete. Verify/cancel in TWS."
+        ]
     return IntradayPaperSubmissionResult(
         symbol=intent.symbol,
-        submitted=submitted,
-        skipped_reasons=skipped,
-        intent=intent,
+        submitted=submitted_ok,
+        submitted_to_broker=True,
+        bracket_integrity=bint,
+        bracket_protected=wprot_typed,
+        parent_order_id=integ.get("parent_order_id"),
+        stop_order_id=integ.get("stop_order_id"),
+        target_order_id=integ.get("target_order_id"),
+        parent_order_status=(
+            str(integ.get("parent_order_status"))
+            if integ.get("parent_order_status") is not None
+            else None
+        ),
+        stop_order_status=(
+            str(integ.get("stop_order_status"))
+            if integ.get("stop_order_status") is not None
+            else None
+        ),
+        target_order_status=(
+            str(integ.get("target_order_status"))
+            if integ.get("target_order_status") is not None
+            else None
+        ),
+        rejected_legs=list(integ.get("rejected_legs") or []),
+        cancelled_legs=list(integ.get("cancelled_legs") or []),
+        broker_errors=list(integ.get("broker_errors") or []),
+        broker_error_codes=[int(c) for c in (integ.get("broker_error_codes") or [])],
+        verified_at_utc=str(integ.get("verified_at_utc") or ""),
+        verify_in_tws_required=bool(integ.get("verify_in_tws_required", False)),
+        skipped_reasons=sk,
+        intent=rebuilt,
         order_ids=oids,
+        tick_meta=tick_meta,
     )
 
 
@@ -570,6 +1018,34 @@ def _write_state_atomic(path: Path, payload: dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
+def serialize_paper_submission(sub: IntradayPaperSubmissionResult) -> dict[str, Any]:
+    """CLI / API JSON view of one submission (Prompt 13J.1)."""
+    return {
+        "symbol": sub.symbol,
+        "submitted": sub.submitted,
+        "submitted_to_broker": sub.submitted_to_broker,
+        "skipped_reasons": list(sub.skipped_reasons),
+        "order_ids": list(sub.order_ids),
+        "intent": sub.intent.as_audit_dict() if sub.intent else None,
+        "error": sub.error,
+        "bracket_integrity": sub.bracket_integrity,
+        "bracket_protected": sub.bracket_protected,
+        "parent_order_id": sub.parent_order_id,
+        "stop_order_id": sub.stop_order_id,
+        "target_order_id": sub.target_order_id,
+        "parent_order_status": sub.parent_order_status,
+        "stop_order_status": sub.stop_order_status,
+        "target_order_status": sub.target_order_status,
+        "rejected_legs": list(sub.rejected_legs),
+        "cancelled_legs": list(sub.cancelled_legs),
+        "broker_errors": list(sub.broker_errors),
+        "broker_error_codes": list(sub.broker_error_codes),
+        "verified_at_utc": sub.verified_at_utc,
+        "verify_in_tws_required": sub.verify_in_tws_required,
+        "tick_meta": dict(sub.tick_meta),
+    }
+
+
 def _record_submission_audit(
     cfg: AppConfig,
     sub: IntradayPaperSubmissionResult,
@@ -577,6 +1053,7 @@ def _record_submission_audit(
     intent = sub.intent
     if intent is None:
         return ""
+    tm = dict(sub.tick_meta)
     row: dict[str, Any] = {
         "timestamp": _utc_now_str(),
         "strategy_id": intent.strategy_id,
@@ -584,6 +1061,7 @@ def _record_submission_audit(
         "direction": intent.direction,
         "signal_category": intent.signal_category,
         "submitted": sub.submitted,
+        "submitted_to_broker": sub.submitted_to_broker,
         "skipped_reasons": list(sub.skipped_reasons),
         "entry": intent.entry_price,
         "stop": intent.stop_price,
@@ -595,6 +1073,22 @@ def _record_submission_audit(
         "live_trading_allowed": False,
         "source_scan_path": intent.source_scan_path,
         "chart_paths": list(intent.chart_paths),
+        "original_entry": tm.get("original_entry"),
+        "original_stop": tm.get("original_stop"),
+        "original_target": tm.get("original_target"),
+        "min_tick": tm.get("min_tick"),
+        "min_tick_source": tm.get("min_tick_source"),
+        "min_tick_fetch_error": tm.get("min_tick_fetch_error"),
+        "min_tick_fallback_warning": tm.get("min_tick_fallback_warning"),
+        "planned_rr_before": tm.get("planned_rr_before"),
+        "planned_rr_after": tm.get("planned_rr_after"),
+        "tick_rounding_applied": tm.get("tick_rounding_applied"),
+        "bracket_integrity": sub.bracket_integrity,
+        "bracket_protected": sub.bracket_protected,
+        "broker_errors": list(sub.broker_errors),
+        "broker_error_codes": list(sub.broker_error_codes),
+        "verified_at_utc": sub.verified_at_utc,
+        "verify_in_tws_required": sub.verify_in_tws_required,
     }
     if sub.error:
         row["error"] = sub.error
@@ -917,7 +1411,9 @@ def run_intraday_paper_pass(
                 skipped.extend(sub.skipped_reasons)
             if sub.submitted and telegram:
                 _maybe_send_submitted_telegram(cfg, journal, sub)
-            elif (not sub.submitted) and telegram:
+            elif sub.submitted_to_broker and (not sub.submitted) and telegram:
+                _maybe_send_incomplete_bracket_telegram(cfg, journal, sub)
+            elif (not sub.submitted) and (not sub.submitted_to_broker) and telegram:
                 _maybe_send_critical_skip_telegram(
                     cfg, journal, ", ".join(sub.skipped_reasons), symbol=sym,
                 )
@@ -969,6 +1465,19 @@ def _write_state(
     recon_status: str,
 ) -> None:
     """Atomically write loop state JSON; safe to call from any worker."""
+    _bscore = {"complete": 0, "unknown": 1, "not_submitted": 2, "incomplete": 3}
+    worst = "not_submitted"
+    for s in result.submissions:
+        bi = str(getattr(s, "bracket_integrity", "not_submitted") or "not_submitted")
+        if _bscore.get(bi, 1) > _bscore.get(worst, 0):
+            worst = bi
+    last_inc = any(
+        getattr(s, "bracket_integrity", "") == "incomplete"
+        for s in result.submissions
+    ) or any(
+        bool(getattr(s, "submitted_to_broker", False)) and (not s.submitted)
+        for s in result.submissions
+    )
     payload = {
         "last_cycle_utc": result.timestamp_utc,
         "cycles": _bump_cycle_count(path),
@@ -978,6 +1487,8 @@ def _write_state(
         "strict_ready_count": int(result.strict_ready_count),
         "aggressive_ready_count": int(result.aggressive_ready_count),
         "orders_submitted": int(result.orders_submitted),
+        "last_worst_bracket_integrity": worst,
+        "last_bracket_incomplete": bool(last_inc),
         "skipped_reasons": list(dict.fromkeys(result.skipped_reasons))[:50],
         "kill_switch": bool(result.kill_switch),
         "runtime_intraday_on": bool(result.runtime_intraday_on),
@@ -1029,15 +1540,21 @@ def format_intraday_paper_digest_zh(result: IntradayPaperPassResult) -> str:
         lines.append("")
         for sub in result.submissions[:8]:
             it = sub.intent
-            tag = "OK" if sub.submitted else "skip"
+            if sub.submitted:
+                tag = "OK"
+            elif sub.submitted_to_broker:
+                tag = "INCOMPLETE"
+            else:
+                tag = "skip"
             sym = escape(sub.symbol)
             if it is None:
                 lines.append(f"  [{tag}] {sym} ({escape(', '.join(sub.skipped_reasons))})")
                 continue
             mode = "严格" if it.signal_category == READY_STRICT else "放宽"
             dirn = "多" if it.direction == DIRECTION_LONG else "空"
+            bi = escape(str(getattr(sub, "bracket_integrity", "")))
             lines.append(
-                f"  [{tag}] {sym}  {dirn}/{mode}  "
+                f"  [{tag}] {sym}  {dirn}/{mode}  integ={bi}  "
                 f"E={it.entry_price:.2f} SL={it.stop_price:.2f} "
                 f"TP={it.target_price:.2f} R/R={it.planned_rr:.2f} "
                 f"qty={it.quantity}  ids={list(sub.order_ids)}"
@@ -1059,6 +1576,7 @@ def _maybe_send_submitted_telegram(
     it = sub.intent
     mode = "严格" if it.signal_category == READY_STRICT else "放宽"
     dirn = "多" if it.direction == DIRECTION_LONG else "空"
+    tm = sub.tick_meta or {}
     body = (
         "<b>" + escape("【Paper Trade Submitted】纸面 Bracket 已提交") + "</b>\n"
         + "<pre>"
@@ -1072,6 +1590,8 @@ def _maybe_send_submitted_telegram(
         + escape(f"R/R:      {it.planned_rr:.2f}\n")
         + escape(f"qty:      {it.quantity}\n")
         + escape(f"order_ids:{sub.order_ids}\n")
+        + escape(f"integrity: {sub.bracket_integrity}\n")
+        + escape(f"min_tick:  {tm.get('min_tick', '-')}\n")
         + "</pre>\n"
         + escape("仅纸面账户; 不会触发实盘交易.")
     )
@@ -1079,6 +1599,33 @@ def _maybe_send_submitted_telegram(
         send_telegram_message(body, cfg=cfg, journal=journal)
     except Exception:  # noqa: BLE001
         logger.warning("telegram submitted digest failed", exc_info=True)
+
+
+def _maybe_send_incomplete_bracket_telegram(
+    cfg: AppConfig, journal: Journal, sub: IntradayPaperSubmissionResult,
+) -> None:
+    if not cfg.telegram.is_configured or sub.intent is None:
+        return
+    from html import escape
+
+    from ..notifications import send_telegram_message
+
+    it = sub.intent
+    body = (
+        "<b>"
+        + escape("【Paper Bracket 不完整】Bracket protection is INCOMPLETE")
+        + "</b>\n<pre>"
+        + escape(f"symbol: {it.symbol}\n")
+        + escape(f"order_ids: {sub.order_ids}\n")
+        + escape(f"integrity: {sub.broker_errors}\n")
+        + escape(f"codes: {sub.broker_error_codes}\n")
+        + "</pre>"
+        + escape("已在 TWS 提交，但止损/子单可能被拒。请在 TWS 核查或撤单。")
+    )
+    try:
+        send_telegram_message(body, cfg=cfg, journal=journal)
+    except Exception:  # noqa: BLE001
+        logger.warning("telegram incomplete bracket digest failed", exc_info=True)
 
 
 _CRITICAL_SKIP_KEYS: tuple[str, ...] = (
@@ -1143,6 +1690,8 @@ __all__ = [
     "is_intraday_paper_runtime_enabled",
     "is_kill_switch_active",
     "run_intraday_paper_pass",
+    "serialize_paper_submission",
     "submit_intraday_paper_bracket",
     "validate_intraday_paper_intent",
+    "verify_intraday_paper_bracket_trades",
 ]

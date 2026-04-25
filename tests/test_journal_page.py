@@ -109,13 +109,52 @@ def test_journal_page_renders_paper_order_row(project: Path) -> None:
     text = r.text
     assert "NVDA" in text
     assert "ict_smc_intraday_v1" in text
-    assert "submitted" in text.lower()
+    assert "complete" in text.lower() or "submitted" in text.lower()
     assert "100.00" in text  # entry
     assert "99.00" in text   # stop
     assert "102.00" in text  # target
     assert "2.00" in text    # planned R/R
     # Strict label appears as a "strict" pill.
     assert "strict" in text.lower()
+
+
+def test_journal_page_shows_incomplete_bracket_warning(project: Path) -> None:
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = project / "data" / "paper_orders" / f"{day}-intraday-paper-orders.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "strategy_id": "ict_smc_intraday_v1",
+        "symbol": "AMD",
+        "direction": "long",
+        "signal_category": "DAY_TRADE_READY_STRICT",
+        "submitted": False,
+        "submitted_to_broker": True,
+        "skipped_reasons": ["bracket incomplete"],
+        "entry": 346.63,
+        "stop": 345.41,
+        "target": 348.45,
+        "planned_rr": 1.5,
+        "quantity": 1,
+        "order_ids": [5, 6, 7],
+        "paper_only": True,
+        "live_trading_allowed": False,
+        "original_entry": 346.63,
+        "original_stop": 345.4167,
+        "original_target": 348.45,
+        "min_tick": "0.01",
+        "min_tick_source": "contract_details",
+        "bracket_integrity": "incomplete",
+        "broker_error_codes": [110],
+        "verify_in_tws_required": True,
+    }
+    with out.open("w", encoding="utf-8") as f:
+        f.write(json.dumps(row) + "\n")
+    r = _client(project).get("/journal")
+    assert r.status_code == 200
+    text = r.text
+    assert "incomplete" in text.lower()
+    assert "345.4167" in text or "345.42" in text
 
 
 def test_journal_page_renders_skipped_rows_with_reasons(project: Path) -> None:
