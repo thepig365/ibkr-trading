@@ -43,6 +43,8 @@ config/settings.local.yaml
 # Local data / runtime artifacts (do not commit broker data)
 data/*.sqlite
 data/*.sqlite-journal
+data/*.sqlite-shm
+data/*.sqlite-wal
 data/*.jsonl
 logs/
 *.log
@@ -51,13 +53,37 @@ logs/
 data/runtime/
 data/auto_paper_loop/
 
+# Generated daily research / scan / chart / journal artifacts.
+# Source code creates them on demand; .gitkeep sentinels keep dirs in tree.
+data/debug_charts/*
+!data/debug_charts/.gitkeep
+data/mtf_smc/*
+!data/mtf_smc/.gitkeep
+data/smc_setups/*
+!data/smc_setups/.gitkeep
+data/pre_open_news/*
+!data/pre_open_news/.gitkeep
+data/research/
+data/strategies/
+data/watchlists/
+data/market_regime/
+data/review_queue/
+data/scheduler/
+data/telegram_commands/
+data/account_snapshots*
+data/paper_orders/
+data/backtests/
+
 # UI server scratch (sessions, sqlite caches, etc.)
 bot_ui/.cache/
 bot_ui/__pycache__/
 .uvicorn.pid
 
-# Memory rolling files (do not leak personal trade data)
+# Memory rolling files (do not leak personal trade / research data)
 memory/DAILY-SUMMARY.md
+memory/RESEARCH-REPORT.md
+memory/NEWS-REPORT.md
+memory/SMC-REVIEW-QUEUE.md
 
 # Jupyter
 .ipynb_checkpoints/
