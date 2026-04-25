@@ -19,6 +19,8 @@
 - [ ] **Journal**、**Logs**、（可选）Telegram  
 - [ ] 若仍无单：见用户手册 **「为什么没有下单？」** 与 `docs/troubleshooting.md`  
 
+**本地纸前测（13I，可穿插在「启动 UI」之后）：** 使用 **仅** `config/settings.local.yaml` + `intraday-paper-on`；`paper-readiness-check`；可选 `first-paper-pass` 一次。勿改已跟踪的 `settings.yaml`；不要提交 local 与 runtime 产物。详见 `docs/strategy-lab-user-manual.md` §6.3。
+
 ---
 
 ## 盘前

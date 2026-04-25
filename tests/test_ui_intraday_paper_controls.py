@@ -172,6 +172,12 @@ def test_intraday_paper_commands_are_on_allowlist() -> None:
         "auto-paper-intraday-smc",
         "run-auto-paper-intraday-loop",
         "intraday-paper-status",
+        "paper-activation-status",
+        "write-paper-local-config",
+        "intraday-paper-on",
+        "intraday-paper-off",
+        "paper-readiness-check",
+        "first-paper-pass",
     ):
         assert cmd in ALLOWED_COMMANDS, f"{cmd!r} must be allowlisted"
         assert is_allowed(cmd) is True, f"{cmd!r} must pass is_allowed"

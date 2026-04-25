@@ -190,6 +190,61 @@ def build_engine_status_payload(
             base = f"http://{host}:{port}"
             ui_proc["healthz"] = _probe_healthz(f"{base}/healthz")
     payload["ui_process"] = ui_proc
+
+    s_local = pr / "config" / "settings.local.yaml"
+    pft: dict[str, Any] = {
+        "settings_local_exists": s_local.is_file(),
+        "settings_local_path": str(s_local),
+    }
+    try:
+        from .paper_activation import (  # noqa: PLC0415
+            FIRST_PAPER_PASS_LAST_RELPATH,
+            PAPER_READINESS_STATE_RELPATH,
+            build_paper_activation_status,
+        )
+
+        act = build_paper_activation_status(cfg, probe_ibkr=False, journal=None)
+        pft["paper_activation"] = {
+            "final_readiness": act.get("final_readiness"),
+            "blocking_reasons": act.get("blocking_reasons"),
+            "settings_local_yaml_exists": act.get("settings_local_yaml_exists"),
+            "runtime_intraday_on": act.get("runtime_intraday_on"),
+            "kill_switch_active": act.get("kill_switch_active"),
+        }
+        pr_path = Path(cfg.absolute(PAPER_READINESS_STATE_RELPATH))
+        fp_path = Path(cfg.absolute(FIRST_PAPER_PASS_LAST_RELPATH))
+        if pr_path.is_file():
+            try:
+                pr_data = json.loads(pr_path.read_text(encoding="utf-8"))
+                pft["last_paper_readiness"] = {
+                    "status": pr_data.get("status"),
+                    "passed": pr_data.get("passed"),
+                    "checked_at_utc": pr_data.get("checked_at_utc"),
+                }
+            except (OSError, json.JSONDecodeError, TypeError):
+                pft["last_paper_readiness"] = {"error": "unreadable"}
+        else:
+            pft["last_paper_readiness"] = None
+        if fp_path.is_file():
+            try:
+                fp_data = json.loads(fp_path.read_text(encoding="utf-8"))
+                pft["last_first_paper_pass"] = {
+                    "result": fp_data.get("result"),
+                    "reasons": fp_data.get("reasons"),
+                }
+            except (OSError, json.JSONDecodeError, TypeError):
+                pft["last_first_paper_pass"] = {"error": "unreadable"}
+        else:
+            pft["last_first_paper_pass"] = None
+    except Exception:  # noqa: BLE001
+        payload["paper_forward_test"] = {
+            "settings_local_exists": s_local.is_file(),
+            "settings_local_path": str(s_local),
+            "error": "paper_forward_test_unavailable",
+        }
+    else:
+        payload["paper_forward_test"] = pft
+
     return payload
 
 

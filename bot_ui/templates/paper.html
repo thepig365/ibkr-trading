@@ -88,6 +88,84 @@
   </div>
 
   <div class="section">
+    <h2>Local Paper Activation</h2>
+    <p class="text-small text-dim mb-12">
+      Forward-test setup uses only <strong>config/settings.local.yaml</strong> (gitignored, never the tracked <code>settings.yaml</code>) and <strong>data/runtime/</strong> flags.
+      Orders from <code>first-paper-pass</code> / auto-paper are <strong>PAPER</strong> <strong>LIMIT brackets</strong> (entry + stop + target) — no market orders, no live trading.
+      This page does <strong>not</strong> connect to IBKR; queued commands may connect only when you run probe/scan/TWS steps from the allowlisted CLI.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">settings.local.yaml</div>
+        <div class="card-value">
+          {% if paper_activation.settings_local_yaml_exists %}<span class="pill good">present</span>{% else %}<span class="pill warn">absent</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">Path: <code>{{ paper_activation.settings_local_path }}</code></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Activation readiness</div>
+        <div class="card-value">
+          {% if paper_activation.final_readiness == 'READY_FOR_PAPER_TEST' %}<span class="pill good">READY</span>
+          {% else %}<span class="pill warn">NOT READY</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">
+          {% for b in (paper_activation.blocking_reasons or [])[:4] %}
+            <span class="pill warn">{{ b }}</span>
+          {% else %}—{% endfor %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Last readiness check</div>
+        {% if paper_readiness_snapshot %}
+          <div class="card-value">
+            {% if paper_readiness_snapshot.get('passed') %}<span class="pill good">PASS</span>
+            {% else %}<span class="pill warn">{{ paper_readiness_snapshot.get('status', '—') }}</span>{% endif %}
+          </div>
+          <div class="card-sub text-small">{{ paper_readiness_snapshot.get('checked_at_utc', '—') }}</div>
+        {% else %}
+          <div class="card-value text-dim">—</div>
+          <div class="card-sub">Run <code>paper-readiness-check</code> from below.</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Last first-paper-pass</div>
+        {% if first_paper_last_snapshot %}
+          <div class="card-value"><span class="pill neutral">{{ first_paper_last_snapshot.get('result', '—') }}</span></div>
+          <div class="card-sub text-small text-dim">See JSON under <code>data/runtime/first_paper_pass_last.json</code></div>
+        {% else %}
+          <div class="card-value text-dim">—</div>
+        {% endif %}
+      </div>
+    </div>
+    <h3 class="mt-12">Allowlisted actions</h3>
+    <div class="form-row" style="flex-wrap:wrap;">
+      {% with command='paper-activation-status', label='Paper Activation Status', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='write-paper-local-config', label='Dry-run Local Config (preview only)', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='write-paper-local-config', label='Write Local Paper Config', return_to='/paper', btn_class='warn', args='--write' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='intraday-paper-on', label='Intraday Paper ON', return_to='/paper', btn_class='' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='intraday-paper-off', label='Intraday Paper OFF', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+    <div class="form-row mt-12" style="flex-wrap:wrap;">
+      {% with command='paper-readiness-check', label='Paper Readiness (scan+recon)', return_to='/paper', btn_class='', args='--intraday --probe-ibkr --scan --source dynamic --limit 20' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='first-paper-pass', label='First Paper Pass (one bracket pass)', return_to='/paper', btn_class='warn', args='--source dynamic --limit 20' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
     <h2>Read-only paper actions</h2>
     <div class="form-row">
       {% with command='paper-reconcile', label='Run paper-reconcile', return_to='/paper', btn_class='' %}

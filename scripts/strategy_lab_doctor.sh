@@ -45,6 +45,13 @@ else
   warn "missing .env (copy from .env.example if you need API keys; UI runs without it)"
 fi
 
+# Local-only settings overlay (gitignored; never print contents)
+if [[ -f "$ROOT/config/settings.local.yaml" ]]; then
+  pass "file config/settings.local.yaml exists (local paper overlay; contents not shown)"
+else
+  warn "config/settings.local.yaml missing (optional: python3 -m bot.cli write-paper-local-config)"
+fi
+
 # Git
 if [[ -d "$ROOT/.git" ]]; then
   st="$(git -C "$ROOT" status -s 2>/dev/null || true)"

@@ -161,6 +161,7 @@ def test_engine_status_cli_no_ibkr() -> None:
     assert data.get("paper_only") is True
     assert "artifacts" in data
     assert "ui_process" in data
+    assert "paper_forward_test" in data
 
 
 def test_ui_pages_200(project: Path) -> None:

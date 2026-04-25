@@ -3932,6 +3932,171 @@ def intraday_paper_status_cmd(
     raise typer.Exit(0)
 
 
+# ---------------------------------------------------------------------------
+# 13I: Local paper activation (settings.local + runtime; PAPER, bracket only).
+# ---------------------------------------------------------------------------
+
+
+@app.command("paper-activation-status")
+def paper_activation_status_cmd(
+    probe_ibkr: bool = typer.Option(
+        False,
+        "--probe-ibkr",
+        help="If set, run reconciliation (read-only broker check).",
+    ),
+) -> None:
+    """Local paper activation snapshot. Connects IBKR only with --probe-ibkr."""
+    from .paper_activation import build_paper_activation_status  # noqa: PLC0415
+
+    cfg, journal = _bootstrap()
+    p = build_paper_activation_status(cfg, probe_ibkr=probe_ibkr, journal=journal)
+    console.print(
+        Panel.fit(
+            json.dumps(p, indent=2, ensure_ascii=False, default=str),
+            title="paper-activation-status",
+            style="cyan",
+        )
+    )
+    raise typer.Exit(0)
+
+
+@app.command("write-paper-local-config")
+def write_paper_local_config_cmd(
+    write: bool = typer.Option(
+        False,
+        "--write",
+        help="Write config/settings.local.yaml (creates timestamped backup if present).",
+    ),
+) -> None:
+    """Merge PAPER-only keys into config/settings.local.yaml. Never modifies settings.yaml."""
+    from .paper_activation import write_paper_local_config_file  # noqa: PLC0415
+
+    cfg = load_config()
+    r = write_paper_local_config_file(
+        cfg.project_root, dry_run=not write, write=write
+    )
+    if not r.get("ok"):
+        console.print(f"[red]{r.get('error')}[/red]")
+        raise typer.Exit(2)
+    if r.get("proposed_yaml"):
+        console.print(
+            Panel.fit(
+                r["proposed_yaml"],
+                title="proposed config/settings.local.yaml",
+                style="cyan",
+            )
+        )
+    if r.get("wrote"):
+        console.print(f"[green]Wrote {r['path']}[/green]")
+    if r.get("backup_path"):
+        console.print(f"[dim]Backup: {r['backup_path']}[/dim]")
+    if not write:
+        console.print("[dim]Dry-run. Pass --write to create/merge settings.local.yaml.[/dim]")
+    raise typer.Exit(0)
+
+
+@app.command("intraday-paper-on")
+def intraday_paper_on_cmd() -> None:
+    """Set data/runtime/intraday_auto_paper_enabled = 1. No IBKR. No orders."""
+    from .paper_activation import set_intraday_runtime_flag  # noqa: PLC0415
+
+    cfg, _j = _bootstrap()
+    p = set_intraday_runtime_flag(cfg, on=True)
+    console.print(
+        Panel.fit(
+            f"intraday auto-paper runtime: ON\npath: {p}",
+            title="intraday-paper-on",
+            style="green",
+        )
+    )
+    raise typer.Exit(0)
+
+
+@app.command("intraday-paper-off")
+def intraday_paper_off_cmd() -> None:
+    """Set data/runtime/intraday_auto_paper_enabled = 0. No IBKR. No orders."""
+    from .paper_activation import set_intraday_runtime_flag  # noqa: PLC0415
+
+    cfg, _j = _bootstrap()
+    p = set_intraday_runtime_flag(cfg, on=False)
+    console.print(
+        Panel.fit(
+            f"intraday auto-paper runtime: explicit OFF (0)\npath: {p}",
+            title="intraday-paper-off",
+            style="yellow",
+        )
+    )
+    raise typer.Exit(0)
+
+
+@app.command("paper-readiness-check")
+def paper_readiness_check_cmd(
+    use_intraday: bool = typer.Option(
+        True,
+        "--intraday/--no-intraday",
+        help="Intraday paper forward-test check (default on).",
+    ),
+    probe_ibkr: bool = typer.Option(
+        False,
+        "--probe-ibkr",
+        help="Reconcile with broker (read-only).",
+    ),
+    scan: bool = typer.Option(
+        False,
+        "--scan",
+        help="Run a fresh intraday watchlist scan (read-only; needs TWS).",
+    ),
+    source: str = typer.Option("dynamic", "--source", help="static | dynamic | manual"),
+    limit: int = typer.Option(20, "--limit", min=1),
+) -> None:
+    """Pre-flight for intraday paper. Does not place orders."""
+    from .paper_activation import run_paper_readiness_check  # noqa: PLC0415
+
+    cfg, journal = _bootstrap()
+    rr = run_paper_readiness_check(
+        cfg,
+        journal,
+        intraday=use_intraday,
+        probe_ibkr=probe_ibkr,
+        run_scan=scan,
+        source=source,
+        limit=limit,
+    )
+    console.print(
+        Panel.fit(
+            json.dumps(rr.payload, indent=2, ensure_ascii=False, default=str),
+            title="paper-readiness-check",
+            style="green" if rr.passed else "red",
+        )
+    )
+    raise typer.Exit(0 if rr.passed else 2)
+
+
+@app.command("first-paper-pass")
+def first_paper_pass_cmd(
+    source: str = typer.Option("dynamic", "--source", help="static | dynamic | manual"),
+    limit: int = typer.Option(20, "--limit", min=1),
+    telegram: bool = typer.Option(False, "--telegram"),
+) -> None:
+    """Status → readiness (scan+recon) → one auto-paper-intraday-smc. No loop."""
+    from .paper_activation import run_first_paper_pass  # noqa: PLC0415
+
+    cfg, journal = _bootstrap()
+    out = run_first_paper_pass(
+        cfg, journal, source=source, limit=limit, telegram=telegram
+    )
+    console.print(
+        Panel.fit(
+            json.dumps(out, indent=2, default=str, ensure_ascii=False),
+            title="first-paper-pass",
+            style="cyan",
+        )
+    )
+    if out.get("result") in {"failed", "error"}:
+        raise typer.Exit(2)
+    raise typer.Exit(0)
+
+
 @app.command("strategy-lab-engine-status")
 def strategy_lab_engine_status_cmd(
     as_json: bool = typer.Option(False, "--json", help="Emit JSON on stdout (machine-readable)."),

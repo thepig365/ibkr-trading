@@ -58,6 +58,12 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
     ),
     "engine-status": "Full read-only engine snapshot: config, latest artifacts, optional UI /healthz.",
+    "paper-activation-status": "Show local paper activation (settings.local + runtime; optional --probe-ibkr).",
+    "write-paper-local-config": "Merge safe PAPER keys into config/settings.local.yaml only (--write to apply).",
+    "intraday-paper-on": "Set data/runtime/intraday_auto_paper_enabled = 1 (no orders).",
+    "intraday-paper-off": "Set data/runtime/intraday_auto_paper_enabled = 0 (no orders).",
+    "paper-readiness-check": "Intraday paper pre-flight (optional --probe-ibkr / --scan).",
+    "first-paper-pass": "One controlled pass: readiness then auto-paper-intraday-smc (no loop).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -932,6 +938,84 @@ def validate_strategy_lab_engine_status_args(args: tuple[str, ...]) -> tuple[boo
     return True, ""
 
 
+_PAPER_ACTIVATION_STATUS_FLAGS = frozenset({"--probe-ibkr"})
+
+
+def validate_paper_activation_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("paper-activation-status", args)
+    if not ok:
+        return ok, err
+    for t in args:
+        if t not in _PAPER_ACTIVATION_STATUS_FLAGS:
+            return False, f"paper-activation-status: only --probe-ibkr is allowed, got {t!r}."
+    if args.count("--probe-ibkr") > 1:
+        return False, "paper-activation-status: duplicate --probe-ibkr."
+    return True, ""
+
+
+def validate_write_paper_local_config_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("write-paper-local-config", args)
+    if not ok:
+        return ok, err
+    if not args or args == ("--write",):
+        if args.count("--write") > 1:
+            return False, "write-paper-local-config: duplicate --write."
+        return True, ""
+    return False, "write-paper-local-config: use no args (dry-run) or exactly --write."
+
+
+def validate_intraday_paper_on_off_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    if args:
+        return False, "intraday-paper-on/off: no arguments allowed."
+    return True, ""
+
+
+_PAPER_READINESS_BOOL = frozenset(
+    {"--intraday", "--no-intraday", "--probe-ibkr", "--scan"}
+)
+_PAPER_READINESS_VALUE = frozenset({"--source", "--limit"})
+
+
+def validate_paper_readiness_check_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("paper-readiness-check", args)
+    if not ok:
+        return ok, err
+    if "--intraday" in args and "--no-intraday" in args:
+        return False, "paper-readiness-check: --intraday and --no-intraday are mutually exclusive."
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _PAPER_READINESS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _PAPER_READINESS_VALUE:
+            if i + 1 >= len(args):
+                return False, f"paper-readiness-check: {token} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, f"paper-readiness-check: unexpected token {token!r}."
+    if "--source" in flags:
+        v = str(flags["--source"]).lower()
+        if v not in _INTRADAY_SOURCE_VALUES:
+            return False, "paper-readiness-check: invalid --source."
+    if "--limit" in flags:
+        try:
+            n = int(str(flags["--limit"]))
+        except (TypeError, ValueError):
+            return False, "paper-readiness-check: --limit must be int."
+        if not (_INTRADAY_PAPER_LIMIT_MIN <= n <= _INTRADAY_PAPER_LIMIT_MAX):
+            return False, "paper-readiness-check: --limit out of range."
+    return True, ""
+
+
+def validate_first_paper_pass_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Same shape as one-shot intraday auto-paper (source / limit / telegram)."""
+    return validate_auto_paper_intraday_smc_args(args)
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -972,4 +1056,14 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_strategy_lab_engine_status_args(args)
     if command == "engine-status":
         return validate_engine_status_args(args)
+    if command == "paper-activation-status":
+        return validate_paper_activation_status_args(args)
+    if command == "write-paper-local-config":
+        return validate_write_paper_local_config_args(args)
+    if command in {"intraday-paper-on", "intraday-paper-off"}:
+        return validate_intraday_paper_on_off_args(args)
+    if command == "paper-readiness-check":
+        return validate_paper_readiness_check_args(args)
+    if command == "first-paper-pass":
+        return validate_first_paper_pass_args(args)
     return True, ""

@@ -16,10 +16,19 @@ Canonical paths (must match the worker / Telegram /kill /resume handlers):
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+
+from bot.config import load_config
+from bot.paper_activation import (
+    FIRST_PAPER_PASS_LAST_RELPATH,
+    PAPER_READINESS_STATE_RELPATH,
+    build_paper_activation_status,
+)
 
 from ..services.state_store import (
     INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
@@ -31,10 +40,29 @@ from ._helpers import base_context
 router = APIRouter()
 
 
+def _read_json_optional(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 @router.get("/paper", response_class=HTMLResponse, name="paper_page")
 def paper_page(request: Request) -> HTMLResponse:
     state = request.app.state.state_store
     ctx = base_context(request, active="paper")
+    root = request.app.state.project_root
+    cfg = load_config(project_root=root)
+    ctx["paper_activation"] = build_paper_activation_status(cfg, probe_ibkr=False, journal=None)
+    ctx["paper_readiness_snapshot"] = _read_json_optional(
+        cfg.absolute(PAPER_READINESS_STATE_RELPATH)
+    )
+    ctx["first_paper_last_snapshot"] = _read_json_optional(
+        cfg.absolute(FIRST_PAPER_PASS_LAST_RELPATH)
+    )
     ctx["account"] = state.account_summary()
     ctx["positions"] = state.positions()
     ctx["loop"] = state.loop_status()

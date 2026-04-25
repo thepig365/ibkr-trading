@@ -132,6 +132,42 @@ python3 -m bot.cli engine-status --json --probe-ui
 
 **不会**在 UI 渲染时偷偷连 TWS 或下单；**不会**在默认配置下发「实盘」或**市价**单。纸面为 LIMIT bracket（父限价 + 子止损/目标），由 Broker/配置双重约束。
 
+### 6.3 本地 Paper Forward Test（`settings.local` + runtime, 13I）
+
+1. **如何安全开启**  
+   只通过 **`config/settings.local.yaml`**（已 gitignore）与 **`data/runtime/intraday_auto_paper_enabled`** 开启，不要改已跟踪的 `config/settings.yaml` 来「偷偷打开」交易。先 `python3 -m bot.cli write-paper-local-config` 预览，确认后再加 **`--write`**。然后 `python3 -m bot.cli intraday-paper-on` 打开 runtime 标志（或 UI **Intraday Paper ON**）。全程纸账户、**bracket LIMIT**、禁止市价/实盘。
+
+2. **`settings.local.yaml` 是什么**  
+   与 `settings.yaml` **覆盖合并**的本地层；适合本机只写密钥旁路与纸测试开关；**不提交**到 git。
+
+3. **为什么不改 `config/settings.yaml`**  
+   仓库内为团队默认/安全基线；本机纸前测应写在 local overlay，避免误提交、便于撤销。
+
+4. **如何打开 intraday runtime**  
+   CLI：`intraday-paper-on`；关闭：`intraday-paper-off`。与 Paper 页按钮写入同一路径。
+
+5. **如何运行 readiness**  
+   `python3 -m bot.cli paper-readiness-check --intraday --probe-ibkr --scan --source dynamic --limit 20`（`--scan` 需 TWS 只读取数，不下单）
+
+6. **如何运行 first paper pass**  
+   `python3 -m bot.cli first-paper-pass --source dynamic --limit 20`（可 `--telegram`）。内部会先做激活态与 readiness，再**一次** `auto-paper-intraday-smc`，**不**启动循环。
+
+7. **未下单时看原因**  
+   见 **§6.2** 表；并看 `intraday-paper-status`、`data/runtime/intraday_auto_paper_loop_state.json` 的 `last_reason` / `skipped_reasons`（**勿**提交该文件）。
+
+8. **若下单成功，何处查看**  
+   TWS 纸账户委托；**Journal** 与 `data/paper_orders/*-intraday-paper-orders.jsonl`；`engine-status` 中 `artifacts.latest_paper_order_log`。
+
+9. **如何立刻停用**  
+   - `intraday-paper-off` 或 UI；  
+   - 建立 **Kill Switch** 文件；  
+   - 在 TWS 中手动撤销挂单（如需要）。  
+
+10. **系统绝不会**  
+   不开实盘、不发明市价单通道、不裸单、不绕过 stop/target；Broker 与配置双重校验仍生效。
+
+**辅助命令**：`paper-activation-status`（可选 `--probe-ibkr` 对账）、`engine-status --json` 中 **`paper_forward_test`** 段。
+
 ---
 
 ## 7. Research Mode 怎么用

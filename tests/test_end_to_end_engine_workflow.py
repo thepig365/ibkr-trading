@@ -82,6 +82,7 @@ def test_engine_status_json_no_broker_no_ibkr() -> None:
     assert "latest_research_json" in arts
     assert "latest_research_instructions" in arts
     assert "latest_backtest_summary" in arts
+    assert "paper_forward_test" in data
 
 
 def test_doctor_script_no_secret_patterns() -> None:
