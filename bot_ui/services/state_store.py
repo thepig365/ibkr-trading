@@ -140,6 +140,53 @@ class SafetyView:
 
 
 @dataclass(frozen=True)
+class StrategyRegistryEntry:
+    """One row of :class:`StrategyRegistrySummary` (UI-friendly).
+
+    All fields default to safe empties so the page renders even when
+    ``config/strategies.yaml`` and ``data/strategies/`` are missing.
+    """
+
+    key: str
+    name: str = ""
+    version: str = ""
+    description_zh: str = ""
+    horizon: str = ""
+    status: str = ""
+    enabled: bool = False
+    requires_ibkr: bool = True
+    timeframes: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    latest_scan_path: str | None = None
+    latest_scan_date: str | None = None
+    latest_scan_status: str = ""
+    latest_signal_count: int = 0
+    is_stale: bool = True
+
+
+@dataclass(frozen=True)
+class StrategyRegistrySummary:
+    """UI-ready snapshot of the multi-strategy engine state."""
+
+    config_path: str | None = None
+    config_notes: list[str] = field(default_factory=list)
+    paper_only: bool = True
+    paper_execution_allowed: bool = False
+    research_only: bool = True
+    strategies: list[StrategyRegistryEntry] = field(default_factory=list)
+    multi_scan_path: str | None = None
+    multi_scan_date: str | None = None
+    multi_scan_total_signals: int = 0
+    multi_scan_enabled_keys: list[str] = field(default_factory=list)
+    multi_scan_skipped_keys: list[str] = field(default_factory=list)
+    multi_scan_is_stale: bool = True
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.strategies
+
+
+@dataclass(frozen=True)
 class ResearchSummary:
     """Latest Research Intelligence Layer snapshot for the UI.
 
@@ -186,6 +233,7 @@ class StateStore(Protocol):
     def runtime_flags(self) -> RuntimeFlags: ...
     def safety_view(self) -> SafetyView: ...
     def get_research_summary(self) -> ResearchSummary: ...
+    def get_strategy_registry_summary(self) -> StrategyRegistrySummary: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
 
@@ -298,6 +346,8 @@ class LocalFileStateStore:
         self.logs_dir = self.project_root / "logs"
         self.research_dir = self.data_dir / "research"
         self.research_markdown_path = self.project_root / "memory" / "RESEARCH-REPORT.md"
+        self.strategies_dir = self.data_dir / "strategies"
+        self.strategies_config_path = self.project_root / "config" / "strategies.yaml"
         # Canonical paths shared with the worker (bot/auto_paper_*.py).
         # These MUST equal the paths the worker writes / reads.
         self.kill_switch_path = self.project_root / KILL_SWITCH_RELPATH
@@ -702,6 +752,143 @@ class LocalFileStateStore:
             is_stale=is_stale if (report_path or instruction_path) else True,
         )
 
+    # ------------------------------------------------------------------
+    # Strategy Registry / Multi-Strategy Engine (Prompt 13C)
+    # ------------------------------------------------------------------
+    def get_strategy_registry_summary(self) -> StrategyRegistrySummary:
+        """Build a UI-ready snapshot of the strategy registry + last scans.
+
+        This method is read-only by design. It:
+
+        * imports :mod:`bot.strategies` lazily (and ONLY metadata-bearing
+          modules — no broker / IBKR imports),
+        * reads ``config/strategies.yaml`` via
+          :func:`bot.strategies.load_strategies_config` (graceful on
+          missing file),
+        * walks ``data/strategies/`` for the per-strategy and
+          multi-strategy scan JSON files.
+
+        Returns a typed empty :class:`StrategyRegistrySummary` if the
+        registry import or config load fails — never raises.
+        """
+        try:
+            from bot.strategies import (  # noqa: PLC0415
+                default_registry,
+                load_strategies_config,
+            )
+        except Exception:  # noqa: BLE001
+            return StrategyRegistrySummary(
+                config_path=str(self.strategies_config_path),
+                config_notes=[
+                    "bot.strategies import failed; registry summary unavailable.",
+                ],
+            )
+
+        try:
+            runtime = load_strategies_config(self.strategies_config_path)
+        except Exception as exc:  # noqa: BLE001
+            return StrategyRegistrySummary(
+                config_path=str(self.strategies_config_path),
+                config_notes=[f"strategies.yaml load failed: {exc}"],
+            )
+
+        try:
+            metas = list(default_registry().list_metadata())
+        except Exception as exc:  # noqa: BLE001
+            return StrategyRegistrySummary(
+                config_path=runtime.source_path,
+                config_notes=runtime.notes + [f"registry build failed: {exc}"],
+            )
+
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        entries: list[StrategyRegistryEntry] = []
+        for meta in metas:
+            entry_cfg = runtime.get(meta.key)
+            latest_path, latest_date = self._latest_strategy_scan_path(meta.key)
+            latest_status = ""
+            latest_signal_count = 0
+            is_stale = True
+            if latest_path is not None:
+                payload = _safe_read_json(latest_path)
+                if isinstance(payload, dict):
+                    latest_status = str(payload.get("status") or "")
+                    try:
+                        latest_signal_count = int(payload.get("signal_count") or 0)
+                    except (TypeError, ValueError):
+                        latest_signal_count = 0
+                is_stale = (latest_date != today)
+            entries.append(
+                StrategyRegistryEntry(
+                    key=str(meta.key),
+                    name=str(meta.name),
+                    version=str(meta.version),
+                    description_zh=str(meta.description_zh),
+                    horizon=str(meta.horizon),
+                    status=str(meta.status),
+                    enabled=bool(entry_cfg.enabled),
+                    requires_ibkr=bool(meta.requires_ibkr),
+                    timeframes=list(meta.timeframes),
+                    tags=list(meta.tags),
+                    latest_scan_path=str(latest_path) if latest_path else None,
+                    latest_scan_date=latest_date,
+                    latest_scan_status=latest_status,
+                    latest_signal_count=latest_signal_count,
+                    is_stale=is_stale,
+                )
+            )
+
+        multi_path = self._latest_multi_strategy_scan_path()
+        multi_data = _safe_read_json(multi_path) if multi_path else None
+        multi_total = 0
+        multi_enabled: list[str] = []
+        multi_skipped: list[str] = []
+        multi_date: str | None = None
+        if isinstance(multi_data, dict):
+            try:
+                multi_total = int(multi_data.get("total_signals") or 0)
+            except (TypeError, ValueError):
+                multi_total = 0
+            multi_enabled = [str(k) for k in (multi_data.get("enabled_keys") or [])]
+            multi_skipped = [str(k) for k in (multi_data.get("skipped_keys") or [])]
+            started = str(multi_data.get("started_utc") or "")
+            multi_date = started[:10] if started else None
+        elif multi_path is not None:
+            multi_date = multi_path.name.split("-multi-strategy-scan.json")[0]
+        multi_is_stale = (multi_path is None) or (multi_date != today)
+
+        return StrategyRegistrySummary(
+            config_path=runtime.source_path,
+            config_notes=list(runtime.notes),
+            paper_only=True,
+            paper_execution_allowed=False,
+            research_only=bool(runtime.defaults.research_only),
+            strategies=entries,
+            multi_scan_path=str(multi_path) if multi_path else None,
+            multi_scan_date=multi_date,
+            multi_scan_total_signals=multi_total,
+            multi_scan_enabled_keys=multi_enabled,
+            multi_scan_skipped_keys=multi_skipped,
+            multi_scan_is_stale=multi_is_stale,
+        )
+
+    def _latest_strategy_scan_path(self, key: str) -> tuple[Path | None, str | None]:
+        if not self.strategies_dir.exists():
+            return None, None
+        files = sorted(self.strategies_dir.glob(f"*-{key}-scan.json"))
+        if not files:
+            return None, None
+        latest = files[-1]
+        # Filename format: ``<YYYY-MM-DD>-<key>-scan.json``.
+        prefix_len = 10  # YYYY-MM-DD
+        return latest, latest.name[:prefix_len]
+
+    def _latest_multi_strategy_scan_path(self) -> Path | None:
+        if not self.strategies_dir.exists():
+            return None
+        files = sorted(self.strategies_dir.glob("*-multi-strategy-scan.json"))
+        return files[-1] if files else None
+
     def _latest_research_report_path(self) -> Path | None:
         if not self.research_dir.exists():
             return None
@@ -815,6 +1002,9 @@ class DatabaseStateStore:
     def get_research_summary(self) -> ResearchSummary:  # pragma: no cover - stub
         raise self._not_yet()
 
+    def get_strategy_registry_summary(self) -> StrategyRegistrySummary:  # pragma: no cover - stub
+        raise self._not_yet()
+
     def list_log_files(self) -> list[Path]:  # pragma: no cover - stub
         raise self._not_yet()
 
@@ -844,6 +1034,8 @@ __all__ = [
     "LoopStatus",
     "RuntimeFlags",
     "ResearchSummary",
+    "StrategyRegistryEntry",
+    "StrategyRegistrySummary",
     "SafetyView",
     "StateStore",
     "LocalFileStateStore",

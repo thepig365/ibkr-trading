@@ -86,6 +86,8 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
 # requires ``--symbols``.
 _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "ibkr-news-fetch": ("--symbols", "AAPL,TSLA,NVDA", "--limit", "50"),
+    "strategy-info": ("mtf_smc",),
+    "strategy-scan": ("--strategy", "mtf_smc"),
 }
 
 

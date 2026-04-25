@@ -1,0 +1,68 @@
+# Strategy Registry — Multi-Strategy Engine v1 (Prompt 13C)
+#
+# This file is the on-disk source of truth for which registered
+# strategies the engine should run. It is intentionally separate from
+# the older `config/strategy.yaml` (singular), which stores SMC tuning
+# parameters for the legacy single-strategy engine.
+#
+# IMPORTANT — paper-only invariants (also enforced in code):
+#
+#   * `paper_only: true` is a hard invariant for the engine.
+#   * `paper_execution_allowed: false` for every strategy at this
+#     stage of the project. Wiring paper execution is a separate,
+#     later phase. The engine NEVER places orders.
+#   * `enabled: false` for not-yet-implemented strategies. They will
+#     register as stubs with status="not_implemented" and will be
+#     skipped unless explicitly invoked via `strategy-scan --strategy`.
+#
+# Schema:
+#
+#   defaults:
+#     paper_only: bool                # must stay true; reserved for future
+#     paper_execution_allowed: bool   # must stay false at this stage
+#     research_only: bool             # must stay true at this stage
+#
+#   strategies:
+#     <key>:
+#       enabled: bool
+#       paper_execution_allowed: bool # ignored (kept false)
+#       params: {...}                 # opaque, passed to the adapter
+#
+# Recognized keys correspond to entries in
+# `bot/strategies/registry.register_builtin_strategies`:
+#
+#   - mtf_smc
+#   - ict_smc_intraday_v1
+#   - chanlun_intraday_v1
+#   - orb_baseline
+
+defaults:
+  paper_only: true
+  paper_execution_allowed: false
+  research_only: true
+
+strategies:
+  mtf_smc:
+    enabled: true
+    paper_execution_allowed: false
+    params:
+      include_5min: true
+      include_daily: true
+      max_symbols: 25
+      source: "dynamic"
+      chart: false
+
+  ict_smc_intraday_v1:
+    enabled: false
+    paper_execution_allowed: false
+    params: {}
+
+  chanlun_intraday_v1:
+    enabled: false
+    paper_execution_allowed: false
+    params: {}
+
+  orb_baseline:
+    enabled: false
+    paper_execution_allowed: false
+    params: {}

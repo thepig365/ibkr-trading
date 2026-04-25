@@ -1,0 +1,86 @@
+{
+  "started_utc": "2026-04-25T01:39:19Z",
+  "finished_utc": "2026-04-25T01:39:19Z",
+  "enabled_keys": [
+    "mtf_smc",
+    "ict_smc_intraday_v1",
+    "chanlun_intraday_v1",
+    "orb_baseline"
+  ],
+  "skipped_keys": [],
+  "requested_keys": [
+    "mtf_smc",
+    "ict_smc_intraday_v1",
+    "chanlun_intraday_v1",
+    "orb_baseline"
+  ],
+  "results": [
+    {
+      "strategy_key": "mtf_smc",
+      "started_utc": "2026-04-25T01:39:19Z",
+      "finished_utc": "2026-04-25T01:39:19Z",
+      "status": "error",
+      "symbol_count": 0,
+      "signal_count": 0,
+      "signals": [],
+      "summary": {},
+      "notes": [
+        "mtf_smc: dynamic watchlist not built; run `python -m bot.cli build-watchlist --ibkr` first."
+      ],
+      "error": "dynamic watchlist not built",
+      "execution_allowed": false,
+      "paper_only": true
+    },
+    {
+      "strategy_key": "ict_smc_intraday_v1",
+      "started_utc": "2026-04-25T01:39:19Z",
+      "finished_utc": "2026-04-25T01:39:19Z",
+      "status": "not_implemented",
+      "symbol_count": 20,
+      "signal_count": 0,
+      "signals": [],
+      "summary": {},
+      "notes": [
+        "ict_smc_intraday_v1: placeholder — to be implemented in a later phase. No IBKR connection, no orders."
+      ],
+      "error": null,
+      "execution_allowed": false,
+      "paper_only": true
+    },
+    {
+      "strategy_key": "chanlun_intraday_v1",
+      "started_utc": "2026-04-25T01:39:19Z",
+      "finished_utc": "2026-04-25T01:39:19Z",
+      "status": "not_implemented",
+      "symbol_count": 20,
+      "signal_count": 0,
+      "signals": [],
+      "summary": {},
+      "notes": [
+        "chanlun_intraday_v1: placeholder — to be implemented in a later phase. No IBKR connection, no orders."
+      ],
+      "error": null,
+      "execution_allowed": false,
+      "paper_only": true
+    },
+    {
+      "strategy_key": "orb_baseline",
+      "started_utc": "2026-04-25T01:39:19Z",
+      "finished_utc": "2026-04-25T01:39:19Z",
+      "status": "not_implemented",
+      "symbol_count": 20,
+      "signal_count": 0,
+      "signals": [],
+      "summary": {},
+      "notes": [
+        "orb_baseline: placeholder — to be implemented in a later phase. No IBKR connection, no orders."
+      ],
+      "error": null,
+      "execution_allowed": false,
+      "paper_only": true
+    }
+  ],
+  "total_signals": 0,
+  "paper_only": true,
+  "execution_allowed": false
+}

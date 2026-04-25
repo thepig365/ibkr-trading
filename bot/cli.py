@@ -3746,6 +3746,339 @@ def research_instructions_cmd(
     raise typer.Exit(code=0)
 
 
+# ---------------------------------------------------------------------------
+# Strategy Registry / Multi-Strategy Engine (Prompt 13C)
+# ---------------------------------------------------------------------------
+# These commands are intentionally research-only. They never call
+# ``broker.place_order`` and never enable live trading. The
+# ``MultiStrategyEngine`` enforces the ``execution_allowed=False``
+# invariant from inside :mod:`bot.strategies.engine`.
+
+_STRATEGY_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
+
+
+def _strategies_resolve_dir(cfg: AppConfig) -> Path:
+    out = cfg.absolute("data/strategies")
+    out.mkdir(parents=True, exist_ok=True)
+    return out
+
+
+def _strategies_load_runtime(cfg: AppConfig):  # type: ignore[no-untyped-def]
+    """Locate ``config/strategies.yaml`` next to settings.yaml and load it."""
+    from .strategies import load_strategies_config
+
+    candidate = cfg.absolute("config/strategies.yaml")
+    if candidate.exists():
+        return load_strategies_config(candidate)
+    return load_strategies_config(Path("config/strategies.yaml"))
+
+
+def _build_strategy_context(
+    cfg: AppConfig,
+    journal: Journal,
+    *,
+    extras: dict | None = None,
+):  # type: ignore[no-untyped-def]
+    from .strategies import StrategyContext
+
+    symbols, _ = _latest_dynamic_watchlist_symbols(cfg)
+    regime = _latest_market_regime(cfg)
+    return StrategyContext(
+        cfg=cfg,
+        journal=journal,
+        symbols=tuple(symbols),
+        market_regime=str(regime.get("market_regime") or "neutral"),
+        regime_confidence=str(regime.get("regime_confidence") or "medium"),
+        paper_only=True,
+        paper_execution_allowed=False,
+        extras=dict(extras or {}),
+    )
+
+
+@app.command("strategy-list")
+def strategy_list_cmd(
+    json_out: bool = typer.Option(
+        False, "--json", help="Print machine-readable JSON instead of a table."
+    ),
+) -> None:
+    """List every registered strategy with metadata + enable status.
+
+    Reads :file:`config/strategies.yaml` for the per-strategy
+    ``enabled`` flag. Never connects to IBKR.
+    """
+    from .strategies import default_registry
+
+    runtime = _strategies_load_runtime(load_config())
+    rows: list[dict] = []
+    for meta in default_registry().list_metadata():
+        entry = runtime.get(meta.key)
+        rows.append(
+            {
+                **meta.to_dict(),
+                "enabled": entry.enabled,
+                "params": dict(entry.params),
+            }
+        )
+
+    if json_out:
+        console.print_json(
+            data={
+                "strategies": rows,
+                "defaults": runtime.defaults.to_dict(),
+                "source_path": runtime.source_path,
+                "notes": runtime.notes,
+            }
+        )
+        return
+
+    table = Table(title="Strategy Registry", show_lines=False)
+    table.add_column("Key", style="cyan")
+    table.add_column("Name")
+    table.add_column("Version")
+    table.add_column("Horizon")
+    table.add_column("Status")
+    table.add_column("Enabled")
+    table.add_column("Requires IBKR")
+    for r in rows:
+        table.add_row(
+            str(r["key"]),
+            str(r["name"]),
+            str(r["version"]),
+            str(r["horizon"]),
+            str(r["status"]),
+            "yes" if r["enabled"] else "no",
+            "yes" if r["requires_ibkr"] else "no",
+        )
+    console.print(table)
+    if runtime.notes:
+        console.print(Panel.fit("\n".join(runtime.notes), title="notes", style="yellow"))
+    raise typer.Exit(code=0)
+
+
+@app.command("strategy-info")
+def strategy_info_cmd(
+    key: str = typer.Argument(..., help="Strategy key (e.g. mtf_smc)."),
+) -> None:
+    """Print full metadata + runtime config for one strategy."""
+    if not _STRATEGY_KEY_RE.match(key):
+        console.print(
+            Panel.fit(
+                f"Invalid strategy key {key!r}. Must match {_STRATEGY_KEY_RE.pattern}.",
+                title="strategy-info",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=2)
+    from .strategies import default_registry
+
+    reg = default_registry()
+    if not reg.has(key):
+        console.print(
+            Panel.fit(
+                f"Strategy {key!r} is not registered. Known: {reg.keys()}",
+                title="strategy-info",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=2)
+    runtime = _strategies_load_runtime(load_config())
+    entry = runtime.get(key)
+    payload = {
+        "metadata": reg.get(key).metadata.to_dict(),
+        "runtime": entry.to_dict(),
+        "defaults": runtime.defaults.to_dict(),
+        "source_path": runtime.source_path,
+    }
+    console.print_json(data=payload)
+    raise typer.Exit(code=0)
+
+
+@app.command("strategy-status")
+def strategy_status_cmd(
+    json_out: bool = typer.Option(
+        False, "--json", help="Print machine-readable JSON."
+    ),
+) -> None:
+    """Report freshness of per-strategy scan files under data/strategies/."""
+    from .strategies import default_registry
+
+    cfg = load_config()
+    out_dir = _strategies_resolve_dir(cfg)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    multi_path: Path | None = None
+    multi_files = sorted(out_dir.glob("*-multi-strategy-scan.json"))
+    if multi_files:
+        multi_path = multi_files[-1]
+
+    per_strategy: dict[str, dict] = {}
+    for meta in default_registry().list_metadata():
+        scans = sorted(out_dir.glob(f"*-{meta.key}-scan.json"))
+        latest = scans[-1] if scans else None
+        per_strategy[meta.key] = {
+            "latest_path": str(latest) if latest else None,
+            "latest_date": latest.name.split("-" + meta.key + "-scan.json")[0] if latest else None,
+            "stale": (latest is None)
+            or (latest.name.split("-" + meta.key + "-scan.json")[0] != today),
+            "status": meta.status,
+        }
+
+    payload = {
+        "today_utc": today,
+        "data_dir": str(out_dir),
+        "multi_strategy_scan_path": str(multi_path) if multi_path else None,
+        "multi_strategy_scan_stale": (multi_path is None)
+        or (multi_path.name.split("-multi-strategy-scan.json")[0] != today),
+        "per_strategy": per_strategy,
+        "paper_only": True,
+        "execution_allowed": False,
+    }
+    if json_out:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False),
+                title="strategy-status",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(code=0)
+
+
+@app.command("strategy-scan")
+def strategy_scan_cmd(
+    strategy: str = typer.Option(
+        ..., "--strategy", help="Strategy key to scan (e.g. mtf_smc)."
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Also dump the result JSON to stdout."
+    ),
+) -> None:
+    """Run a single strategy scan via the engine. Research-only.
+
+    Forces ``include_disabled=True`` for the chosen key, so disabled
+    strategies (and stubs) can still be exercised explicitly.
+    """
+    if not _STRATEGY_KEY_RE.match(strategy):
+        console.print(
+            Panel.fit(
+                f"Invalid --strategy {strategy!r}.",
+                title="strategy-scan",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=2)
+    from .strategies import (
+        MultiStrategyEngine,
+        default_registry,
+        write_single_scan,
+    )
+
+    cfg, journal = _bootstrap()
+    if not default_registry().has(strategy):
+        console.print(
+            Panel.fit(
+                f"Strategy {strategy!r} not registered. Known: {default_registry().keys()}",
+                title="strategy-scan",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=2)
+
+    runtime = _strategies_load_runtime(cfg)
+    engine = MultiStrategyEngine(runtime_config=runtime)
+    ctx = _build_strategy_context(cfg, journal)
+    summary = engine.run(ctx, only=(strategy,), include_disabled=True)
+    if not summary.results:
+        console.print(
+            Panel.fit(
+                f"No scan executed for {strategy!r} (skipped: {summary.skipped_keys}).",
+                title="strategy-scan",
+                style="yellow",
+            )
+        )
+        raise typer.Exit(code=0)
+    result = summary.results[0]
+    out_dir = _strategies_resolve_dir(cfg)
+    path = write_single_scan(result, output_dir=out_dir)
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="strategy-scan",
+        payload={
+            "strategy": strategy,
+            "status": result.status,
+            "symbol_count": result.symbol_count,
+            "signal_count": result.signal_count,
+            "path": str(path),
+        },
+    )
+    if json_out:
+        console.print_json(data=result.to_dict())
+    else:
+        console.print(
+            Panel.fit(
+                f"strategy={strategy} status={result.status} "
+                f"symbols={result.symbol_count} signals={result.signal_count}\n"
+                f"saved={path}\n"
+                f"notes={result.notes or '[]'}",
+                title="strategy-scan",
+                style="cyan" if result.status in {"ok", "not_implemented"} else "red",
+            )
+        )
+    raise typer.Exit(code=0)
+
+
+@app.command("multi-strategy-scan")
+def multi_strategy_scan_cmd(
+    include_disabled: bool = typer.Option(
+        False,
+        "--include-disabled",
+        help="Also run disabled / not_implemented strategies.",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print machine-readable JSON to stdout."
+    ),
+) -> None:
+    """Run every enabled strategy via the engine and write a snapshot.
+
+    Writes ``data/strategies/<YYYY-MM-DD>-multi-strategy-scan.json``.
+    Research-only: never places orders, never enables live trading.
+    """
+    from .strategies import MultiStrategyEngine, render_summary_zh, write_run_summary
+
+    cfg, journal = _bootstrap()
+    runtime = _strategies_load_runtime(cfg)
+    engine = MultiStrategyEngine(runtime_config=runtime)
+    ctx = _build_strategy_context(cfg, journal)
+    summary = engine.run(ctx, include_disabled=include_disabled)
+    out_dir = _strategies_resolve_dir(cfg)
+    path = write_run_summary(summary, output_dir=out_dir)
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="multi-strategy-scan",
+        payload={
+            "enabled_keys": summary.enabled_keys,
+            "skipped_keys": summary.skipped_keys,
+            "total_signals": summary.total_signals,
+            "path": str(path),
+        },
+    )
+    if json_out:
+        console.print_json(data=summary.to_dict())
+    else:
+        console.print(
+            Panel.fit(
+                render_summary_zh(summary) + f"\n\n  saved={path}",
+                title="multi-strategy-scan",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(code=0)
+
+
 # Backwards-compatible alias used by tests and shell scripts.
 send_telegram_message = send_telegram_message  # noqa: PLW0127 - explicit re-export
 

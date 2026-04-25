@@ -1,0 +1,16 @@
+{
+  "strategy_key": "chanlun_intraday_v1",
+  "started_utc": "2026-04-25T01:39:18Z",
+  "finished_utc": "2026-04-25T01:39:18Z",
+  "status": "not_implemented",
+  "symbol_count": 20,
+  "signal_count": 0,
+  "signals": [],
+  "summary": {},
+  "notes": [
+    "chanlun_intraday_v1: placeholder — to be implemented in a later phase. No IBKR connection, no orders."
+  ],
+  "error": null,
+  "execution_allowed": false,
+  "paper_only": true
+}

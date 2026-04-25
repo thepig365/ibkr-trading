@@ -1,0 +1,2360 @@
+{
+  "date": "2026-04-25",
+  "generated_at_utc": "2026-04-25T01:00:40Z",
+  "provider_status": {
+    "ibkr_news_available": true,
+    "providers_detected": [
+      "BRFG",
+      "BRFUPDN",
+      "DJNL"
+    ],
+    "missing_entitlements": [
+      "DJ-RT",
+      "DJ-N",
+      "RSF",
+      "MT"
+    ],
+    "notes": [],
+    "checked_at_utc": "2026-04-25T01:00:21Z"
+  },
+  "catalysts": [
+    {
+      "timestamp": "2026-02-26 15:11:44",
+      "provider": "BRFG",
+      "article_id": "BRFG$1daa6b77",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.56:C:0.5579177141189575}NVIDIA Powers Up: Blowout Q4, Massive Q1 Guide, and AI Demand Still Hitting Full Throttle"
+    },
+    {
+      "timestamp": "2026-01-15 13:38:49",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b537",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.61:C:0.6116554141044617}!RBC Capital Mkts initiated NVIDIA (NVDA) coverage with Outperform and target $240"
+    },
+    {
+      "timestamp": "2025-11-21 13:11:00",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc9c6ee",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Raymond James resumed NVIDIA (NVDA) coverage with Strong Buy and target $272"
+    },
+    {
+      "timestamp": "2025-11-20 15:15:31",
+      "provider": "BRFG",
+      "article_id": "BRFG$1cc64fe9",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.89:C:0.8906932473182678}NVIDIA Shocks the System: Q3 Results Prove AI Demand Is Still Compute-ing Higher"
+    },
+    {
+      "timestamp": "2025-11-20 14:03:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc5aa35",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.7973688244819641}!Robert W. Baird reiterated NVIDIA (NVDA) coverage with Outperform and target $275"
+    },
+    {
+      "timestamp": "2025-11-20 14:03:13",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc5aa34",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.29:C:0.29274648427963257}!Jefferies reiterated NVIDIA (NVDA) coverage with Buy and target $250"
+    },
+    {
+      "timestamp": "2025-11-20 13:28:49",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc594a6",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.29:C:0.290201872587204}!Truist reiterated NVIDIA (NVDA) coverage with Buy and target $255"
+    },
+    {
+      "timestamp": "2025-11-20 13:28:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc594a5",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.47489896416664124}!The Benchmark Company reiterated NVIDIA (NVDA) coverage with Buy and target $250"
+    },
+    {
+      "timestamp": "2025-11-20 12:56:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc579a7",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.939242422580719}!Deutsche Bank reiterated NVIDIA (NVDA) coverage with Hold and target $215"
+    },
+    {
+      "timestamp": "2025-11-20 12:56:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc5799c",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.59:C:0.5852798223495483}!Citigroup reiterated NVIDIA (NVDA) coverage with Buy and target $270"
+    },
+    {
+      "timestamp": "2025-11-20 12:55:55",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc5799a",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3113916516304016}!KeyBanc Capital Markets reiterated NVIDIA (NVDA) coverage with Overweight and target $275"
+    },
+    {
+      "timestamp": "2025-11-20 12:55:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc57999",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.405738890171051}!Barclays reiterated NVIDIA (NVDA) coverage with Overweight and target $275"
+    },
+    {
+      "timestamp": "2025-11-20 12:55:36",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc57998",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.37:C:0.3660767376422882}!Bernstein reiterated NVIDIA (NVDA) coverage with Outperform and target $275"
+    },
+    {
+      "timestamp": "2025-11-20 12:55:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc57993",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.33:C:0.3330953121185303}!Mizuho reiterated NVIDIA (NVDA) coverage with Outperform and target $245"
+    },
+    {
+      "timestamp": "2025-11-20 12:55:13",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc57992",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.67:C:0.665145993232727}!Morgan Stanley reiterated NVIDIA (NVDA) coverage with Overweight and target $235"
+    },
+    {
+      "timestamp": "2025-11-20 12:55:02",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc5798f",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.59:C:0.5914536118507385}!JP Morgan reiterated NVIDIA (NVDA) coverage with Overweight and target $250"
+    },
+    {
+      "timestamp": "2025-11-20 12:54:52",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc57988",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.93:C:0.9302329421043396}!Susquehanna reiterated NVIDIA (NVDA) coverage with Positive and target $250"
+    },
+    {
+      "timestamp": "2025-11-13 13:31:31",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cb3f2d1",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6337940096855164}!Oppenheimer reiterated NVIDIA (NVDA) coverage with Outperform and target $265"
+    },
+    {
+      "timestamp": "2025-11-04 15:51:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c9a2159",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:0.29:C:0.29274648427963257}!Jefferies reiterated NVIDIA (NVDA) coverage with Buy and target $240"
+    },
+    {
+      "timestamp": "2025-10-29 12:00:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c899486",
+      "symbol": "NVDA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3536178767681122}!DA Davidson reiterated NVIDIA (NVDA) coverage with Buy and target $250"
+    },
+    {
+      "timestamp": "2026-04-24 12:02:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e39a6f7",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en}!DZ Bank upgraded Tesla (TSLA) to Hold with target $385"
+    },
+    {
+      "timestamp": "2026-04-20 13:25:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e2bf7c2",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en}!Jefferies reiterated Tesla (TSLA) coverage with Hold and target $350"
+    },
+    {
+      "timestamp": "2026-04-14 12:13:03",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1eb8b1",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en}!UBS upgraded Tesla (TSLA) to Neutral with target $352"
+    },
+    {
+      "timestamp": "2026-04-13 13:29:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1bd1de",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en}!RBC Capital Mkts reiterated Tesla (TSLA) coverage with Outperform and target $480"
+    },
+    {
+      "timestamp": "2026-03-04 13:39:52",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dba28e5",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.8535100817680359}!BofA Securities resumed Tesla (TSLA) coverage with Buy and target $460"
+    },
+    {
+      "timestamp": "2026-02-12 15:13:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d889099",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Tigress Financial resumed Tesla (TSLA) coverage with Buy and target $550"
+    },
+    {
+      "timestamp": "2026-01-30 12:59:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d649f04",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.7448126077651978}!JP Morgan reiterated Tesla (TSLA) coverage with Underweight and target $145"
+    },
+    {
+      "timestamp": "2026-01-29 15:33:10",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d621187",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}Tesla edges past EPS estimates on margin surge and signals radical shift to AI powerhouse"
+    },
+    {
+      "timestamp": "2026-01-12 14:31:00",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d37b544",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9655362963676453}!Wells Fargo reiterated Tesla (TSLA) coverage with Underweight and target $130"
+    },
+    {
+      "timestamp": "2026-01-02 15:54:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d237fec",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9662041068077087}!Truist reiterated Tesla (TSLA) coverage with Hold and target $439"
+    },
+    {
+      "timestamp": "2026-01-02 15:04:55",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d23b6be",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:-0.88:C:0.8789701461791992}Tesla shrugs off Q4 delivery miss as investors pivot to AI and robotics future"
+    },
+    {
+      "timestamp": "2025-12-08 13:32:07",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cee8cf1",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Morgan Stanley downgraded Tesla (TSLA) to Equal-Weight with target $425"
+    },
+    {
+      "timestamp": "2025-12-01 15:03:51",
+      "provider": "BRFG",
+      "article_id": "BRFG$1cde9cfb",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:-0.58:C:0.5804048776626587}Tesla's registrations plunge across Europe as EV maker remains stuck in between growth cycles"
+    },
+    {
+      "timestamp": "2025-11-07 16:10:58",
+      "provider": "BRFG",
+      "article_id": "BRFG$1ca558e0",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9385820627212524}Tesla shareholders back Musk pay plan, clearing path for bold AI and robotics pivot"
+    },
+    {
+      "timestamp": "2025-10-29 12:26:31",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c899f6d",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9804558157920837}!BofA Securities reiterated Tesla (TSLA) coverage with Neutral and target $471"
+    },
+    {
+      "timestamp": "2025-10-23 14:06:53",
+      "provider": "BRFG",
+      "article_id": "BRFG$1c7b8090",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:-1.00:C:0.9952787160873413}Tesla misses on EPS again as lower ASPs, tariff pressures, and higher AI spending hit profits"
+    },
+    {
+      "timestamp": "2025-10-23 12:02:15",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c7a9b25",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:0.37:C:0.37372684478759766}!Mizuho reiterated Tesla (TSLA) coverage with Outperform and target $485"
+    },
+    {
+      "timestamp": "2025-10-23 12:00:36",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c7a9a46",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:0.67:C:0.6707302331924438}!Canaccord Genuity reiterated Tesla (TSLA) coverage with Buy and target $482"
+    },
+    {
+      "timestamp": "2025-10-23 12:00:07",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c7a9a44",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:0.36:C:0.35942456126213074}!Deutsche Bank reiterated Tesla (TSLA) coverage with Buy and target $440"
+    },
+    {
+      "timestamp": "2025-10-23 11:16:59",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c7a8338",
+      "symbol": "TSLA",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9662041068077087}!Truist reiterated Tesla (TSLA) coverage with Hold and target $406"
+    },
+    {
+      "timestamp": "2026-04-02 13:24:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e068027",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en}!Erste Group downgraded Micron (MU) to Hold"
+    },
+    {
+      "timestamp": "2026-03-19 14:00:20",
+      "provider": "BRFG",
+      "article_id": "BRFG$1de3eb05",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.5545938611030579}Micron falls despite blockbuster Q2 report as focus turns to rising CapEx, cycle risks"
+    },
+    {
+      "timestamp": "2026-03-19 12:24:54",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1de30e49",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en}!Summit Insights downgraded Micron (MU) to Hold"
+    },
+    {
+      "timestamp": "2026-03-19 11:49:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1de2fb25",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en}!Needham reiterated Micron (MU) coverage with Buy and target $500"
+    },
+    {
+      "timestamp": "2026-02-17 15:29:55",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d92c269",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:-0.22:C:0.22243176400661469}Micron slides despite AI demand surge as massive $200 bln expansion plan raises capex concerns"
+    },
+    {
+      "timestamp": "2026-02-17 12:06:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d91cde7",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.31777721643447876}!Needham reiterated Micron (MU) coverage with Buy and target $450"
+    },
+    {
+      "timestamp": "2026-01-23 15:27:34",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d53afb6",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.62:C:0.6183876991271973}!HSBC Securities reiterated Micron (MU) coverage with Buy and target $500"
+    },
+    {
+      "timestamp": "2026-01-22 13:29:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d504c09",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.37:C:0.36544302105903625}!William Blair initiated Micron (MU) coverage with Outperform"
+    },
+    {
+      "timestamp": "2026-01-20 13:30:03",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d49646b",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3255593478679657}!TD Cowen reiterated Micron (MU) coverage with Buy and target $450"
+    },
+    {
+      "timestamp": "2026-01-16 16:28:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d43f33a",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.5774737000465393}!Barclays reiterated Micron (MU) coverage with Overweight and target $450"
+    },
+    {
+      "timestamp": "2026-01-15 13:38:17",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b535",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.61:C:0.6065841913223267}!RBC Capital Mkts initiated Micron (MU) coverage with Outperform and target $425"
+    },
+    {
+      "timestamp": "2026-01-07 16:10:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d2e1523",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3424164354801178}!UBS reiterated Micron (MU) coverage with Buy and target $400"
+    },
+    {
+      "timestamp": "2026-01-02 13:42:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d232510",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.36:C:0.3648830056190491}!Bernstein reiterated Micron (MU) coverage with Outperform and target $330"
+    },
+    {
+      "timestamp": "2025-12-18 15:18:37",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d091f94",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.98:C:0.9778206944465637}Micron shatters Q1 expectations and delivers record-breaking outlook bolstered by HBM dominance"
+    },
+    {
+      "timestamp": "2025-12-18 13:42:35",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d08639e",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!BofA Securities upgraded Micron (MU) to Buy with target $300"
+    },
+    {
+      "timestamp": "2025-12-18 12:57:53",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d08442a",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.30:C:0.29929980635643005}!TD Cowen reiterated Micron (MU) coverage with Buy and target $300"
+    },
+    {
+      "timestamp": "2025-12-16 13:15:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d025fa1",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.31777721643447876}!Needham reiterated Micron (MU) coverage with Buy and target $300"
+    },
+    {
+      "timestamp": "2025-12-09 13:51:27",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cf1e32e",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:0.83:C:0.8271158933639526}!HSBC Securities initiated Micron (MU) coverage with Buy and target $330"
+    },
+    {
+      "timestamp": "2025-12-02 14:30:41",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ce1b013",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3419463336467743}!Wolfe Research reiterated Micron (MU) coverage with Outperform and target $300"
+    },
+    {
+      "timestamp": "2025-11-20 14:50:51",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc5c41c",
+      "symbol": "MU",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3424164354801178}!UBS reiterated Micron (MU) coverage with Buy and target $275"
+    },
+    {
+      "timestamp": "2026-04-07 12:38:15",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e0ddb57",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en}!Morgan Stanley downgraded Arm Holdings plc (ARM) to Equal-Weight with target $150"
+    },
+    {
+      "timestamp": "2026-03-26 12:38:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1df420b7",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en}!Needham upgraded Arm Holdings plc (ARM) to Buy with target $200"
+    },
+    {
+      "timestamp": "2026-03-25 15:05:04",
+      "provider": "BRFG",
+      "article_id": "BRFG$1df1ccd7",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en}Arm Holdings strategic pivot to in-house silicon triggers massive re-rating"
+    },
+    {
+      "timestamp": "2026-03-25 12:22:15",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1df0f6cb",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en}!Raymond James upgraded Arm Holdings plc (ARM) to Outperform with target $166"
+    },
+    {
+      "timestamp": "2026-03-20 12:27:40",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1de6508f",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en}!HSBC Securities upgraded Arm Holdings plc (ARM) to Buy with target $205"
+    },
+    {
+      "timestamp": "2026-02-05 15:42:56",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d75d79d",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.99:C:0.9894495606422424}Arm Holdings Rebounds After Strong Q3 As Data Center Momentum Limits Handset Uncertainty"
+    },
+    {
+      "timestamp": "2026-02-05 14:53:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d753d86",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!New Street upgraded Arm Holdings plc (ARM) to Buy"
+    },
+    {
+      "timestamp": "2026-01-21 13:28:04",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d4cd9ad",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Susquehanna upgraded Arm Holdings plc (ARM) to Positive with target $150"
+    },
+    {
+      "timestamp": "2026-01-15 13:34:30",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b31c",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6311211585998535}!RBC Capital Mkts initiated Arm Holdings plc (ARM) coverage with Outperform"
+    },
+    {
+      "timestamp": "2026-01-13 14:00:04",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d3aea2a",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!BofA Securities downgraded Arm Holdings plc (ARM) to Neutral with target $120"
+    },
+    {
+      "timestamp": "2025-12-15 14:53:05",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cff2dbb",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Goldman downgraded Arm Holdings plc (ARM) to Sell with target $120"
+    },
+    {
+      "timestamp": "2025-11-21 13:07:30",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc9c3fd",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Raymond James resumed Arm Holdings plc (ARM) coverage with Mkt Perform"
+    },
+    {
+      "timestamp": "2025-11-06 12:24:30",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ca097ba",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.30:C:0.2966954708099365}!TD Cowen reiterated Arm Holdings plc (ARM) coverage with Buy and target $190"
+    },
+    {
+      "timestamp": "2025-08-11 14:01:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1bcf94ec",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.43:C:0.43042251467704773}!Seaport Research Partners initiated Arm Holdings plc (ARM) coverage with Buy and target $150"
+    },
+    {
+      "timestamp": "2025-07-31 10:49:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1bb2cb65",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.30:C:0.2966954708099365}!TD Cowen reiterated Arm Holdings plc (ARM) coverage with Buy and target $175"
+    },
+    {
+      "timestamp": "2025-07-16 11:48:37",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b8e0ff5",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!BNP Paribas Exane upgraded Arm Holdings plc (ARM) to Outperform with target $210"
+    },
+    {
+      "timestamp": "2025-07-10 12:52:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b80e97a",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9593381881713867}!Goldman initiated Arm Holdings plc (ARM) coverage with Neutral and target $160"
+    },
+    {
+      "timestamp": "2025-05-08 10:55:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1aeb6535",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:0.30:C:0.2966954708099365}!TD Cowen reiterated Arm Holdings plc (ARM) coverage with Buy and target $155"
+    },
+    {
+      "timestamp": "2025-03-31 14:11:36",
+      "provider": "BRFG",
+      "article_id": "BRFG$1a84c899",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9413877725601196}Arm Holdings plc down despite reportedly seeing its data center CPU share tripling this year"
+    },
+    {
+      "timestamp": "2025-02-06 15:35:31",
+      "provider": "BRFG",
+      "article_id": "BRFG$19fdd502",
+      "symbol": "ARM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.979861319065094}Arm Holdings plc retreats today as its narrowed FY25 guidance proves underwhelming"
+    },
+    {
+      "timestamp": "2026-04-10 13:54:07",
+      "provider": "BRFG",
+      "article_id": "BRFG$1e181f12",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en}Taiwan Semiconductor Manufacturing rallies on strong Q1 revenue driven by AI and HPC demand"
+    },
+    {
+      "timestamp": "2026-02-13 13:31:59",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d8beaad",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.71:C:0.712480366230011}!DA Davidson initiated Taiwan Semiconductor Manufacturing (TSM) coverage with Buy and target $450"
+    },
+    {
+      "timestamp": "2026-01-15 12:51:28",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d409415",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.53:C:0.5272709131240845}!Needham reiterated Taiwan Semiconductor Manufacturing (TSM) coverage with Buy and target $410"
+    },
+    {
+      "timestamp": "2025-12-08 15:46:20",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ceeeb4c",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.65:C:0.6457204222679138}!Bernstein reiterated Taiwan Semiconductor Manufacturing (TSM) coverage with Outperform and target $330"
+    },
+    {
+      "timestamp": "2025-09-16 13:58:43",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c24b444",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.35:C:0.34863483905792236}!Barclays reiterated Taiwan Semiconductor Manufacturing (TSM) coverage with Overweight and target $325"
+    },
+    {
+      "timestamp": "2025-04-17 16:16:33",
+      "provider": "BRFG",
+      "article_id": "BRFG$1ab4be76",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:1.00:C:0.9977532625198364}Taiwan Semiconductor Manufacturing tries to hold onto gains following upbeat Q1 results"
+    },
+    {
+      "timestamp": "2025-04-15 19:03:54",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1aaeae46",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Daiwa Securities upgraded Taiwan Semiconductor Manufacturing (TSM) to Buy"
+    },
+    {
+      "timestamp": "2025-01-16 17:25:07",
+      "provider": "BRFG",
+      "article_id": "BRFG$19cbc14f",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:1.00:C:0.9998722672462463}Taiwan Semiconductor Manufacturing rises on upbeat Q4 results, underpinned by robust AI demand"
+    },
+    {
+      "timestamp": "2024-11-11 17:00:43",
+      "provider": "BRFG",
+      "article_id": "BRFG$19343a87",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.88753342628479}Taiwan Semiconductor Manufacturing dips on reports it must halt AI chip shipments to China"
+    },
+    {
+      "timestamp": "2024-10-17 14:11:41",
+      "provider": "BRFG",
+      "article_id": "BRFG$18f2fbe8",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.55:C:0.552547037601471}Taiwan Semi seeing extremely robust AI-related demand, Q3 report fueling chip space today"
+    },
+    {
+      "timestamp": "2024-09-10 15:46:12",
+      "provider": "BRFG",
+      "article_id": "BRFG$18995667",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.99:C:0.9922485947608948}Taiwan Semiconductor Manufacturing inches lower despite posting healthy August revenue growth"
+    },
+    {
+      "timestamp": "2024-07-18 15:42:12",
+      "provider": "BRFG",
+      "article_id": "BRFG$180d8d12",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.6056296825408936}Taiwan Semiconductor Manufacturing's initial pop fades today amid geopolitical concerns"
+    },
+    {
+      "timestamp": "2024-07-18 13:21:52",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$180ce979",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9196341633796692}!TD Cowen reiterated Taiwan Semiconductor Manufacturing (TSM) coverage with Hold and target $170"
+    },
+    {
+      "timestamp": "2024-07-15 12:07:55",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$18066b1f",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.53:C:0.5272709131240845}!Needham reiterated Taiwan Semiconductor Manufacturing (TSM) coverage with Buy and target $210"
+    },
+    {
+      "timestamp": "2024-06-17 14:03:26",
+      "provider": "BRFG",
+      "article_id": "BRFG$17caa50f",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:0.95:C:0.9493833184242249}Taiwan Semiconductor Manufacturing heads back to record highs on reports of price hikes"
+    },
+    {
+      "timestamp": "2024-04-18 13:59:15",
+      "provider": "BRFG",
+      "article_id": "BRFG$1736af1a",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.9743554592132568}Taiwan Semiconductor Manufacturing drops despite upbeat Q1 numbers; warns of slow recovery"
+    },
+    {
+      "timestamp": "2024-01-18 16:08:00",
+      "provider": "BRFG",
+      "article_id": "BRFG$166d2243",
+      "symbol": "TSM",
+      "headline": "{A:800015:L:en:K:1.00:C:0.9981993436813354}Taiwan Semi sees chip recovery accelerating in 2024, fueling rally for semiconductor stocks"
+    },
+    {
+      "timestamp": "2026-04-24 11:56:57",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e39a17f",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en}!Oppenheimer reiterated Amazon (AMZN) coverage with Outperform and target $275"
+    },
+    {
+      "timestamp": "2026-04-21 13:54:52",
+      "provider": "BRFG",
+      "article_id": "BRFG$1e30314e",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en}Amazon-Anthropic alliance deepens, strengthening competitive stance vs. Microsoft and Google"
+    },
+    {
+      "timestamp": "2026-04-20 13:29:54",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e2bfc98",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en}!KeyBanc Capital Markets reiterated Amazon (AMZN) coverage with Overweight and target $325"
+    },
+    {
+      "timestamp": "2026-04-17 12:44:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e277778",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en}!Truist reiterated Amazon (AMZN) coverage with Buy and target $285"
+    },
+    {
+      "timestamp": "2026-04-07 15:10:11",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e0e6628",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en}!MoffettNathanson reiterated Amazon (AMZN) coverage with Buy and target $288"
+    },
+    {
+      "timestamp": "2026-03-25 14:59:02",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1df19549",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en}!JP Morgan reiterated Amazon (AMZN) coverage with Overweight and target $280"
+    },
+    {
+      "timestamp": "2026-02-23 15:44:48",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d9f5ce3",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3355937600135803}!Wells Fargo reiterated Amazon (AMZN) coverage with Overweight and target $304"
+    },
+    {
+      "timestamp": "2026-02-06 15:23:47",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d796270",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9886660575866699}Amazon Delivers on AWS, but $200 bln Cap-Ex Plan Clouds the Outlook"
+    },
+    {
+      "timestamp": "2026-02-06 13:22:55",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d789779",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.61:C:0.607125997543335}!Monness Crespi &amp; Hardt reiterated Amazon (AMZN) coverage with Buy and target $280"
+    },
+    {
+      "timestamp": "2026-02-06 13:06:11",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d788d46",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!DA Davidson downgraded Amazon (AMZN) to Neutral with target $175"
+    },
+    {
+      "timestamp": "2026-02-02 13:11:44",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d695752",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.84:C:0.8436964154243469}!Citizens JMP reiterated Amazon (AMZN) coverage with Mkt Outperform and target $315"
+    },
+    {
+      "timestamp": "2026-01-28 13:11:48",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d5de4ea",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.83:C:0.8347249031066895}!Oppenheimer reiterated Amazon (AMZN) coverage with Outperform and target $315"
+    },
+    {
+      "timestamp": "2026-01-28 13:11:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d5de4e7",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.49:C:0.49026912450790405}!KeyBanc Capital Markets reiterated Amazon (AMZN) coverage with Overweight and target $308"
+    },
+    {
+      "timestamp": "2026-01-27 14:20:15",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d5ae178",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.50:C:0.4975987374782562}!Stifel reiterated Amazon (AMZN) coverage with Buy and target $300"
+    },
+    {
+      "timestamp": "2026-01-27 14:19:40",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d5ae173",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6281531453132629}!BofA Securities reiterated Amazon (AMZN) coverage with Buy and target $286"
+    },
+    {
+      "timestamp": "2026-01-15 13:51:28",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b8c6",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.55:C:0.5472119450569153}!Raymond James reiterated Amazon (AMZN) coverage with Outperform and target $260"
+    },
+    {
+      "timestamp": "2026-01-13 14:27:41",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d3afff3",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.62:C:0.624081552028656}!TD Cowen reiterated Amazon (AMZN) coverage with Buy and target $315"
+    },
+    {
+      "timestamp": "2026-01-12 14:49:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d37bd84",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:n/a:C:0.3355937600135803}!Wells Fargo reiterated Amazon (AMZN) coverage with Overweight and target $301"
+    },
+    {
+      "timestamp": "2026-01-08 15:10:40",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d30e82e",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.79:C:0.793071985244751}!Cantor Fitzgerald reiterated Amazon (AMZN) coverage with Overweight and target $260"
+    },
+    {
+      "timestamp": "2026-01-05 14:51:29",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d2724e2",
+      "symbol": "AMZN",
+      "headline": "{A:800015:L:en:K:0.61:C:0.608517587184906}!Jefferies reiterated Amazon (AMZN) coverage with Buy and target $300"
+    },
+    {
+      "timestamp": "2026-04-21 10:44:51",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e2f0768",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en}!Citigroup reiterated Microsoft (MSFT) coverage with Buy and target $600"
+    },
+    {
+      "timestamp": "2026-04-15 13:12:30",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e21bb39",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en}!Robert W. Baird reiterated Microsoft (MSFT) coverage with Outperform and target $500"
+    },
+    {
+      "timestamp": "2026-04-14 15:37:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1f7a53",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en}!Mizuho reiterated Microsoft (MSFT) coverage with Outperform and target $515"
+    },
+    {
+      "timestamp": "2026-04-14 15:37:29",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1f7a52",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en}!Piper Sandler reiterated Microsoft (MSFT) coverage with Overweight and target $500"
+    },
+    {
+      "timestamp": "2026-03-25 15:00:40",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1df196f6",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en}!UBS reiterated Microsoft (MSFT) coverage with Buy and target $510"
+    },
+    {
+      "timestamp": "2026-03-24 12:48:30",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dee1b95",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en}!BofA Securities resumed Microsoft (MSFT) coverage with Buy and target $500"
+    },
+    {
+      "timestamp": "2026-02-09 14:07:17",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d7d8b70",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Melius downgraded Microsoft (MSFT) to Hold"
+    },
+    {
+      "timestamp": "2026-02-05 11:54:22",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d74b5a5",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Stifel downgraded Microsoft (MSFT) to Hold with target $392"
+    },
+    {
+      "timestamp": "2026-02-03 11:55:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d6d1579",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Piper Sandler resumed Microsoft (MSFT) coverage with Overweight and target $600"
+    },
+    {
+      "timestamp": "2026-01-29 15:15:14",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d6211e7",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:n/a:C:0.17843015491962433}Microsoft AI Engine Is Revving, Yet Cap-Ex Costs Put the Brakes on MSFT"
+    },
+    {
+      "timestamp": "2026-01-29 14:40:14",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618414",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.54:C:0.535152792930603}!Barclays reiterated Microsoft (MSFT) coverage with Overweight and target $600"
+    },
+    {
+      "timestamp": "2026-01-29 14:40:04",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618413",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:n/a:C:0.30133846402168274}!Robert W. Baird reiterated Microsoft (MSFT) coverage with Outperform and target $540"
+    },
+    {
+      "timestamp": "2026-01-29 14:39:54",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618412",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.81:C:0.8059825897216797}!Goldman reiterated Microsoft (MSFT) coverage with Buy and target $600"
+    },
+    {
+      "timestamp": "2026-01-29 14:39:41",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618411",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.34:C:0.3418863117694855}!Wells Fargo reiterated Microsoft (MSFT) coverage with Overweight and target $615"
+    },
+    {
+      "timestamp": "2026-01-29 14:39:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618410",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.87:C:0.8733767867088318}!Citigroup reiterated Microsoft (MSFT) coverage with Buy and target $635"
+    },
+    {
+      "timestamp": "2026-01-29 14:39:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d61840f",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.64:C:0.6405075788497925}!KeyBanc Capital Markets reiterated Microsoft (MSFT) coverage with Overweight and target $600"
+    },
+    {
+      "timestamp": "2026-01-29 14:39:12",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d61840e",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.78:C:0.7772834897041321}!Bernstein reiterated Microsoft (MSFT) coverage with Outperform and target $641"
+    },
+    {
+      "timestamp": "2026-01-29 14:38:59",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d61840d",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.87:C:0.8668450713157654}!Piper Sandler reiterated Microsoft (MSFT) coverage with Overweight and target $600"
+    },
+    {
+      "timestamp": "2026-01-29 14:38:50",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d61840c",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.88:C:0.8767431974411011}!JP Morgan reiterated Microsoft (MSFT) coverage with Overweight and target $550"
+    },
+    {
+      "timestamp": "2026-01-29 14:38:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d61840b",
+      "symbol": "MSFT",
+      "headline": "{A:800015:L:en:K:0.87:C:0.8746485114097595}!Wedbush reiterated Microsoft (MSFT) coverage with Outperform and target $575"
+    },
+    {
+      "timestamp": "2026-04-20 13:38:12",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e2c011d",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en}!KeyBanc Capital Markets reiterated Alphabet A (GOOGL) coverage with Overweight and target $380"
+    },
+    {
+      "timestamp": "2026-04-14 13:23:53",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1ef07b",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en}!Citigroup reiterated Alphabet A (GOOGL) coverage with Buy and target $405"
+    },
+    {
+      "timestamp": "2026-04-10 12:06:08",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e17495e",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en}!Wolfe Research reiterated Alphabet A (GOOGL) coverage with Outperform and target $360"
+    },
+    {
+      "timestamp": "2026-04-10 12:05:47",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e17495b",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en}!Mizuho reiterated Alphabet A (GOOGL) coverage with Outperform and target $420"
+    },
+    {
+      "timestamp": "2026-03-27 13:22:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1df766d4",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en}!Wells Fargo reiterated Alphabet A (GOOGL) coverage with Overweight and target $397"
+    },
+    {
+      "timestamp": "2026-02-23 13:28:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d9efbdb",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Wells Fargo upgraded Alphabet A (GOOGL) to Overweight with target $387"
+    },
+    {
+      "timestamp": "2026-01-26 15:31:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d57b945",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.31808286905288696}!KeyBanc Capital Markets reiterated Alphabet A (GOOGL) coverage with Overweight and target $360"
+    },
+    {
+      "timestamp": "2026-01-23 15:18:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d53a543",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.30233994126319885}!Stifel reiterated Alphabet A (GOOGL) coverage with Buy and target $346"
+    },
+    {
+      "timestamp": "2026-01-12 14:51:03",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d37be56",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.990258514881134}!Wells Fargo reiterated Alphabet A (GOOGL) coverage with Equal Weight and target $350"
+    },
+    {
+      "timestamp": "2026-01-08 13:09:07",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d309dd4",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Cantor Fitzgerald upgraded Alphabet A (GOOGL) to Overweight with target $370"
+    },
+    {
+      "timestamp": "2026-01-05 14:52:22",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d272501",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.30:C:0.3048535883426666}!Jefferies reiterated Alphabet A (GOOGL) coverage with Buy and target $365"
+    },
+    {
+      "timestamp": "2025-12-01 16:13:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cde607a",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.57:C:0.5654425621032715}!Guggenheim reiterated Alphabet A (GOOGL) coverage with Buy and target $375"
+    },
+    {
+      "timestamp": "2025-11-24 14:15:57",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cce4d92",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.64:C:0.6434814929962158}!BNP Paribas Exane initiated Alphabet A (GOOGL) coverage with Outperform and target $355"
+    },
+    {
+      "timestamp": "2025-11-18 13:10:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cbf4b8c",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Loop Capital upgraded Alphabet A (GOOGL) to Buy with target $320"
+    },
+    {
+      "timestamp": "2025-10-27 15:31:34",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c82d96e",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.31808286905288696}!KeyBanc Capital Markets reiterated Alphabet A (GOOGL) coverage with Overweight and target $300"
+    },
+    {
+      "timestamp": "2025-10-24 12:37:01",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c7dc7bf",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.30233994126319885}!Stifel reiterated Alphabet A (GOOGL) coverage with Buy and target $292"
+    },
+    {
+      "timestamp": "2025-10-23 10:43:17",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c7a6b6f",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9537298083305359}!Bernstein reiterated Alphabet A (GOOGL) coverage with Mkt Perform and target $260"
+    },
+    {
+      "timestamp": "2025-10-20 12:21:55",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c71b8b3",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.33:C:0.33270683884620667}!BofA Securities reiterated Alphabet A (GOOGL) coverage with Buy and target $280"
+    },
+    {
+      "timestamp": "2025-10-07 13:23:20",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c54bb17",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.84:C:0.8398089408874512}!HSBC Securities initiated Alphabet A (GOOGL) coverage with Buy and target $285"
+    },
+    {
+      "timestamp": "2025-09-30 12:41:50",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c44521b",
+      "symbol": "GOOGL",
+      "headline": "{A:800015:L:en:K:0.68:C:0.6791632175445557}!Mizuho initiated Alphabet A (GOOGL) coverage with Outperform and target $295"
+    },
+    {
+      "timestamp": "2026-04-08 12:26:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e10d07b",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en}!Seaport Research Partners downgraded Broadcom (AVGO) to Neutral"
+    },
+    {
+      "timestamp": "2026-04-07 14:21:42",
+      "provider": "BRFG",
+      "article_id": "BRFG$1e0ea42b",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en}Broadcom-Google partnership signals stronger push into custom AI silicon"
+    },
+    {
+      "timestamp": "2026-04-02 13:25:44",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e06804a",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en}!Erste Group downgraded Broadcom (AVGO) to Hold"
+    },
+    {
+      "timestamp": "2026-03-05 15:21:29",
+      "provider": "BRFG",
+      "article_id": "BRFG$1dbee53c",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:1.00:C:0.999994158744812}Broadcom Powers Up: AI Chip Boom and Strong Q2 Outlook Drive Shares Higher"
+    },
+    {
+      "timestamp": "2026-02-13 13:31:14",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d8bea9d",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9839939475059509}!DA Davidson initiated Broadcom (AVGO) coverage with Neutral and target $335"
+    },
+    {
+      "timestamp": "2026-01-30 11:39:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d6471e6",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Wolfe Research upgraded Broadcom (AVGO) to Outperform with target $400"
+    },
+    {
+      "timestamp": "2026-01-15 13:35:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b328",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.8524153232574463}!RBC Capital Mkts initiated Broadcom (AVGO) coverage with Sector Perform and target $370"
+    },
+    {
+      "timestamp": "2026-01-15 13:27:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b118",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Wells Fargo upgraded Broadcom (AVGO) to Overweight with target $430"
+    },
+    {
+      "timestamp": "2025-12-12 15:33:30",
+      "provider": "BRFG",
+      "article_id": "BRFG$1cfb78de",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.34620338678359985}Broadcom Breaks the Signal: Strong AI Numbers, but the Stock Loses Connection"
+    },
+    {
+      "timestamp": "2025-12-12 13:16:52",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cfabbbd",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.5955467224121094}!TD Cowen reiterated Broadcom (AVGO) coverage with Buy and target $450"
+    },
+    {
+      "timestamp": "2025-12-12 13:02:14",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cfab3ff",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.24326711893081665}!Oppenheimer reiterated Broadcom (AVGO) coverage with Outperform and target $450"
+    },
+    {
+      "timestamp": "2025-11-21 13:07:52",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cc9c56a",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Raymond James resumed Broadcom (AVGO) coverage with Outperform and target $420"
+    },
+    {
+      "timestamp": "2025-10-21 12:40:53",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c74c428",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.5197597742080688}!Mizuho reiterated Broadcom (AVGO) coverage with Outperform and target $435"
+    },
+    {
+      "timestamp": "2025-10-15 14:37:50",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c67e3a5",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.4264817237854004}!Evercore ISI reiterated Broadcom (AVGO) coverage with Outperform and target $403"
+    },
+    {
+      "timestamp": "2025-09-15 12:07:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c217073",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:0.48:C:0.47524023056030273}!Macquarie initiated Broadcom (AVGO) coverage with Outperform and target $420"
+    },
+    {
+      "timestamp": "2025-09-05 14:23:46",
+      "provider": "BRFG",
+      "article_id": "BRFG$1c0e79a7",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:1.00:C:0.9996368885040283}Broadcom Crushes Q3 on AI Strength, Adds Fourth Major Customer, Bullish on FY26 AI Demand"
+    },
+    {
+      "timestamp": "2025-09-05 11:51:57",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c0da52e",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.5955467224121094}!TD Cowen reiterated Broadcom (AVGO) coverage with Buy and target $370"
+    },
+    {
+      "timestamp": "2025-08-28 11:37:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1bfa5f3f",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:n/a:C:0.24326711893081665}!Oppenheimer reiterated Broadcom (AVGO) coverage with Outperform and target $325"
+    },
+    {
+      "timestamp": "2025-07-10 12:52:37",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b80e97d",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en:K:0.31:C:0.30608296394348145}!Goldman initiated Broadcom (AVGO) coverage with Buy and target $315"
+    },
+    {
+      "timestamp": "2025-06-24 12:22:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b5abdea",
+      "symbol": "AVGO",
+      "headline": "{A:800015:L:en}!HSBC Securities upgraded Broadcom (AVGO) to Buy with target $400"
+    },
+    {
+      "timestamp": "2026-04-10 12:04:31",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1748b0",
+      "symbol": "META",
+      "headline": "{A:800015:L:en}!Wolfe Research reiterated Meta Platforms (META) coverage with Outperform and target $800"
+    },
+    {
+      "timestamp": "2026-04-09 15:51:54",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e14f13c",
+      "symbol": "META",
+      "headline": "{A:800015:L:en}!Rosenblatt reiterated Meta Platforms (META) coverage with Buy and target $1015"
+    },
+    {
+      "timestamp": "2026-04-02 13:27:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e06826b",
+      "symbol": "META",
+      "headline": "{A:800015:L:en}!Erste Group downgraded Meta Platforms (META) to Hold"
+    },
+    {
+      "timestamp": "2026-03-30 13:00:02",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dfbdf11",
+      "symbol": "META",
+      "headline": "{A:800015:L:en}!Morgan Stanley reiterated Meta Platforms (META) coverage with Overweight and target $775"
+    },
+    {
+      "timestamp": "2026-03-05 13:27:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dbe1ebf",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Arete downgraded Meta Platforms (META) to Neutral"
+    },
+    {
+      "timestamp": "2026-03-05 13:23:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dbe18cf",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Erste Group upgraded Meta Platforms (META) to Buy"
+    },
+    {
+      "timestamp": "2026-02-23 15:55:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d9f66f6",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.26:C:0.2591674327850342}!Wells Fargo reiterated Meta Platforms (META) coverage with Overweight and target $856"
+    },
+    {
+      "timestamp": "2026-01-29 16:54:33",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d6211a3",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:n/a:C:0.1519111543893814}Meta Platforms crushes Q4 estimates and accelerates toward \"Personal Superintelligence\""
+    },
+    {
+      "timestamp": "2026-01-29 14:46:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d6184aa",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.45:C:0.4488666355609894}!Barclays reiterated Meta Platforms (META) coverage with Overweight and target $800"
+    },
+    {
+      "timestamp": "2026-01-29 14:46:36",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618496",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.59:C:0.5871878862380981}!UBS reiterated Meta Platforms (META) coverage with Buy and target $872"
+    },
+    {
+      "timestamp": "2026-01-29 14:46:22",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618495",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.55:C:0.5507775545120239}!Wolfe Research reiterated Meta Platforms (META) coverage with Outperform and target $850"
+    },
+    {
+      "timestamp": "2026-01-29 14:45:31",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618475",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.60:C:0.599402666091919}!Roth Capital reiterated Meta Platforms (META) coverage with Buy and target $850"
+    },
+    {
+      "timestamp": "2026-01-29 14:45:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618474",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.84:C:0.843619704246521}!JP Morgan reiterated Meta Platforms (META) coverage with Overweight and target $825"
+    },
+    {
+      "timestamp": "2026-01-29 14:45:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618473",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.26:C:0.2591674327850342}!Wells Fargo reiterated Meta Platforms (META) coverage with Overweight and target $849"
+    },
+    {
+      "timestamp": "2026-01-29 14:44:37",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618472",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.82:C:0.8244661092758179}!Piper Sandler reiterated Meta Platforms (META) coverage with Overweight and target $880"
+    },
+    {
+      "timestamp": "2026-01-29 14:44:27",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618471",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.69:C:0.693958580493927}!BofA Securities reiterated Meta Platforms (META) coverage with Buy and target $885"
+    },
+    {
+      "timestamp": "2026-01-29 14:44:11",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618470",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.68:C:0.679716169834137}!Jefferies reiterated Meta Platforms (META) coverage with Buy and target $1000"
+    },
+    {
+      "timestamp": "2026-01-29 14:42:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618421",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.57:C:0.5704807043075562}!KeyBanc Capital Markets reiterated Meta Platforms (META) coverage with Overweight and target $855"
+    },
+    {
+      "timestamp": "2026-01-29 14:42:30",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d618420",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.88:C:0.8756376504898071}!Morgan Stanley reiterated Meta Platforms (META) coverage with Overweight and target $825"
+    },
+    {
+      "timestamp": "2026-01-29 14:42:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d61841f",
+      "symbol": "META",
+      "headline": "{A:800015:L:en:K:0.70:C:0.6952487230300903}!Mizuho reiterated Meta Platforms (META) coverage with Outperform and target $850"
+    },
+    {
+      "timestamp": "2026-04-24 12:06:05",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e39a99c",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en}!Wedbush initiated Oracle (ORCL) coverage with Outperform and target $225"
+    },
+    {
+      "timestamp": "2026-04-10 12:46:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e176262",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en}!Cleveland Research downgraded Oracle (ORCL) to Neutral"
+    },
+    {
+      "timestamp": "2026-03-24 12:49:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dee1b9b",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en}!BofA Securities resumed Oracle (ORCL) coverage with Buy and target $200"
+    },
+    {
+      "timestamp": "2026-03-11 14:15:21",
+      "provider": "BRFG",
+      "article_id": "BRFG$1dceaa8d",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.73:C:0.7255302667617798}Oracle's AI Crystal Ball Looks Bright: $90 bln FY27 Outlook Sparks Rally"
+    },
+    {
+      "timestamp": "2026-03-11 12:29:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dcde0a3",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!JP Morgan upgraded Oracle (ORCL) to Overweight with target $210"
+    },
+    {
+      "timestamp": "2026-03-11 12:11:34",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dcdd594",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.92:C:0.9179809093475342}!BMO Capital Markets reiterated Oracle (ORCL) coverage with Outperform and target $200"
+    },
+    {
+      "timestamp": "2026-03-11 11:57:50",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dcdcab6",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.92:C:0.9155837297439575}!Oppenheimer reiterated Oracle (ORCL) coverage with Outperform and target $210"
+    },
+    {
+      "timestamp": "2026-02-25 12:38:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1da5d74f",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Oppenheimer upgraded Oracle (ORCL) to Outperform with target $185"
+    },
+    {
+      "timestamp": "2026-02-09 14:23:36",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d7d95be",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Melius downgraded Oracle (ORCL) to Hold"
+    },
+    {
+      "timestamp": "2026-02-09 11:55:48",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d7d37e9",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!DA Davidson upgraded Oracle (ORCL) to Buy with target $180"
+    },
+    {
+      "timestamp": "2026-02-04 12:56:54",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d71224d",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.92:C:0.9179809093475342}!BMO Capital Markets reiterated Oracle (ORCL) coverage with Outperform and target $205"
+    },
+    {
+      "timestamp": "2026-01-12 13:17:38",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d3787e9",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Goldman resumed Oracle (ORCL) coverage with Buy and target $240"
+    },
+    {
+      "timestamp": "2025-12-11 15:20:12",
+      "provider": "BRFG",
+      "article_id": "BRFG$1cf88457",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9986326694488525}Oracle Cloud Shines, but Cash Flow Forecast Gets a Little Foggy"
+    },
+    {
+      "timestamp": "2025-12-11 12:59:34",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cf7b388",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.92:C:0.9179809093475342}!BMO Capital Markets reiterated Oracle (ORCL) coverage with Outperform and target $270"
+    },
+    {
+      "timestamp": "2025-12-03 13:39:33",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ce49ec1",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.71:C:0.7110916972160339}!Wells Fargo initiated Oracle (ORCL) coverage with Overweight and target $280"
+    },
+    {
+      "timestamp": "2025-11-10 14:50:33",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ca95d05",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Erste Group downgraded Oracle (ORCL) to Hold"
+    },
+    {
+      "timestamp": "2025-10-13 12:33:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c60bf4d",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.92:C:0.9179809093475342}!BMO Capital Markets reiterated Oracle (ORCL) coverage with Outperform and target $355"
+    },
+    {
+      "timestamp": "2025-10-09 12:28:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c59e098",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:0.60:C:0.5982873439788818}!Robert W. Baird initiated Oracle (ORCL) coverage with Outperform and target $365"
+    },
+    {
+      "timestamp": "2025-09-25 12:33:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c39444c",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.7212494611740112}!Rothschild &amp; Co Redburn initiated Oracle (ORCL) coverage with Sell and target $175"
+    },
+    {
+      "timestamp": "2025-09-24 14:38:27",
+      "provider": "BRFG",
+      "article_id": "BRFG$1c372341",
+      "symbol": "ORCL",
+      "headline": "{A:800015:L:en}Massive U.S. AI Infrastructure Push: Stargate Project Accelerates Toward $500B Goal"
+    },
+    {
+      "timestamp": "2026-04-21 14:09:35",
+      "provider": "BRFG",
+      "article_id": "BRFG$1e303153",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en}Apple Turns Over a New Leaf as Tim Cook Hands CEO Role to John Ternus"
+    },
+    {
+      "timestamp": "2026-04-17 12:00:57",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e275e4c",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en}!BNP Paribas Exane upgraded Apple (AAPL) to Outperform"
+    },
+    {
+      "timestamp": "2026-04-14 14:58:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1f54ec",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en}!BofA Securities reiterated Apple (AAPL) coverage with Buy and target $325"
+    },
+    {
+      "timestamp": "2026-03-23 13:25:15",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1deaeefd",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en}!BofA Securities reiterated Apple (AAPL) coverage with Buy and target $320"
+    },
+    {
+      "timestamp": "2026-03-05 13:07:36",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dbe0f31",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9775911569595337}!Rosenblatt reiterated Apple (AAPL) coverage with Neutral and target $268"
+    },
+    {
+      "timestamp": "2026-03-03 13:37:35",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1db64adf",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.7744059562683105}!Barclays reiterated Apple (AAPL) coverage with Underweight and target $248"
+    },
+    {
+      "timestamp": "2026-02-25 15:07:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1da64165",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9777254462242126}!MoffettNathanson reiterated Apple (AAPL) coverage with Neutral and target $270"
+    },
+    {
+      "timestamp": "2026-02-10 12:51:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d814449",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.42:C:0.41556066274642944}!Bernstein reiterated Apple (AAPL) coverage with Outperform and target $340"
+    },
+    {
+      "timestamp": "2026-01-30 14:53:42",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d658661",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.90:C:0.9041536450386047}Apple's \"Quarter for the Record Books\" Hits a Supply Snag"
+    },
+    {
+      "timestamp": "2026-01-30 13:00:14",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d649f07",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.7744059562683105}!Barclays reiterated Apple (AAPL) coverage with Underweight and target $239"
+    },
+    {
+      "timestamp": "2026-01-30 13:00:02",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d649f06",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6294717192649841}!JP Morgan reiterated Apple (AAPL) coverage with Overweight and target $325"
+    },
+    {
+      "timestamp": "2026-01-30 12:59:51",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d649f05",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9775911569595337}!Rosenblatt reiterated Apple (AAPL) coverage with Neutral and target $267"
+    },
+    {
+      "timestamp": "2026-01-30 12:58:25",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d649e17",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.33:C:0.33470600843429565}!Monness Crespi &amp; Hardt reiterated Apple (AAPL) coverage with Buy and target $315"
+    },
+    {
+      "timestamp": "2026-01-30 12:51:05",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d64941b",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Maxim Group upgraded Apple (AAPL) to Buy with target $300"
+    },
+    {
+      "timestamp": "2026-01-26 14:21:37",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d578704",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6294717192649841}!JP Morgan reiterated Apple (AAPL) coverage with Overweight and target $315"
+    },
+    {
+      "timestamp": "2026-01-09 17:40:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d345c51",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.51:C:0.5086357593536377}!Evercore ISI reiterated Apple (AAPL) coverage with Outperform and target $330"
+    },
+    {
+      "timestamp": "2026-01-02 12:19:53",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d2309d1",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9766327142715454}!Raymond James resumed Apple (AAPL) coverage with Mkt Perform"
+    },
+    {
+      "timestamp": "2025-12-09 15:23:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cf2284a",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.62:C:0.6206440925598145}!Citigroup reiterated Apple (AAPL) coverage with Buy and target $330"
+    },
+    {
+      "timestamp": "2025-12-08 15:22:03",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ceed1e2",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6264070868492126}!Wedbush reiterated Apple (AAPL) coverage with Outperform and target $350"
+    },
+    {
+      "timestamp": "2025-12-08 15:21:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ceed0fa",
+      "symbol": "AAPL",
+      "headline": "{A:800015:L:en:K:0.51:C:0.5086357593536377}!Evercore ISI reiterated Apple (AAPL) coverage with Outperform and target $325"
+    },
+    {
+      "timestamp": "2026-04-16 12:02:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e247248",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en}!Wolfe Research initiated CoreWeave (CRWV) coverage with Outperform and target $150"
+    },
+    {
+      "timestamp": "2026-04-13 12:38:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1ba335",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en}!Macquarie upgraded CoreWeave (CRWV) to Outperform with target $125"
+    },
+    {
+      "timestamp": "2026-04-09 12:41:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e1432ba",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en}!Cantor Fitzgerald resumed CoreWeave (CRWV) coverage with Overweight and target $149"
+    },
+    {
+      "timestamp": "2026-03-24 12:26:37",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dee119f",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en}!BofA Securities upgraded CoreWeave (CRWV) to Buy with target $100"
+    },
+    {
+      "timestamp": "2026-03-06 13:31:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dc19bf5",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.82:C:0.8209943175315857}!Oppenheimer initiated CoreWeave (CRWV) coverage with Outperform and target $140"
+    },
+    {
+      "timestamp": "2026-03-05 13:30:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dbe1fb6",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:n/a:C:0.6184086799621582}!Bernstein initiated CoreWeave (CRWV) coverage with Underperform and target $56"
+    },
+    {
+      "timestamp": "2026-02-27 14:35:30",
+      "provider": "BRFG",
+      "article_id": "BRFG$1dad9ba4",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}CoreWeave plunges on EPS miss, soft Q1 guide, which overshadows record revenue backlog"
+    },
+    {
+      "timestamp": "2026-01-27 13:34:13",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d63eca1",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Deutsche Bank upgraded CoreWeave (CRWV) to Buy with target $140"
+    },
+    {
+      "timestamp": "2026-01-26 15:05:09",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d581be9",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:n/a:C:0.939063310623169}CoreWeave soars as NVIDIA injects $2.0 bln and unveils massive 5 GW AI factory roadmap"
+    },
+    {
+      "timestamp": "2026-01-26 14:31:47",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d63ec9a",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!DA Davidson upgraded CoreWeave (CRWV) to Buy with target $110"
+    },
+    {
+      "timestamp": "2026-01-06 13:54:58",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d2a92eb",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9365095496177673}!Truist initiated CoreWeave (CRWV) coverage with Hold and target $84"
+    },
+    {
+      "timestamp": "2026-01-05 13:29:52",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d26f789",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!DA Davidson upgraded CoreWeave (CRWV) to Neutral with target $68"
+    },
+    {
+      "timestamp": "2025-12-19 13:47:50",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d0b64b2",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Citigroup resumed CoreWeave (CRWV) coverage with Buy and target $135"
+    },
+    {
+      "timestamp": "2025-12-05 13:39:57",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cea6ff5",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.47:C:0.47294142842292786}!Roth Capital initiated CoreWeave (CRWV) coverage with Buy and target $110"
+    },
+    {
+      "timestamp": "2025-11-11 15:29:20",
+      "provider": "BRFG",
+      "article_id": "BRFG$1cadc4d8",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:-0.96:C:0.9555012583732605}CoreWeave tumbles as FY25 guidance cut overshadows blockbuster Q3 growth"
+    },
+    {
+      "timestamp": "2025-11-11 13:01:46",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1cacf66e",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!JP Morgan downgraded CoreWeave (CRWV) to Neutral with target $110"
+    },
+    {
+      "timestamp": "2025-09-30 14:20:32",
+      "provider": "BRFG",
+      "article_id": "BRFG$1c45294e",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.89:C:0.8893285989761353}CoreWeave soars as company lands blockbuster $14.2 bln deal with Meta Platforms"
+    },
+    {
+      "timestamp": "2025-09-30 12:52:56",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c445676",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.64:C:0.6351916790008545}!Evercore ISI initiated CoreWeave (CRWV) coverage with Outperform and target $175"
+    },
+    {
+      "timestamp": "2025-09-23 12:10:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c33ae9e",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Wells Fargo upgraded CoreWeave (CRWV) to Overweight with target $170"
+    },
+    {
+      "timestamp": "2025-09-23 12:10:12",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c33ae9d",
+      "symbol": "CRWV",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Melius upgraded CoreWeave (CRWV) to Buy with target $165"
+    },
+    {
+      "timestamp": "2026-04-23 11:56:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e35f4a6",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en}!DZ Bank initiated Palantir Technologies (PLTR) coverage with Buy and target $175"
+    },
+    {
+      "timestamp": "2026-02-27 13:31:07",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dad5825",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.63:C:0.6259161829948425}!Rosenblatt initiated Palantir Technologies (PLTR) coverage with Buy and target $150"
+    },
+    {
+      "timestamp": "2026-02-27 13:22:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dad5190",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!UBS upgraded Palantir Technologies (PLTR) to Buy with target $150"
+    },
+    {
+      "timestamp": "2026-02-18 12:51:26",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d94f4d5",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Mizuho upgraded Palantir Technologies (PLTR) to Outperform with target $195"
+    },
+    {
+      "timestamp": "2026-02-10 12:57:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d815584",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Daiwa Securities upgraded Palantir Technologies (PLTR) to Buy with target $180"
+    },
+    {
+      "timestamp": "2026-02-03 17:10:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d6e3515",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!HSBC Securities upgraded Palantir Technologies (PLTR) to Buy with target $205"
+    },
+    {
+      "timestamp": "2026-02-03 15:19:06",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d6e2eda",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:n/a:C:0.5603145360946655}Palantir Technologies Sees Clearly Into 2026 as AI Momentum Compounds Across U.S. Business"
+    },
+    {
+      "timestamp": "2026-02-03 12:57:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d6d39fe",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Northland Capital upgraded Palantir Technologies (PLTR) to Outperform with target $190"
+    },
+    {
+      "timestamp": "2026-02-03 11:50:26",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d6d1310",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Robert W. Baird upgraded Palantir Technologies (PLTR) to Outperform with target $200"
+    },
+    {
+      "timestamp": "2026-02-02 12:54:31",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d694359",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!William Blair upgraded Palantir Technologies (PLTR) to Outperform"
+    },
+    {
+      "timestamp": "2026-01-12 12:51:29",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d376b76",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Citigroup upgraded Palantir Technologies (PLTR) to Buy with target $235"
+    },
+    {
+      "timestamp": "2026-01-06 13:57:18",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d2a9303",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.52:C:0.5238338708877563}!Truist initiated Palantir Technologies (PLTR) coverage with Buy and target $223"
+    },
+    {
+      "timestamp": "2025-11-04 15:46:58",
+      "provider": "BRFG",
+      "article_id": "BRFG$1c9a8004",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}Palantir Delivers Blowout Q3; Another Beat-and-Raise Yet Stock Slides on Valuation Concerns"
+    },
+    {
+      "timestamp": "2025-08-05 14:30:23",
+      "provider": "BRFG",
+      "article_id": "BRFG$1bc0778f",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:1.00:C:0.9982498288154602}Palantir Technologies continues its remarkable rise following Q2 upside"
+    },
+    {
+      "timestamp": "2025-08-05 11:04:05",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1bbf6e95",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Deutsche Bank upgraded Palantir Technologies (PLTR) to Hold with target $160"
+    },
+    {
+      "timestamp": "2025-07-25 13:07:12",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ba4acc5",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.82:C:0.8196836113929749}!Piper Sandler initiated Palantir Technologies (PLTR) coverage with Overweight and target $170"
+    },
+    {
+      "timestamp": "2025-07-16 11:50:11",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b8e10c7",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Mizuho upgraded Palantir Technologies (PLTR) to Neutral with target $135"
+    },
+    {
+      "timestamp": "2025-04-01 13:08:58",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a880bcb",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9553332924842834}!Daiwa Securities initiated Palantir Technologies (PLTR) coverage with Neutral and target $90"
+    },
+    {
+      "timestamp": "2025-03-05 12:41:27",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a4332b3",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!William Blair upgraded Palantir Technologies (PLTR) to Mkt Perform"
+    },
+    {
+      "timestamp": "2025-02-20 12:04:48",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a20f522",
+      "symbol": "PLTR",
+      "headline": "{A:800015:L:en:K:0.52:C:0.5191395282745361}!Loop Capital initiated Palantir Technologies (PLTR) coverage with Buy and target $141"
+    },
+    {
+      "timestamp": "2026-03-23 12:27:51",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1deac1ed",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en}!Northland Capital downgraded Super Micro Computer (SMCI) to Market Perform with target $22"
+    },
+    {
+      "timestamp": "2026-03-20 19:04:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1de760be",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en}!Argus downgraded Super Micro Computer (SMCI) to Hold"
+    },
+    {
+      "timestamp": "2026-03-20 13:47:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1de69056",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en}!CJS Securities downgraded Super Micro Computer (SMCI) to Market Underperform"
+    },
+    {
+      "timestamp": "2026-01-13 14:17:56",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d3af903",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Goldman resumed Super Micro Computer (SMCI) coverage with Sell and target $26"
+    },
+    {
+      "timestamp": "2025-11-06 12:30:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ca0a141",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Argus upgraded Super Micro Computer (SMCI) to Buy"
+    },
+    {
+      "timestamp": "2025-09-16 12:10:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c246d70",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9742240309715271}!Bernstein initiated Super Micro Computer (SMCI) coverage with Mkt Perform and target $46"
+    },
+    {
+      "timestamp": "2025-07-09 12:31:55",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b7e205d",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!BofA Securities resumed Super Micro Computer (SMCI) coverage with Underperform and target $35"
+    },
+    {
+      "timestamp": "2025-06-26 12:11:49",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1b610b1d",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en}!KeyBanc Capital Markets initiated Super Micro Computer (SMCI) coverage with Sector Weight"
+    },
+    {
+      "timestamp": "2025-05-07 12:38:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ae7ea7f",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en}!Needham resumed Super Micro Computer (SMCI) coverage with Buy and target $39"
+    },
+    {
+      "timestamp": "2025-04-25 12:33:33",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ac8d8f6",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:n/a:C:0.9788737893104553}!Citigroup initiated Super Micro Computer (SMCI) coverage with Neutral and target $39"
+    },
+    {
+      "timestamp": "2025-03-24 12:36:08",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a70b4e9",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Goldman downgraded Super Micro Computer (SMCI) to Sell with target $32"
+    },
+    {
+      "timestamp": "2025-03-21 12:02:38",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a6bf7ee",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!JP Morgan upgraded Super Micro Computer (SMCI) to Neutral with target $45"
+    },
+    {
+      "timestamp": "2025-03-10 12:04:45",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a4dd38c",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:n/a:C:0.31785038113594055}!Rosenblatt initiated Super Micro Computer (SMCI) coverage with Buy and target $60"
+    },
+    {
+      "timestamp": "2025-02-27 11:24:57",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a33790b",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Barclays resumed Super Micro Computer (SMCI) coverage with Equal Weight and target $59"
+    },
+    {
+      "timestamp": "2025-02-11 12:12:28",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1a084de5",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!CFRA upgraded Super Micro Computer (SMCI) to Buy with target $48"
+    },
+    {
+      "timestamp": "2024-11-06 11:22:07",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$19263e2b",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!JP Morgan downgraded Super Micro Computer (SMCI) to Underweight with target $23"
+    },
+    {
+      "timestamp": "2024-10-31 11:22:26",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$191708b3",
+      "symbol": "SMCI",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Argus downgraded Super Micro Computer (SMCI) to Hold"
+    },
+    {
+      "timestamp": "2026-04-24 14:40:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a3b",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Jefferies reiterated Intel (INTC) coverage with Hold and target $80"
+    },
+    {
+      "timestamp": "2026-04-24 14:40:21",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a39",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!BofA Securities reiterated Intel (INTC) coverage with Underperform and target $56"
+    },
+    {
+      "timestamp": "2026-04-24 14:40:10",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a37",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Robert W. Baird reiterated Intel (INTC) coverage with Neutral and target $75"
+    },
+    {
+      "timestamp": "2026-04-24 14:40:00",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a36",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!JP Morgan reiterated Intel (INTC) coverage with Underweight and target $45"
+    },
+    {
+      "timestamp": "2026-04-24 14:39:50",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a34",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!KeyBanc Capital Markets reiterated Intel (INTC) coverage with Overweight and target $110"
+    },
+    {
+      "timestamp": "2026-04-24 14:39:41",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a33",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Stifel reiterated Intel (INTC) coverage with Hold and target $75"
+    },
+    {
+      "timestamp": "2026-04-24 14:39:31",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a31",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!The Benchmark Company reiterated Intel (INTC) coverage with Buy and target $105"
+    },
+    {
+      "timestamp": "2026-04-24 14:39:22",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a2f",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!RBC Capital Mkts reiterated Intel (INTC) coverage with Sector Perform and target $80"
+    },
+    {
+      "timestamp": "2026-04-24 14:39:13",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a2d",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!TD Cowen reiterated Intel (INTC) coverage with Hold and target $75"
+    },
+    {
+      "timestamp": "2026-04-24 14:39:03",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a2b",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Cantor Fitzgerald reiterated Intel (INTC) coverage with Neutral and target $90"
+    },
+    {
+      "timestamp": "2026-04-24 14:38:53",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a4a2a",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Rosenblatt reiterated Intel (INTC) coverage with Sell and target $50"
+    },
+    {
+      "timestamp": "2026-04-24 14:38:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a46f5",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Morgan Stanley reiterated Intel (INTC) coverage with Equal-Weight and target $73"
+    },
+    {
+      "timestamp": "2026-04-24 14:38:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e3a46f3",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!UBS reiterated Intel (INTC) coverage with Neutral and target $83"
+    },
+    {
+      "timestamp": "2026-04-24 14:00:22",
+      "provider": "BRFG",
+      "article_id": "BRFG$1e3abca3",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}Intel soars to record highs as AI-driven data center strength fuels beat-and-raise quarter"
+    },
+    {
+      "timestamp": "2026-04-24 12:32:32",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e39bb69",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Roth Capital upgraded Intel (INTC) to Buy with target $100"
+    },
+    {
+      "timestamp": "2026-04-24 12:00:12",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e39a5b6",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Evercore ISI upgraded Intel (INTC) to Outperform with target $111"
+    },
+    {
+      "timestamp": "2026-04-24 12:00:03",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e39a5b4",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Citigroup upgraded Intel (INTC) to Buy with target $95"
+    },
+    {
+      "timestamp": "2026-04-21 11:28:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e2f3874",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!BNP Paribas Exane upgraded Intel (INTC) to Neutral with target $60"
+    },
+    {
+      "timestamp": "2026-04-21 11:23:16",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e2f2c13",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!HSBC Securities upgraded Intel (INTC) to Buy with target $95"
+    },
+    {
+      "timestamp": "2026-04-16 16:57:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e25606f",
+      "symbol": "INTC",
+      "headline": "{A:800015:L:en}!Bernstein reiterated Intel (INTC) coverage with Mkt Perform and target $60"
+    },
+    {
+      "timestamp": "2026-04-22 11:57:43",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e326503",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!Barclays resumed Qualcomm (QCOM) coverage with Underweight and target $130"
+    },
+    {
+      "timestamp": "2026-04-17 12:02:49",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e275f2d",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!BNP Paribas Exane downgraded Qualcomm (QCOM) to Neutral with target $120"
+    },
+    {
+      "timestamp": "2026-04-16 11:54:33",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1e24681f",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!JP Morgan downgraded Qualcomm (QCOM) to Neutral with target $140"
+    },
+    {
+      "timestamp": "2026-03-30 12:19:59",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dfbb38d",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!Goldman initiated Qualcomm (QCOM) coverage with Neutral and target $135"
+    },
+    {
+      "timestamp": "2026-03-26 12:41:42",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1df423df",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!Bernstein downgraded Qualcomm (QCOM) to Mkt Perform with target $140"
+    },
+    {
+      "timestamp": "2026-03-16 12:36:00",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dd8f071",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Seaport Research Partners downgraded Qualcomm (QCOM) to Sell with target $100"
+    },
+    {
+      "timestamp": "2026-03-10 12:41:36",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1dca790d",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!BofA Securities resumed Qualcomm (QCOM) coverage with Underperform and target $145"
+    },
+    {
+      "timestamp": "2026-02-24 12:40:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1da2372a",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!Wells Fargo upgraded Qualcomm (QCOM) to Equal Weight with target $185"
+    },
+    {
+      "timestamp": "2026-02-24 12:40:09",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1da23729",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en}!Loop Capital upgraded Qualcomm (QCOM) to Buy with target $185"
+    },
+    {
+      "timestamp": "2026-02-11 12:50:24",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d849f9d",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Daiwa Securities downgraded Qualcomm (QCOM) to Neutral with target $140"
+    },
+    {
+      "timestamp": "2026-02-10 13:02:02",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d815598",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.97}!Morgan Stanley resumed Qualcomm (QCOM) coverage with Underweight and target $132"
+    },
+    {
+      "timestamp": "2026-02-05 15:10:16",
+      "provider": "BRFG",
+      "article_id": "BRFG$1d75d78b",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:0.96:C:0.964489758014679}Qualcomm Rings Up Record Q1 but Supply Concerns Mutes the Guidance"
+    },
+    {
+      "timestamp": "2026-02-05 13:02:39",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d74ed89",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Susquehanna downgraded Qualcomm (QCOM) to Neutral with target $140"
+    },
+    {
+      "timestamp": "2026-02-05 11:55:23",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d74b5a9",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!BofA Securities downgraded Qualcomm (QCOM) to Neutral with target $155"
+    },
+    {
+      "timestamp": "2026-01-15 13:39:28",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d40b53a",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.6894863247871399}!RBC Capital Mkts initiated Qualcomm (QCOM) coverage with Sector Perform and target $180"
+    },
+    {
+      "timestamp": "2026-01-09 13:51:20",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1d339202",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:-0.97:C:0.97}!Mizuho downgraded Qualcomm (QCOM) to Neutral with target $175"
+    },
+    {
+      "timestamp": "2025-11-06 15:33:29",
+      "provider": "BRFG",
+      "article_id": "BRFG$1ca1a786",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:-0.76:C:0.7604019641876221}Qualcomm tops Q4 estimates thanks to premium Android surge, but key risks weigh on shares"
+    },
+    {
+      "timestamp": "2025-11-06 12:25:06",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1ca097c9",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:n/a:C:0.25179991126060486}!TD Cowen reiterated Qualcomm (QCOM) coverage with Buy and target $205"
+    },
+    {
+      "timestamp": "2025-10-22 12:41:15",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1c77a6e7",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:0.91:C:0.9113467335700989}!Susquehanna reiterated Qualcomm (QCOM) coverage with Positive and target $200"
+    },
+    {
+      "timestamp": "2025-08-26 12:14:19",
+      "provider": "BRFUPDN",
+      "article_id": "BRFUPDN$1bf411ae",
+      "symbol": "QCOM",
+      "headline": "{A:800015:L:en:K:0.97:C:0.97}!Arete upgraded Qualcomm (QCOM) to Buy with target $200"
+    }
+  ]
+}

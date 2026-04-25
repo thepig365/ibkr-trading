@@ -1,0 +1,108 @@
+{
+  "date": "2026-04-24",
+  "symbol": "TSM",
+  "strategy": "MTF_SMC_ICT_RESEARCH",
+  "research_only": true,
+  "execution_allowed": false,
+  "market_regime": "neutral",
+  "regime_confidence": "medium",
+  "timeframes": {
+    "daily": {
+      "loaded": true,
+      "bars": 251,
+      "bias": "bullish",
+      "reason": "sweep + bullish ChoCH with price above/through key MA context",
+      "warnings": []
+    },
+    "4h": {
+      "loaded": true,
+      "bars": 145,
+      "structure": "transitional",
+      "reason": "sweep on 4H but ChoCH not complete",
+      "warnings": []
+    },
+    "30min": {
+      "loaded": true,
+      "setup_state": "invalid_risk",
+      "entry_price": 370.49,
+      "stop_price": 361.54,
+      "target_1": null,
+      "risk_reward": 0.0,
+      "warnings": [],
+      "stop_distance_pct": 2.4157,
+      "extension_pct_vs_latest_close": null,
+      "reason": "r_r_to_target_1 below min 1.80 for all candidates"
+    },
+    "5min": {
+      "loaded": true,
+      "trigger_state": "invalid",
+      "reason": "30min setup not valid for trigger alignment",
+      "warnings": []
+    }
+  },
+  "premium_discount": {
+    "timeframe": "4h",
+    "range_low": 313.8,
+    "range_high": 402.99,
+    "midpoint": 358.395,
+    "latest_price": 401.48,
+    "current_zone": "premium"
+  },
+  "mtf_alignment_score": 0,
+  "alignment_category": "BLOCKED",
+  "eligible_for_future_paper_trade": false,
+  "not_eligible_reasons": [
+    "blocked_or_invalid_mtf"
+  ],
+  "mtf_bias_daily": {
+    "bias": "bullish",
+    "reason": "sweep + bullish ChoCH with price above/through key MA context",
+    "evidence": {
+      "last_close": 401.48,
+      "sma_200": 301.3634,
+      "sma_20": 360.755,
+      "swing_deltas": {
+        "higher_highs": true,
+        "higher_lows": true,
+        "lower_highs": false,
+        "lower_lows": false
+      },
+      "liquidity_sweep_found": true,
+      "choch_found": true
+    }
+  },
+  "mtf_structure_4h": {
+    "structure": "transitional",
+    "reason": "sweep on 4H but ChoCH not complete",
+    "evidence": {
+      "sweep_4h": true,
+      "choch_4h": false,
+      "smc_approved_4h": false
+    }
+  },
+  "mtf_setup_30": {
+    "setup_state": "invalid_risk",
+    "entry_price": 370.49,
+    "stop_price": 361.54,
+    "target_1": null,
+    "risk_reward": 0.0,
+    "stop_distance_pct": 2.4157,
+    "extension_pct_vs_latest_close": null,
+    "reason": "r_r_to_target_1 below min 1.80 for all candidates",
+    "source_evaluation": {
+      "approved_for_dry_run": false,
+      "rejection_reasons": [
+        "stop_distance_pct 2.42 > max 2.00",
+        "r_r_to_target_1 below min 1.80 for all candidates"
+      ]
+    }
+  },
+  "warnings": [],
+  "chart_paths": [
+    "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-TSM-mtf-daily.png",
+    "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-TSM-mtf-4h.png",
+    "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-TSM-mtf-30min.png",
+    "/Users/leonzhmac/Documents/Claude Folders/tradingstrategies/ibkr-trading-bot/data/debug_charts/2026-04-24-TSM-mtf-5min.png"
+  ],
+  "human_summary_zh": "\u3010MTF SMC/ICT \u591a\u5468\u671f\u8bc6\u522b\u3011TSM\n\u65e5\u56fe\u504f\u5411\uff1abullish\n4H \u7ed3\u6784\uff1atransitional\n30m \u8bbe\u7f6e\uff1ainvalid_risk\n5m \u89e6\u53d1\uff1ainvalid\n\u6ea2\u4ef7/\u6298\u6263\uff1apremium\n\u591a\u5468\u671f\u5206\u6570\uff1a0 / 100\n\u5206\u7c7b\uff1aBLOCKED\n\u672a\u6765\u7eb8\u9762\u5019\u9009(\u4ec5\u7814\u7a76\uff0c\u4e0d\u4e0b\u5355\uff09\uff1a\u5426\n\u4e0d\u7b26\u5408\u539f\u56e0\uff1ablocked_or_invalid_mtf\n\u63d0\u9192\uff1a\u7814\u7a76\u626b\u63cf\uff0c\u4e0d\u4e0b\u5355\u3002execution_allowed=false\u3002"
+}

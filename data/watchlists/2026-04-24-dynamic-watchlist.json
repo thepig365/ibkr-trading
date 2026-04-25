@@ -3,23 +3,97 @@
   "source": "ibkr",
   "symbols": [
     {
+      "symbol": "NVDA",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "static_core"
+      ],
+      "latest_price": 208.88,
+      "current_volume": 134771484.0,
+      "current_dollar_volume": 28151067577.92,
+      "avg_20d_volume": 99832202.5,
+      "avg_20d_dollar_volume": 20852950458.2,
+      "relative_volume": 1.35,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.734943,
+      "beta": null,
+      "atr_pct": 2.4809,
+      "realized_vol_20d": 31.3768,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
+      "symbol": "AMD",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "high_relative_volume",
+        "high_volatility_proxy",
+        "static_core"
+      ],
+      "latest_price": 345.02,
+      "current_volume": 46664513.0,
+      "current_dollar_volume": 16100190275.26,
+      "avg_20d_volume": 24720056.9,
+      "avg_20d_dollar_volume": 8528914031.64,
+      "relative_volume": 1.8877,
+      "volume_activity": "elevated_activity",
+      "volume_rank_score": 0.534716,
+      "beta": null,
+      "atr_pct": 3.7472,
+      "realized_vol_20d": 53.9877,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
       "symbol": "SPY",
       "reason": [
         "high_avg_dollar_volume",
         "high_current_dollar_volume",
         "static_core"
       ],
-      "latest_price": 708.45,
-      "current_volume": 42958063.0,
-      "current_dollar_volume": 30433639732.35,
-      "avg_20d_volume": 50038846.45,
-      "avg_20d_dollar_volume": 35450020767.5,
-      "relative_volume": 0.8585,
+      "latest_price": 714.22,
+      "current_volume": 22177916.0,
+      "current_dollar_volume": 15839911165.52,
+      "avg_20d_volume": 47709948.3,
+      "avg_20d_dollar_volume": 34075399274.83,
+      "relative_volume": 0.4648,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.790757,
+      "volume_rank_score": 0.509169,
       "beta": null,
-      "atr_pct": 1.3187,
-      "realized_vol_20d": 18.3157,
+      "atr_pct": 1.2661,
+      "realized_vol_20d": 16.4429,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
+      "symbol": "QQQ",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "static_core"
+      ],
+      "latest_price": 663.98,
+      "current_volume": 22715355.0,
+      "current_dollar_volume": 15082541412.9,
+      "avg_20d_volume": 36769342.6,
+      "avg_20d_dollar_volume": 24414108099.55,
+      "relative_volume": 0.6178,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.458779,
+      "beta": null,
+      "atr_pct": 1.693,
+      "realized_vol_20d": 20.2657,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -34,65 +108,17 @@
         "high_volatility_proxy",
         "static_core"
       ],
-      "latest_price": 373.72,
-      "current_volume": 70192706.0,
-      "current_dollar_volume": 26232418086.32,
-      "avg_20d_volume": 52362484.05,
-      "avg_20d_dollar_volume": 19568907539.17,
-      "relative_volume": 1.3405,
+      "latest_price": 376.06,
+      "current_volume": 40817506.0,
+      "current_dollar_volume": 15349831306.36,
+      "avg_20d_volume": 52343623.25,
+      "avg_20d_dollar_volume": 19684342959.4,
+      "relative_volume": 0.7798,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.718067,
+      "volume_rank_score": 0.454798,
       "beta": null,
-      "atr_pct": 4.229,
-      "realized_vol_20d": 49.8265,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "QQQ",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "static_core"
-      ],
-      "latest_price": 651.42,
-      "current_volume": 29465236.0,
-      "current_dollar_volume": 19194244035.12,
-      "avg_20d_volume": 38800048.7,
-      "avg_20d_dollar_volume": 25275127724.15,
-      "relative_volume": 0.7594,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.550916,
-      "beta": null,
-      "atr_pct": 1.7357,
-      "realized_vol_20d": 22.6069,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "NVDA",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "static_core"
-      ],
-      "latest_price": 199.64,
-      "current_volume": 78862286.0,
-      "current_dollar_volume": 15744066777.04,
-      "avg_20d_volume": 99128153.35,
-      "avg_20d_dollar_volume": 19789944534.79,
-      "relative_volume": 0.7956,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.47489,
-      "beta": null,
-      "atr_pct": 2.5013,
-      "realized_vol_20d": 33.662,
+      "atr_pct": 4.168,
+      "realized_vol_20d": 48.1364,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -107,17 +133,17 @@
         "high_volatility_proxy",
         "static_core"
       ],
-      "latest_price": 481.72,
-      "current_volume": 25525968.0,
-      "current_dollar_volume": 12296369304.96,
-      "avg_20d_volume": 29471854.55,
-      "avg_20d_dollar_volume": 14197181773.83,
-      "relative_volume": 0.8661,
+      "latest_price": 497.31,
+      "current_volume": 19018786.0,
+      "current_dollar_volume": 9458232465.66,
+      "avg_20d_volume": 28773913.75,
+      "avg_20d_dollar_volume": 14309555047.01,
+      "relative_volume": 0.661,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.403918,
+      "volume_rank_score": 0.314768,
       "beta": null,
-      "atr_pct": 5.4869,
-      "realized_vol_20d": 78.2627,
+      "atr_pct": 5.2463,
+      "realized_vol_20d": 71.9419,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -127,22 +153,71 @@
     {
       "symbol": "ARM",
       "reason": [
+        "high_avg_dollar_volume",
         "high_current_dollar_volume",
         "high_relative_volume",
         "high_volatility_proxy",
         "static_core"
       ],
-      "latest_price": 204.61,
-      "current_volume": 11625440.0,
-      "current_dollar_volume": 2378681278.4,
-      "avg_20d_volume": 5446033.8,
-      "avg_20d_dollar_volume": 1114312975.82,
-      "relative_volume": 2.1347,
+      "latest_price": 233.5,
+      "current_volume": 11659662.0,
+      "current_dollar_volume": 2722531077.0,
+      "avg_20d_volume": 5474579.7,
+      "avg_20d_dollar_volume": 1278314359.95,
+      "relative_volume": 2.1298,
       "volume_activity": "strong_activity",
-      "volume_rank_score": 0.391458,
+      "volume_rank_score": 0.307467,
       "beta": null,
-      "atr_pct": 4.9208,
-      "realized_vol_20d": 73.4135,
+      "atr_pct": 4.8236,
+      "realized_vol_20d": 83.775,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
+      "symbol": "TSM",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "static_core"
+      ],
+      "latest_price": 405.84,
+      "current_volume": 13043683.0,
+      "current_dollar_volume": 5293648308.72,
+      "avg_20d_volume": 9297128.45,
+      "avg_20d_dollar_volume": 3773146610.15,
+      "relative_volume": 1.403,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.275697,
+      "beta": null,
+      "atr_pct": 3.2206,
+      "realized_vol_20d": 45.3728,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
+      "symbol": "AMZN",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "static_core"
+      ],
+      "latest_price": 264.16,
+      "current_volume": 25541627.0,
+      "current_dollar_volume": 6747076188.32,
+      "avg_20d_volume": 25827855.9,
+      "avg_20d_dollar_volume": 6822686414.54,
+      "relative_volume": 0.9889,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.266969,
+      "beta": null,
+      "atr_pct": 2.6469,
+      "realized_vol_20d": 33.1188,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -156,17 +231,17 @@
         "high_current_dollar_volume",
         "static_core"
       ],
-      "latest_price": 415.75,
-      "current_volume": 24545645.0,
-      "current_dollar_volume": 10204851908.75,
-      "avg_20d_volume": 21106683.3,
-      "avg_20d_dollar_volume": 8775103581.98,
-      "relative_volume": 1.1629,
+      "latest_price": 423.85,
+      "current_volume": 12960148.0,
+      "current_dollar_volume": 5493158729.8,
+      "avg_20d_volume": 20532103.65,
+      "avg_20d_dollar_volume": 8702532132.05,
+      "relative_volume": 0.6312,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.391065,
+      "volume_rank_score": 0.214888,
       "beta": null,
-      "atr_pct": 2.514,
-      "realized_vol_20d": 32.7616,
+      "atr_pct": 2.4502,
+      "realized_vol_20d": 32.2564,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -174,24 +249,71 @@
       ]
     },
     {
-      "symbol": "AMD",
+      "symbol": "GOOGL",
       "reason": [
         "high_avg_dollar_volume",
         "high_current_dollar_volume",
-        "high_volatility_proxy",
         "static_core"
       ],
-      "latest_price": 305.33,
-      "current_volume": 27655640.0,
-      "current_dollar_volume": 8444096561.2,
-      "avg_20d_volume": 23960995.7,
-      "avg_20d_dollar_volume": 7316010817.08,
-      "relative_volume": 1.1542,
+      "latest_price": 344.39,
+      "current_volume": 12056452.0,
+      "current_dollar_volume": 4152121504.28,
+      "avg_20d_volume": 11859095.6,
+      "avg_20d_dollar_volume": 4084153933.68,
+      "relative_volume": 1.0166,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.355371,
+      "volume_rank_score": 0.21275,
       "beta": null,
-      "atr_pct": 3.7415,
-      "realized_vol_20d": 53.5708,
+      "atr_pct": 2.3887,
+      "realized_vol_20d": 30.7634,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
+      "symbol": "AVGO",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "static_core"
+      ],
+      "latest_price": 422.65,
+      "current_volume": 11005699.0,
+      "current_dollar_volume": 4651558682.35,
+      "avg_20d_volume": 13523168.65,
+      "avg_20d_dollar_volume": 5715567229.92,
+      "relative_volume": 0.8138,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.20589,
+      "beta": null,
+      "atr_pct": 3.0136,
+      "realized_vol_20d": 42.0129,
+      "blocked": false,
+      "block_reason": null,
+      "missing_fields": [
+        "beta"
+      ]
+    },
+    {
+      "symbol": "META",
+      "reason": [
+        "high_avg_dollar_volume",
+        "high_current_dollar_volume",
+        "static_core"
+      ],
+      "latest_price": 677.64,
+      "current_volume": 7006481.0,
+      "current_dollar_volume": 4747871784.84,
+      "avg_20d_volume": 10249338.55,
+      "avg_20d_dollar_volume": 6945361775.02,
+      "relative_volume": 0.6836,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.198971,
+      "beta": null,
+      "atr_pct": 2.9948,
+      "realized_vol_20d": 42.0685,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -206,137 +328,17 @@
         "high_volatility_proxy",
         "static_core"
       ],
-      "latest_price": 176.28,
-      "current_volume": 28617926.0,
-      "current_dollar_volume": 5044767995.28,
-      "avg_20d_volume": 21345211.95,
-      "avg_20d_dollar_volume": 3762733962.55,
-      "relative_volume": 1.3407,
+      "latest_price": 174.09,
+      "current_volume": 20611585.0,
+      "current_dollar_volume": 3588270832.65,
+      "avg_20d_volume": 21795448.4,
+      "avg_20d_dollar_volume": 3794369611.96,
+      "relative_volume": 0.9457,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.315639,
+      "volume_rank_score": 0.193499,
       "beta": null,
-      "atr_pct": 4.6029,
-      "realized_vol_20d": 64.4558,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "PLTR",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "high_volatility_proxy",
-        "static_core"
-      ],
-      "latest_price": 141.57,
-      "current_volume": 40512064.0,
-      "current_dollar_volume": 5735292900.48,
-      "avg_20d_volume": 34506480.65,
-      "avg_20d_dollar_volume": 4885082465.62,
-      "relative_volume": 1.174,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.30485,
-      "beta": null,
-      "atr_pct": 5.4076,
-      "realized_vol_20d": 64.1549,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "AMZN",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "static_core"
-      ],
-      "latest_price": 255.08,
-      "current_volume": 21940228.0,
-      "current_dollar_volume": 5596513358.24,
-      "avg_20d_volume": 25834539.5,
-      "avg_20d_dollar_volume": 6589874335.66,
-      "relative_volume": 0.8493,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.259179,
-      "beta": null,
-      "atr_pct": 2.6739,
-      "realized_vol_20d": 33.8034,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "SMCI",
-      "reason": [
-        "high_volatility_proxy",
-        "static_core"
-      ],
-      "latest_price": 26.75,
-      "current_volume": 32232962.0,
-      "current_dollar_volume": 862231733.5,
-      "avg_20d_volume": 23358027.65,
-      "avg_20d_dollar_volume": 624827239.64,
-      "relative_volume": 1.38,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.242536,
-      "beta": null,
-      "atr_pct": 5.6467,
-      "realized_vol_20d": 72.2878,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "AVGO",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "static_core"
-      ],
-      "latest_price": 419.94,
-      "current_volume": 11387392.0,
-      "current_dollar_volume": 4782021396.48,
-      "avg_20d_volume": 13533902.1,
-      "avg_20d_dollar_volume": 5683426847.87,
-      "relative_volume": 0.8414,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.240727,
-      "beta": null,
-      "atr_pct": 2.9557,
-      "realized_vol_20d": 44.9404,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "TSM",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "static_core"
-      ],
-      "latest_price": 382.66,
-      "current_volume": 8732929.0,
-      "current_dollar_volume": 3341742611.14,
-      "avg_20d_volume": 9153044.05,
-      "avg_20d_dollar_volume": 3502503836.17,
-      "relative_volume": 0.9541,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.225604,
-      "beta": null,
-      "atr_pct": 3.3575,
-      "realized_vol_20d": 49.0306,
+      "atr_pct": 4.89,
+      "realized_vol_20d": 63.9126,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -350,66 +352,17 @@
         "high_current_dollar_volume",
         "static_core"
       ],
-      "latest_price": 273.43,
-      "current_volume": 15589417.0,
-      "current_dollar_volume": 4262614290.31,
-      "avg_20d_volume": 21074020.6,
-      "avg_20d_dollar_volume": 5762269452.66,
-      "relative_volume": 0.7397,
+      "latest_price": 270.23,
+      "current_volume": 14198272.0,
+      "current_dollar_volume": 3836799042.56,
+      "avg_20d_volume": 20685279.75,
+      "avg_20d_dollar_volume": 5589783146.84,
+      "relative_volume": 0.6864,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.216817,
+      "volume_rank_score": 0.176788,
       "beta": null,
-      "atr_pct": 2.2949,
-      "realized_vol_20d": 25.8463,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "META",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "high_volatility_proxy",
-        "static_core"
-      ],
-      "latest_price": 659.15,
-      "current_volume": 6918011.0,
-      "current_dollar_volume": 4560006950.65,
-      "avg_20d_volume": 11129618.2,
-      "avg_20d_dollar_volume": 7336087836.53,
-      "relative_volume": 0.6216,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.21073,
-      "beta": null,
-      "atr_pct": 3.2663,
-      "realized_vol_20d": 53.0306,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "GOOGL",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "static_core"
-      ],
-      "latest_price": 338.89,
-      "current_volume": 8933912.0,
-      "current_dollar_volume": 3027613437.68,
-      "avg_20d_volume": 12238009.6,
-      "avg_20d_dollar_volume": 4147339073.34,
-      "relative_volume": 0.73,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.187854,
-      "beta": null,
-      "atr_pct": 2.4666,
-      "realized_vol_20d": 34.5741,
+      "atr_pct": 2.2768,
+      "realized_vol_20d": 26.432,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -424,17 +377,17 @@
         "high_volatility_proxy",
         "static_core"
       ],
-      "latest_price": 117.42,
-      "current_volume": 15379672.0,
-      "current_dollar_volume": 1805881086.24,
-      "avg_20d_volume": 21329613.45,
-      "avg_20d_dollar_volume": 2504523211.3,
-      "relative_volume": 0.721,
+      "latest_price": 110.98,
+      "current_volume": 22073301.0,
+      "current_dollar_volume": 2449694944.98,
+      "avg_20d_volume": 21831251.75,
+      "avg_20d_dollar_volume": 2422832319.22,
+      "relative_volume": 1.0111,
       "volume_activity": "normal_activity",
-      "volume_rank_score": 0.159045,
+      "volume_rank_score": 0.175123,
       "beta": null,
-      "atr_pct": 6.7233,
-      "realized_vol_20d": 91.2828,
+      "atr_pct": 7.4013,
+      "realized_vol_20d": 87.6465,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -442,24 +395,24 @@
       ]
     },
     {
-      "symbol": "CRM",
+      "symbol": "PLTR",
       "reason": [
         "high_avg_dollar_volume",
         "high_current_dollar_volume",
-        "high_relative_volume",
-        "high_volatility_proxy"
+        "high_volatility_proxy",
+        "static_core"
       ],
-      "latest_price": 173.3,
-      "current_volume": 15063308.0,
-      "current_dollar_volume": 2610471276.4,
-      "avg_20d_volume": 7238870.05,
-      "avg_20d_dollar_volume": 1254496179.66,
-      "relative_volume": 2.0809,
-      "volume_activity": "strong_activity",
-      "volume_rank_score": 0.386856,
+      "latest_price": 143.15,
+      "current_volume": 22410334.0,
+      "current_dollar_volume": 3208039312.1,
+      "avg_20d_volume": 34170324.95,
+      "avg_20d_dollar_volume": 4891482016.59,
+      "relative_volume": 0.6558,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.158954,
       "beta": null,
-      "atr_pct": 4.4538,
-      "realized_vol_20d": 50.7287,
+      "atr_pct": 5.2312,
+      "realized_vol_20d": 62.1504,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -467,23 +420,22 @@
       ]
     },
     {
-      "symbol": "ADBE",
+      "symbol": "SMCI",
       "reason": [
-        "high_current_dollar_volume",
-        "high_relative_volume",
-        "high_volatility_proxy"
+        "high_volatility_proxy",
+        "static_core"
       ],
-      "latest_price": 238.98,
-      "current_volume": 6972330.0,
-      "current_dollar_volume": 1666247423.4,
-      "avg_20d_volume": 3306438.1,
-      "avg_20d_dollar_volume": 790172577.14,
-      "relative_volume": 2.1087,
-      "volume_activity": "strong_activity",
-      "volume_rank_score": 0.374833,
+      "latest_price": 28.98,
+      "current_volume": 24666689.0,
+      "current_dollar_volume": 714840647.22,
+      "avg_20d_volume": 22549691.05,
+      "avg_20d_dollar_volume": 653490046.63,
+      "relative_volume": 1.0939,
+      "volume_activity": "normal_activity",
+      "volume_rank_score": 0.146976,
       "beta": null,
-      "atr_pct": 4.0579,
-      "realized_vol_20d": 46.773,
+      "atr_pct": 5.3071,
+      "realized_vol_20d": 69.5794,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -495,19 +447,20 @@
       "reason": [
         "high_avg_dollar_volume",
         "high_current_dollar_volume",
+        "high_relative_volume",
         "high_volatility_proxy"
       ],
-      "latest_price": 66.78,
-      "current_volume": 89953802.0,
-      "current_dollar_volume": 6007114897.56,
-      "avg_20d_volume": 82839947.9,
-      "avg_20d_dollar_volume": 5532051720.76,
-      "relative_volume": 1.0859,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.298075,
+      "latest_price": 80.61,
+      "current_volume": 180576974.0,
+      "current_dollar_volume": 14556309874.14,
+      "avg_20d_volume": 88785670.85,
+      "avg_20d_dollar_volume": 7157012927.22,
+      "relative_volume": 2.0339,
+      "volume_activity": "strong_activity",
+      "volume_rank_score": 0.519589,
       "beta": null,
-      "atr_pct": 5.0696,
-      "realized_vol_20d": 72.0118,
+      "atr_pct": 5.1408,
+      "realized_vol_20d": 87.5658,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [
@@ -515,430 +468,22 @@
       ]
     },
     {
-      "symbol": "MRVL",
+      "symbol": "QCOM",
       "reason": [
-        "high_avg_dollar_volume",
         "high_current_dollar_volume",
-        "high_volatility_proxy"
+        "high_relative_volume"
       ],
-      "latest_price": 165.56,
-      "current_volume": 25388266.0,
-      "current_dollar_volume": 4203281318.96,
-      "avg_20d_volume": 19138554.95,
-      "avg_20d_dollar_volume": 3168579157.52,
-      "relative_volume": 1.3266,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.297533,
+      "latest_price": 148.09,
+      "current_volume": 13206800.0,
+      "current_dollar_volume": 1955795012.0,
+      "avg_20d_volume": 4543366.4,
+      "avg_20d_dollar_volume": 672827130.18,
+      "relative_volume": 2.9068,
+      "volume_activity": "strong_activity",
+      "volume_rank_score": 0.385213,
       "beta": null,
-      "atr_pct": 4.3845,
-      "realized_vol_20d": 67.0759,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "IWM",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume"
-      ],
-      "latest_price": 275.52,
-      "current_volume": 20396411.0,
-      "current_dollar_volume": 5619619158.72,
-      "avg_20d_volume": 21007932.1,
-      "avg_20d_dollar_volume": 5788105452.19,
-      "relative_volume": 0.9709,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.274935,
-      "beta": null,
-      "atr_pct": 1.8251,
-      "realized_vol_20d": 22.1137,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "MSTR",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "high_volatility_proxy"
-      ],
-      "latest_price": 172.47,
-      "current_volume": 13914042.0,
-      "current_dollar_volume": 2399754823.74,
-      "avg_20d_volume": 14302467.4,
-      "avg_20d_dollar_volume": 2466746552.48,
-      "relative_volume": 0.9728,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.208898,
-      "beta": null,
-      "atr_pct": 5.5169,
-      "realized_vol_20d": 74.4576,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "DDOG",
-      "reason": [
-        "high_volatility_proxy"
-      ],
-      "latest_price": 127.86,
-      "current_volume": 2878342.0,
-      "current_dollar_volume": 368024808.12,
-      "avg_20d_volume": 2450280.35,
-      "avg_20d_dollar_volume": 313292845.55,
-      "relative_volume": 1.1747,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.19981,
-      "beta": null,
-      "atr_pct": 5.5361,
-      "realized_vol_20d": 60.3775,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "SNOW",
-      "reason": [
-        "high_volatility_proxy"
-      ],
-      "latest_price": 146.4,
-      "current_volume": 4864795.0,
-      "current_dollar_volume": 712205988.0,
-      "avg_20d_volume": 4713256.0,
-      "avg_20d_dollar_volume": 690020678.4,
-      "relative_volume": 1.0322,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.183661,
-      "beta": null,
-      "atr_pct": 6.2029,
-      "realized_vol_20d": 80.9169,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "UNH",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume"
-      ],
-      "latest_price": 354.56,
-      "current_volume": 4858556.0,
-      "current_dollar_volume": 1722649615.36,
-      "avg_20d_volume": 5447635.9,
-      "avg_20d_dollar_volume": 1931513784.7,
-      "relative_volume": 0.8919,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.182602,
-      "beta": null,
-      "atr_pct": 2.8145,
-      "realized_vol_20d": 43.0846,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "NFLX",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume"
-      ],
-      "latest_price": 92.82,
-      "current_volume": 26041729.0,
-      "current_dollar_volume": 2417193285.78,
-      "avg_20d_volume": 33442446.0,
-      "avg_20d_dollar_volume": 3104127837.72,
-      "relative_volume": 0.7787,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.180928,
-      "beta": null,
-      "atr_pct": 3.6226,
-      "realized_vol_20d": 46.0919,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "ASML",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "high_volatility_proxy"
-      ],
-      "latest_price": 1417.8,
-      "current_volume": 925286.0,
-      "current_dollar_volume": 1311870490.8,
-      "avg_20d_volume": 1040633.05,
-      "avg_20d_dollar_volume": 1475409538.29,
-      "relative_volume": 0.8892,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.173513,
-      "beta": null,
-      "atr_pct": 4.216,
-      "realized_vol_20d": 53.8054,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "BAC",
-      "reason": [
-        "high_current_dollar_volume"
-      ],
-      "latest_price": 52.47,
-      "current_volume": 20934918.0,
-      "current_dollar_volume": 1098455147.46,
-      "avg_20d_volume": 22912491.8,
-      "avg_20d_dollar_volume": 1202218444.75,
-      "relative_volume": 0.9137,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.172833,
-      "beta": null,
-      "atr_pct": 2.268,
-      "realized_vol_20d": 23.7911,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "SHOP",
-      "reason": [
-        "high_volatility_proxy"
-      ],
-      "latest_price": 124.23,
-      "current_volume": 4568739.0,
-      "current_dollar_volume": 567574445.97,
-      "avg_20d_volume": 4677261.25,
-      "avg_20d_dollar_volume": 581056165.09,
-      "relative_volume": 0.9768,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.171824,
-      "beta": null,
-      "atr_pct": 5.0085,
-      "realized_vol_20d": 58.0659,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "COIN",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume",
-        "high_volatility_proxy"
-      ],
-      "latest_price": 197.93,
-      "current_volume": 6349225.0,
-      "current_dollar_volume": 1256702104.25,
-      "avg_20d_volume": 7381022.45,
-      "avg_20d_dollar_volume": 1460925773.53,
-      "relative_volume": 0.8602,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.16786,
-      "beta": null,
-      "atr_pct": 5.9465,
-      "realized_vol_20d": 69.1077,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "MARA",
-      "reason": [
-        "high_volatility_proxy"
-      ],
-      "latest_price": 11.8,
-      "current_volume": 39091851.0,
-      "current_dollar_volume": 461283841.8,
-      "avg_20d_volume": 41022768.65,
-      "avg_20d_dollar_volume": 484068670.07,
-      "relative_volume": 0.9529,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.165787,
-      "beta": null,
-      "atr_pct": 6.5169,
-      "realized_vol_20d": 67.3094,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "DIA",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume"
-      ],
-      "latest_price": 493.0,
-      "current_volume": 3258933.0,
-      "current_dollar_volume": 1606653969.0,
-      "avg_20d_volume": 4173976.9,
-      "avg_20d_dollar_volume": 2057770611.7,
-      "relative_volume": 0.7808,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.163384,
-      "beta": null,
-      "atr_pct": 1.3278,
-      "realized_vol_20d": 17.1329,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "PANW",
-      "reason": [
-        "high_volatility_proxy"
-      ],
-      "latest_price": 173.21,
-      "current_volume": 3377895.0,
-      "current_dollar_volume": 585085192.95,
-      "avg_20d_volume": 3962816.7,
-      "avg_20d_dollar_volume": 686399480.61,
-      "relative_volume": 0.8524,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.152281,
-      "beta": null,
-      "atr_pct": 4.6432,
-      "realized_vol_20d": 55.9382,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "LLY",
-      "reason": [
-        "high_avg_dollar_volume",
-        "high_current_dollar_volume"
-      ],
-      "latest_price": 917.65,
-      "current_volume": 1119362.0,
-      "current_dollar_volume": 1027182539.3,
-      "avg_20d_volume": 1463306.0,
-      "avg_20d_dollar_volume": 1342802750.9,
-      "relative_volume": 0.765,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.148191,
-      "beta": null,
-      "atr_pct": 2.9761,
-      "realized_vol_20d": 30.5833,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "RIOT",
-      "reason": [
-        "high_volatility_proxy"
-      ],
-      "latest_price": 18.21,
-      "current_volume": 11262362.0,
-      "current_dollar_volume": 205087612.02,
-      "avg_20d_volume": 13867468.4,
-      "avg_20d_dollar_volume": 252526599.56,
-      "relative_volume": 0.8121,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.137607,
-      "beta": null,
-      "atr_pct": 6.7976,
-      "realized_vol_20d": 89.2613,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "JPM",
-      "reason": [
-        "high_avg_dollar_volume"
-      ],
-      "latest_price": 311.69,
-      "current_volume": 3070595.0,
-      "current_dollar_volume": 957073755.55,
-      "avg_20d_volume": 4393267.55,
-      "avg_20d_dollar_volume": 1369337562.66,
-      "relative_volume": 0.6989,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.136467,
-      "beta": null,
-      "atr_pct": 2.1234,
-      "realized_vol_20d": 25.5688,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "XOM",
-      "reason": [
-        "high_avg_dollar_volume"
-      ],
-      "latest_price": 150.53,
-      "current_volume": 6698847.0,
-      "current_dollar_volume": 1008377438.91,
-      "avg_20d_volume": 12228956.1,
-      "avg_20d_dollar_volume": 1840824761.73,
-      "relative_volume": 0.5478,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.115112,
-      "beta": null,
-      "atr_pct": 3.5936,
-      "realized_vol_20d": 35.2094,
-      "blocked": false,
-      "block_reason": null,
-      "missing_fields": [
-        "beta"
-      ]
-    },
-    {
-      "symbol": "CVX",
-      "reason": [
-        "high_avg_dollar_volume"
-      ],
-      "latest_price": 187.6,
-      "current_volume": 3474996.0,
-      "current_dollar_volume": 651909249.6,
-      "avg_20d_volume": 6412954.7,
-      "avg_20d_dollar_volume": 1203070301.72,
-      "relative_volume": 0.5419,
-      "volume_activity": "normal_activity",
-      "volume_rank_score": 0.105275,
-      "beta": null,
-      "atr_pct": 3.2492,
-      "realized_vol_20d": 30.7515,
+      "atr_pct": 2.6538,
+      "realized_vol_20d": 41.3753,
       "blocked": false,
       "block_reason": null,
       "missing_fields": [

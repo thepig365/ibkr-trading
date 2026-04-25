@@ -57,7 +57,16 @@ def _client(project_root: Path) -> TestClient:
 
 @pytest.mark.parametrize(
     "path",
-    ["/dashboard", "/watchlist", "/signals", "/paper", "/research", "/logs", "/settings"],
+    [
+        "/dashboard",
+        "/watchlist",
+        "/signals",
+        "/paper",
+        "/strategies",
+        "/research",
+        "/logs",
+        "/settings",
+    ],
 )
 def test_pages_render_200_with_empty_project(project: Path, path: str) -> None:
     client = _client(project)

@@ -36,6 +36,11 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "macro-calendar": "Show the manual macro economic calendar (config/macro_calendar.yaml).",
     "ibkr-news-status": "Probe IBKR news provider entitlements (read-only connect).",
     "ibkr-news-fetch": "Fetch IBKR news for symbols and cache it (read-only connect).",
+    "strategy-list": "List every registered strategy with metadata + enable status.",
+    "strategy-info": "Show full metadata + runtime config for one strategy.",
+    "strategy-status": "Report freshness of per-strategy scan files.",
+    "strategy-scan": "Run a single strategy scan via the multi-strategy engine (research-only).",
+    "multi-strategy-scan": "Run every enabled strategy via the engine (research-only).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -193,6 +198,98 @@ def validate_research_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return True, ""
 
 
+# ---------------------------------------------------------------------------
+# Strategy registry validators (Prompt 13C)
+# ---------------------------------------------------------------------------
+# Strategy keys must match the registry's own pattern; this guard
+# exists so a future UI bug cannot smuggle arbitrary tokens through
+# ``--strategy``. The pattern intentionally mirrors
+# ``bot.cli._STRATEGY_KEY_RE`` and the documented format in
+# ``bot/strategies/base.py``.
+_STRATEGY_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
+
+_STRATEGY_LIST_ALLOWED_FLAGS: frozenset[str] = frozenset({"--json"})
+_STRATEGY_STATUS_ALLOWED_FLAGS: frozenset[str] = frozenset({"--json"})
+_STRATEGY_SCAN_ALLOWED_FLAGS: frozenset[str] = frozenset({"--strategy", "--json"})
+_MULTI_STRATEGY_SCAN_ALLOWED_FLAGS: frozenset[str] = frozenset(
+    {"--include-disabled", "--json"}
+)
+
+
+def validate_strategy_list_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    for token in args:
+        if token not in _STRATEGY_LIST_ALLOWED_FLAGS:
+            return False, (
+                f"strategy-list: unexpected token {token!r}; only "
+                f"{sorted(_STRATEGY_LIST_ALLOWED_FLAGS)} are allowed."
+            )
+    return True, ""
+
+
+def validate_strategy_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    for token in args:
+        if token not in _STRATEGY_STATUS_ALLOWED_FLAGS:
+            return False, (
+                f"strategy-status: unexpected token {token!r}; only "
+                f"{sorted(_STRATEGY_STATUS_ALLOWED_FLAGS)} are allowed."
+            )
+    return True, ""
+
+
+def validate_strategy_info_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Exactly one positional strategy key, matching the strict pattern."""
+    if len(args) != 1:
+        return False, "strategy-info: exactly one strategy key is required."
+    key = args[0]
+    if not _STRATEGY_KEY_RE.match(key):
+        return False, (
+            f"strategy-info: invalid key {key!r}; must match {_STRATEGY_KEY_RE.pattern}."
+        )
+    return True, ""
+
+
+def validate_strategy_scan_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Require ``--strategy <key>``; allow optional ``--json``."""
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--json":
+            flags["--json"] = True
+            i += 1
+            continue
+        if token == "--strategy":
+            if i + 1 >= len(args):
+                return False, "strategy-scan: --strategy requires a value."
+            flags["--strategy"] = args[i + 1]
+            i += 2
+            continue
+        if token not in _STRATEGY_SCAN_ALLOWED_FLAGS:
+            return False, (
+                f"strategy-scan: unexpected token {token!r}; only "
+                f"{sorted(_STRATEGY_SCAN_ALLOWED_FLAGS)} are allowed."
+            )
+        i += 1
+    if "--strategy" not in flags:
+        return False, "strategy-scan: --strategy is required."
+    key = str(flags["--strategy"])
+    if not _STRATEGY_KEY_RE.match(key):
+        return False, (
+            f"strategy-scan: invalid --strategy {key!r}; must match {_STRATEGY_KEY_RE.pattern}."
+        )
+    return True, ""
+
+
+def validate_multi_strategy_scan_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    for token in args:
+        if token not in _MULTI_STRATEGY_SCAN_ALLOWED_FLAGS:
+            return False, (
+                f"multi-strategy-scan: unexpected token {token!r}; only "
+                f"{sorted(_MULTI_STRATEGY_SCAN_ALLOWED_FLAGS)} are allowed."
+            )
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -201,4 +298,14 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_macro_calendar_args(args)
     if command == "research-report":
         return validate_research_report_args(args)
+    if command == "strategy-list":
+        return validate_strategy_list_args(args)
+    if command == "strategy-info":
+        return validate_strategy_info_args(args)
+    if command == "strategy-status":
+        return validate_strategy_status_args(args)
+    if command == "strategy-scan":
+        return validate_strategy_scan_args(args)
+    if command == "multi-strategy-scan":
+        return validate_multi_strategy_scan_args(args)
     return True, ""

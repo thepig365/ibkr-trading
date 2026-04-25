@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Strategies{% endblock %}
+{% block subtitle %}<div class="page-sub">RESEARCH-ONLY VIEW. This page reads files written by <code>python -m bot.cli strategy-scan</code> / <code>multi-strategy-scan</code>. It never connects to TWS or imports the IBKR client. Buttons run safe, allowlisted CLI commands only — no orders are placed.</div>{% endblock %}
+
+{% block content %}
+  {% set reg = strategy_registry %}
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Registered strategies</div>
+      <div class="card-value">{{ reg.strategies|length }}</div>
+      <div class="card-sub text-small">
+        config: <code>{{ reg.config_path or '—' }}</code><br/>
+        paper-only: {{ 'yes' if reg.paper_only else 'no' }} ·
+        execution allowed: {{ 'yes' if reg.paper_execution_allowed else 'no' }}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Latest multi-strategy scan</div>
+      {% if not reg.multi_scan_path %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">No <code>multi-strategy-scan</code> output yet. Click <code>Run multi-strategy scan</code>.</div>
+      {% else %}
+        <div class="card-value">
+          {{ reg.multi_scan_date or '—' }}
+          {% if reg.multi_scan_is_stale %}<span class="pill warn">stale</span>{% else %}<span class="pill good">today</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">
+          enabled: {{ reg.multi_scan_enabled_keys|join(', ') or '—' }}<br/>
+          skipped: {{ reg.multi_scan_skipped_keys|join(', ') or '—' }}<br/>
+          total signals: {{ reg.multi_scan_total_signals }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Engine invariants</div>
+      <div class="card-value">
+        <span class="pill good">paper-only</span>
+        <span class="pill {{ 'good' if not reg.paper_execution_allowed else 'bad' }}">execution {{ 'off' if not reg.paper_execution_allowed else 'on' }}</span>
+      </div>
+      <div class="card-sub text-small">
+        research-only: {{ 'yes' if reg.research_only else 'no' }}<br/>
+        registry runs in-process; adapters lazy-import IBKR only inside <code>scan()</code>.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Roadmap</div>
+      <div class="card-value">{{ (reg.strategies|selectattr('status','equalto','ready')|list)|length }}/{{ reg.strategies|length }} ready</div>
+      <div class="card-sub text-small">
+        not_implemented:
+        {% for s in reg.strategies if s.status == 'not_implemented' %}
+          <code>{{ s.key }}</code>{% if not loop.last %}, {% endif %}
+        {% else %}—{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Run safe strategy commands</h2>
+    <p class="text-dim text-small">Each button POSTs to the allowlisted command runner. Only <code>strategy-list</code>, <code>strategy-info</code>, <code>strategy-status</code>, <code>strategy-scan</code> and <code>multi-strategy-scan</code> are accepted; everything else is rejected. <code>--strategy</code> values are validated against <code>^[a-z][a-z0-9_]{1,30}$</code>.</p>
+    <div>
+      {% with command='multi-strategy-scan', label='Run multi-strategy scan', return_to='/strategies', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='strategy-status', args='--json', label='Strategy status', return_to='/strategies', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='strategy-list', args='--json', label='Strategy list (JSON)', return_to='/strategies', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Strategies</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Key</th><th>Name</th><th>Version</th><th>Horizon</th>
+          <th>Status</th><th>Enabled</th><th>Latest scan</th><th>Signals</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in reg.strategies %}
+          <tr>
+            <td><code>{{ s.key }}</code></td>
+            <td>{{ s.name }}<br/><span class="text-dim text-small">{{ s.description_zh }}</span></td>
+            <td>{{ s.version }}</td>
+            <td>{{ s.horizon }}</td>
+            <td>
+              {% if s.status == 'ready' %}<span class="pill good">{{ s.status }}</span>
+              {% elif s.status == 'not_implemented' %}<span class="pill warn">{{ s.status }}</span>
+              {% else %}<span class="pill neutral">{{ s.status }}</span>{% endif %}
+            </td>
+            <td>{% if s.enabled %}<span class="pill good">on</span>{% else %}<span class="pill neutral">off</span>{% endif %}</td>
+            <td>
+              {% if s.latest_scan_path %}
+                <span class="text-small">{{ s.latest_scan_date }}</span>
+                {% if s.is_stale %}<span class="pill warn">stale</span>{% else %}<span class="pill good">today</span>{% endif %}
+                <br/><span class="text-dim text-small">{{ s.latest_scan_status or '—' }}</span>
+              {% else %}<span class="text-dim">—</span>{% endif %}
+            </td>
+            <td>{{ s.latest_signal_count }}</td>
+            <td>
+              {% with command='strategy-scan', args='--strategy ' ~ s.key, label='Scan', return_to='/strategies', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="text-dim">No strategies registered. (Did the <code>bot.strategies</code> import fail?)</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if reg.config_notes %}
+    <div class="section">
+      <h2>Config notes</h2>
+      <ul>{% for n in reg.config_notes %}<li class="text-dim">{{ n }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+{% endblock %}
