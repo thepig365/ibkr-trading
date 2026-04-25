@@ -106,6 +106,53 @@ Anything else is a hard reject in `bot_ui/services/command_queue.py`. There
 is **no** `place_order`, `order`, `bracket`, `cancel`, `liquidate`, or
 arbitrary shell command path from the UI.
 
+The UI today is **status + control flags only**. Concretely the only ways
+the UI affects the running paper bot are:
+
+1. Toggling on-disk runtime files (the canonical paths below).
+2. Enqueuing one of the read-only / research CLI commands above.
+
+The UI does **not** enqueue `auto-paper-mtf` itself, and there is no UI
+button that submits a paper order. Interactive paper execution controls
+(e.g. "queue this MTF setup as a paper bracket from the UI") are deferred
+to a later **Prompt 13F** which will add a separate, equally narrow,
+allowlist.
+
+---
+
+## Canonical runtime file paths (UI ↔ worker contract)
+
+The UI and the existing auto-paper loop / Telegram commands MUST agree on
+where these files live. All paths are relative to the project root and
+match exactly what `bot/auto_paper_mtf.py`, `bot/auto_paper_loop.py`, and
+`bot/telegram_commands.py` already use.
+
+| Purpose                       | Canonical path                                | Producers                                             | Consumers                                            |
+|-------------------------------|------------------------------------------------|-------------------------------------------------------|------------------------------------------------------|
+| Kill switch (file presence)   | `data/KILL_SWITCH`                             | UI POST `/paper/runtime/kill-switch`, Telegram `/kill`, `/resume` | `bot.auto_paper_mtf.is_kill_switch_active`, auto-paper loop |
+| MTF auto-paper toggle         | `data/runtime/mtf_auto_paper_enabled`          | UI POST `/paper/runtime/mtf-auto`, Telegram `/auto_mtf_on`, `/auto_mtf_off` | `bot.auto_paper_mtf.is_runtime_mtf_auto_enabled` / `..._disabled_explicit` |
+| Loop snapshot (last cycle)    | `data/runtime/auto_paper_loop_state.json`      | `bot.auto_paper_loop.run_auto_paper_mtf_loop`         | UI dashboard / paper status cards (read-only)        |
+| Loop history (per-day JSONL)  | `data/auto_paper_loop/<YYYY-MM-DD>-loop.jsonl` | `bot.auto_paper_loop.run_auto_paper_mtf_loop`         | UI dashboard fallback                                |
+
+Notes:
+
+- The kill switch is a **file-presence** check (any non-empty content
+  works). The file's body is logged for forensic context.
+- The MTF auto flag is a **content** check: `1`/`on`/`true`/`yes` => on,
+  `0`/`off`/`false`/`no` => explicit off (overrides
+  `settings.fully_automatic`). Empty file is treated as on.
+- Both `LocalFileStateStore.kill_switch_path` and
+  `LocalFileStateStore.mtf_auto_paper_enabled_path` are exposed precisely
+  so that UI templates and tests can assert "this is the same file the
+  worker is reading."
+
+This contract is enforced by tests in `tests/test_ui_state_store.py`
+(`test_runtime_flags_paths_match_worker_module`,
+`test_paper_route_writes_canonical_kill_switch`,
+`test_paper_route_writes_canonical_mtf_auto_flag`,
+`test_runtime_flags_ignores_legacy_runtime_kill_switch`) and in
+`tests/test_ui_routes.py` (`test_kill_switch_toggle_creates_and_removes_file`).
+
 ---
 
 ## What ships in Prompt 13A (local skeleton)

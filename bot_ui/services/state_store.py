@@ -112,12 +112,20 @@ class LoopStatus:
 
 @dataclass(frozen=True)
 class RuntimeFlags:
-    """Runtime toggles read from ``data/runtime/`` files."""
+    """Runtime toggles read from on-disk files.
+
+    The kill switch lives at ``data/KILL_SWITCH`` (the canonical path used by
+    ``bot/auto_paper_mtf.is_kill_switch_active`` and Telegram /kill /resume).
+    The MTF auto-paper toggle lives at ``data/runtime/mtf_auto_paper_enabled``
+    (the canonical path used by ``bot/auto_paper_mtf`` and the auto-paper loop).
+    """
 
     kill_switch_active: bool = False
     mtf_auto_paper_enabled: bool = False
     mtf_auto_paper_explicit_off: bool = False
     runtime_dir: str | None = None
+    kill_switch_path: str | None = None
+    mtf_auto_paper_enabled_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -150,7 +158,24 @@ class StateStore(Protocol):
 # ---------------------------------------------------------------------------
 
 
-# Filenames in data/runtime/ that LocalFileStateStore knows about.
+# Canonical project-relative paths shared with the worker (bot/auto_paper_*.py
+# and bot/telegram_commands.py). These MUST stay in sync with the existing
+# auto-paper loop and Telegram /kill /resume / /auto_mtf_on / /auto_mtf_off
+# handlers, otherwise the UI and worker would disagree on safety state.
+#
+#   - Kill switch: ``data/KILL_SWITCH`` (file-presence check, written by
+#     /kill, removed by /resume; see bot/auto_paper_mtf.is_kill_switch_active).
+#   - MTF auto-paper enabled: ``data/runtime/mtf_auto_paper_enabled`` whose
+#     contents are "1"/"on"/"true" => ON, "0"/"off"/"false" => explicit OFF
+#     (see bot/auto_paper_mtf.is_runtime_mtf_auto_enabled /
+#     is_runtime_mtf_auto_disabled_explicit).
+#   - Loop state snapshot: ``data/runtime/auto_paper_loop_state.json``
+#     written by bot/auto_paper_loop.run_auto_paper_mtf_loop.
+KILL_SWITCH_RELPATH = "data/KILL_SWITCH"
+MTF_AUTO_PAPER_ENABLED_RELPATH = "data/runtime/mtf_auto_paper_enabled"
+LOOP_STATE_RELPATH = "data/runtime/auto_paper_loop_state.json"
+
+# Backwards-compatible filename constants (used by older imports/tests).
 KILL_SWITCH_FILE = "KILL_SWITCH"
 MTF_AUTO_PAPER_ENABLED_FILE = "mtf_auto_paper_enabled"
 LOOP_STATE_FILE = "auto_paper_loop_state.json"
@@ -234,6 +259,11 @@ class LocalFileStateStore:
         self.account_snapshots_jsonl = self.data_dir / "account_snapshots.jsonl"
         self.sqlite_path = self.data_dir / "trading_bot.sqlite"
         self.logs_dir = self.project_root / "logs"
+        # Canonical paths shared with the worker (bot/auto_paper_*.py).
+        # These MUST equal the paths the worker writes / reads.
+        self.kill_switch_path = self.project_root / KILL_SWITCH_RELPATH
+        self.mtf_auto_paper_enabled_path = self.project_root / MTF_AUTO_PAPER_ENABLED_RELPATH
+        self.loop_state_path = self.project_root / LOOP_STATE_RELPATH
 
     # ------------------------------------------------------------------
     # Account / positions
@@ -457,7 +487,7 @@ class LocalFileStateStore:
         # Prefer auto_paper_loop_state.json (single-shot snapshot); fall
         # back to the latest line of *-loop.jsonl if the snapshot file
         # is missing.
-        state_path = self.runtime_dir / LOOP_STATE_FILE
+        state_path = self.loop_state_path
         data = _safe_read_json(state_path)
         if data is None:
             data = self._latest_loop_jsonl_line()
@@ -501,8 +531,11 @@ class LocalFileStateStore:
         return _read_jsonl_last_line(path)
 
     def runtime_flags(self) -> RuntimeFlags:
-        ks = self.runtime_dir / KILL_SWITCH_FILE
-        en = self.runtime_dir / MTF_AUTO_PAPER_ENABLED_FILE
+        # Use the canonical paths shared with the worker so the UI shows the
+        # exact same kill-switch / auto-flag state as bot/auto_paper_*.py
+        # and bot/telegram_commands.py.
+        ks = self.kill_switch_path
+        en = self.mtf_auto_paper_enabled_path
         kill_switch = ks.exists() and ks.is_file()
         # mtf_auto_paper_enabled: file presence + content "1"/"true" => on
         # explicit "0"/"off" => explicit off
@@ -522,6 +555,8 @@ class LocalFileStateStore:
             mtf_auto_paper_enabled=enabled,
             mtf_auto_paper_explicit_off=explicit_off,
             runtime_dir=str(self.runtime_dir),
+            kill_switch_path=str(ks),
+            mtf_auto_paper_enabled_path=str(en),
         )
 
     # ------------------------------------------------------------------

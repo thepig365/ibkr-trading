@@ -21,8 +21,11 @@ import pytest
 
 from bot_ui.services.state_store import (
     KILL_SWITCH_FILE,
+    KILL_SWITCH_RELPATH,
     LOOP_STATE_FILE,
+    LOOP_STATE_RELPATH,
     MTF_AUTO_PAPER_ENABLED_FILE,
+    MTF_AUTO_PAPER_ENABLED_RELPATH,
     DatabaseStateStore,
     LocalFileStateStore,
     get_state_store,
@@ -198,18 +201,133 @@ def test_loop_status_falls_back_to_jsonl_tail(tmp_path: Path) -> None:
 
 
 def test_runtime_flags_kill_switch_and_mtf(tmp_path: Path) -> None:
-    runtime = tmp_path / "data" / "runtime"
-    _write(runtime / KILL_SWITCH_FILE, "1\n")
-    _write(runtime / MTF_AUTO_PAPER_ENABLED_FILE, "1\n")
+    """RuntimeFlags must read the canonical worker paths."""
+    # Canonical kill switch lives at data/KILL_SWITCH (NOT data/runtime/...)
+    _write(tmp_path / KILL_SWITCH_RELPATH, "1\n")
+    _write(tmp_path / MTF_AUTO_PAPER_ENABLED_RELPATH, "1\n")
     flags = LocalFileStateStore(tmp_path).runtime_flags()
     assert flags.kill_switch_active is True
     assert flags.mtf_auto_paper_enabled is True
     assert flags.mtf_auto_paper_explicit_off is False
+    assert flags.kill_switch_path == str(tmp_path / KILL_SWITCH_RELPATH)
+    assert flags.mtf_auto_paper_enabled_path == str(
+        tmp_path / MTF_AUTO_PAPER_ENABLED_RELPATH
+    )
 
-    (runtime / MTF_AUTO_PAPER_ENABLED_FILE).write_text("0\n", encoding="utf-8")
+    (tmp_path / MTF_AUTO_PAPER_ENABLED_RELPATH).write_text("0\n", encoding="utf-8")
     flags2 = LocalFileStateStore(tmp_path).runtime_flags()
     assert flags2.mtf_auto_paper_enabled is False
     assert flags2.mtf_auto_paper_explicit_off is True
+
+
+def test_runtime_flags_ignores_legacy_runtime_kill_switch(tmp_path: Path) -> None:
+    """Putting a file at the *legacy* path data/runtime/KILL_SWITCH must
+    NOT be reported as active, since the worker only honours data/KILL_SWITCH.
+    """
+    _write(tmp_path / "data" / "runtime" / "KILL_SWITCH", "ignored\n")
+    flags = LocalFileStateStore(tmp_path).runtime_flags()
+    assert flags.kill_switch_active is False, (
+        "Legacy data/runtime/KILL_SWITCH must not be treated as active; "
+        "canonical path is data/KILL_SWITCH."
+    )
+
+
+def test_runtime_flags_paths_match_worker_module(tmp_project: Path) -> None:
+    """The UI's resolved paths must match what bot.auto_paper_mtf checks.
+
+    This is the core "UI and worker see the same safety state" guarantee.
+    """
+    from bot.auto_paper_mtf import (
+        is_kill_switch_active,
+        is_runtime_mtf_auto_disabled_explicit,
+        is_runtime_mtf_auto_enabled,
+    )
+    from bot.config import load_config
+
+    cfg = load_config(project_root=tmp_project)
+    store = LocalFileStateStore(tmp_project)
+
+    # Both layers see "no kill switch" first.
+    assert is_kill_switch_active(cfg) is False
+    assert store.runtime_flags().kill_switch_active is False
+
+    # Write via the UI's canonical kill switch path; the worker must agree.
+    store.kill_switch_path.parent.mkdir(parents=True, exist_ok=True)
+    store.kill_switch_path.write_text("on\n", encoding="utf-8")
+    assert is_kill_switch_active(cfg) is True
+    assert store.runtime_flags().kill_switch_active is True
+    # And the path is exactly what the worker resolves.
+    assert store.kill_switch_path == cfg.absolute("data/KILL_SWITCH")
+
+    # Same for the MTF auto flag.
+    assert is_runtime_mtf_auto_enabled(cfg) is False
+    store.mtf_auto_paper_enabled_path.parent.mkdir(parents=True, exist_ok=True)
+    store.mtf_auto_paper_enabled_path.write_text("1\n", encoding="utf-8")
+    assert is_runtime_mtf_auto_enabled(cfg) is True
+    assert store.runtime_flags().mtf_auto_paper_enabled is True
+    assert store.mtf_auto_paper_enabled_path == cfg.absolute(
+        "data/runtime/mtf_auto_paper_enabled"
+    )
+
+    # And explicit-off is also the same file the worker honours.
+    store.mtf_auto_paper_enabled_path.write_text("0\n", encoding="utf-8")
+    assert is_runtime_mtf_auto_disabled_explicit(cfg) is True
+    assert store.runtime_flags().mtf_auto_paper_explicit_off is True
+
+
+def test_paper_route_writes_canonical_kill_switch(tmp_project: Path) -> None:
+    """POST /paper/runtime/kill-switch must hit the worker's canonical path.
+
+    Mirrors test_kill_switch_toggle in test_ui_routes but anchored to the
+    worker module, so any future drift fails this test loudly.
+    """
+    from fastapi.testclient import TestClient
+
+    from bot.auto_paper_mtf import is_kill_switch_active
+    from bot.config import load_config
+    from bot_ui.app import create_app
+
+    cfg = load_config(project_root=tmp_project)
+    app = create_app(project_root=tmp_project)
+    client = TestClient(app)
+
+    assert is_kill_switch_active(cfg) is False
+    r = client.post(
+        "/paper/runtime/kill-switch", data={"enable": "on"}, follow_redirects=False
+    )
+    assert r.status_code == 303
+    assert is_kill_switch_active(cfg) is True, (
+        "UI POST must create the file at the worker's canonical path "
+        "data/KILL_SWITCH so the auto-paper loop and Telegram /kill agree."
+    )
+    r = client.post(
+        "/paper/runtime/kill-switch", data={"enable": "off"}, follow_redirects=False
+    )
+    assert r.status_code == 303
+    assert is_kill_switch_active(cfg) is False
+
+
+def test_paper_route_writes_canonical_mtf_auto_flag(tmp_project: Path) -> None:
+    """POST /paper/runtime/mtf-auto must hit the worker's canonical path."""
+    from fastapi.testclient import TestClient
+
+    from bot.auto_paper_mtf import (
+        is_runtime_mtf_auto_disabled_explicit,
+        is_runtime_mtf_auto_enabled,
+    )
+    from bot.config import load_config
+    from bot_ui.app import create_app
+
+    cfg = load_config(project_root=tmp_project)
+    app = create_app(project_root=tmp_project)
+    client = TestClient(app)
+
+    assert is_runtime_mtf_auto_enabled(cfg) is False
+    client.post("/paper/runtime/mtf-auto", data={"state": "on"}, follow_redirects=False)
+    assert is_runtime_mtf_auto_enabled(cfg) is True
+    client.post("/paper/runtime/mtf-auto", data={"state": "off"}, follow_redirects=False)
+    assert is_runtime_mtf_auto_disabled_explicit(cfg) is True
+    assert is_runtime_mtf_auto_enabled(cfg) is False
 
 
 def test_safety_view_flags_non_paper_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

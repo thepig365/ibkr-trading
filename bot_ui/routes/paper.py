@@ -5,18 +5,25 @@ Important: this page does NOT place orders. It exposes:
 * a paper-reconcile button (read-only check),
 * a refresh-paper-account-state button (forces fresh snapshots),
 * runtime toggles (kill switch, MTF auto paper enabled flag) implemented
-  as filesystem flags in ``data/runtime/`` — these are read by
-  :mod:`bot.auto_paper_loop` running in a separate process.
+  as filesystem flags read by :mod:`bot.auto_paper_loop` and
+  :mod:`bot.auto_paper_mtf` running in a separate process.
+
+Canonical paths (must match the worker / Telegram /kill /resume handlers):
+
+* Kill switch  -> ``<project_root>/data/KILL_SWITCH``
+* MTF auto on  -> ``<project_root>/data/runtime/mtf_auto_paper_enabled``
 """
 
 from __future__ import annotations
+
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..services.state_store import (
-    KILL_SWITCH_FILE,
-    MTF_AUTO_PAPER_ENABLED_FILE,
+    KILL_SWITCH_RELPATH,
+    MTF_AUTO_PAPER_ENABLED_RELPATH,
 )
 from ._helpers import base_context
 
@@ -40,16 +47,20 @@ def toggle_kill_switch(
     request: Request,
     enable: str = Form(default="off"),
 ) -> RedirectResponse:
-    """Create or remove ``data/runtime/KILL_SWITCH`` based on form input.
+    """Create or remove the canonical kill-switch file.
 
-    This file is consumed by :mod:`bot.auto_paper_loop` as a hard stop.
-    The UI never places or cancels orders here.
+    Writes ``<project_root>/data/KILL_SWITCH`` — the same file checked by
+    :func:`bot.auto_paper_mtf.is_kill_switch_active` and by Telegram
+    ``/kill`` / ``/resume``. The UI never places or cancels orders here.
     """
-    runtime_dir = (request.app.state.project_root / "data" / "runtime").resolve()
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    target = runtime_dir / KILL_SWITCH_FILE
+    project_root = request.app.state.project_root
+    target = (project_root / KILL_SWITCH_RELPATH).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
     if (enable or "").strip().lower() in {"1", "on", "true", "yes"}:
-        target.write_text("kill switch on\n", encoding="utf-8")
+        target.write_text(
+            f"{datetime.now(timezone.utc).isoformat()} via local UI /paper\n",
+            encoding="utf-8",
+        )
     else:
         if target.exists():
             try:
@@ -64,10 +75,17 @@ def toggle_mtf_auto(
     request: Request,
     state: str = Form(default="off"),
 ) -> RedirectResponse:
-    """Write ``data/runtime/mtf_auto_paper_enabled`` with ``1`` or ``0``."""
-    runtime_dir = (request.app.state.project_root / "data" / "runtime").resolve()
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    target = runtime_dir / MTF_AUTO_PAPER_ENABLED_FILE
+    """Write the canonical MTF auto-paper flag file.
+
+    Writes ``<project_root>/data/runtime/mtf_auto_paper_enabled`` with
+    ``1`` or ``0``. Consumed by
+    :func:`bot.auto_paper_mtf.is_runtime_mtf_auto_enabled` /
+    :func:`bot.auto_paper_mtf.is_runtime_mtf_auto_disabled_explicit` and by
+    the auto-paper loop. The UI never places orders here.
+    """
+    project_root = request.app.state.project_root
+    target = (project_root / MTF_AUTO_PAPER_ENABLED_RELPATH).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
     val = (state or "").strip().lower()
     if val in {"1", "on", "true", "yes"}:
         target.write_text("1\n", encoding="utf-8")

@@ -49,6 +49,10 @@
       <div class="card-value">
         {% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}
       </div>
+      <div class="card-sub text-small">
+        Canonical path: <code>{{ runtime.kill_switch_path or 'data/KILL_SWITCH' }}</code>
+        — same file read by the auto-paper loop and Telegram <code>/kill</code> / <code>/resume</code>.
+      </div>
       <form action="{{ url_for('toggle_kill_switch') }}" method="post" class="form-row mt-12">
         {% if runtime.kill_switch_active %}
           <input type="hidden" name="enable" value="off" />
@@ -66,6 +70,10 @@
         {% if runtime.mtf_auto_paper_explicit_off %}<span class="pill warn">EXPLICITLY OFF</span>
         {% elif runtime.mtf_auto_paper_enabled %}<span class="pill good">ON</span>
         {% else %}<span class="pill neutral">unset</span>{% endif %}
+      </div>
+      <div class="card-sub text-small">
+        Canonical path: <code>{{ runtime.mtf_auto_paper_enabled_path or 'data/runtime/mtf_auto_paper_enabled' }}</code>
+        — same file read by <code>bot.auto_paper_mtf</code> and Telegram <code>/auto_mtf_on</code> / <code>/auto_mtf_off</code>.
       </div>
       <form action="{{ url_for('toggle_mtf_auto') }}" method="post" class="form-row mt-12">
         {% if runtime.mtf_auto_paper_enabled %}

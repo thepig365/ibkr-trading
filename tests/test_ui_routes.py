@@ -154,12 +154,18 @@ def test_post_run_command_rejects_shell_metachars_in_args(fake_cli_project: Path
 
 
 def test_kill_switch_toggle_creates_and_removes_file(project: Path) -> None:
+    """UI must write to the canonical worker path ``data/KILL_SWITCH``,
+    NOT ``data/runtime/KILL_SWITCH`` — otherwise the auto-paper loop and
+    Telegram /kill /resume would disagree with the UI on safety state.
+    """
     client = _client(project)
-    target = project / "data" / "runtime" / "KILL_SWITCH"
+    target = project / "data" / "KILL_SWITCH"
+    legacy = project / "data" / "runtime" / "KILL_SWITCH"
     assert not target.exists()
     r = client.post("/paper/runtime/kill-switch", data={"enable": "on"}, follow_redirects=False)
     assert r.status_code == 303
-    assert target.exists()
+    assert target.exists(), "UI must create the canonical data/KILL_SWITCH file"
+    assert not legacy.exists(), "UI must NOT write to data/runtime/KILL_SWITCH (legacy path)"
     r = client.post("/paper/runtime/kill-switch", data={"enable": "off"}, follow_redirects=False)
     assert r.status_code == 303
     assert not target.exists()

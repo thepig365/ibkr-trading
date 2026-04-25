@@ -135,7 +135,7 @@ create table loop_state (
 | `data/trading_bot.sqlite` (`positions` table)    | `positions_snapshot`     |
 | `data/mtf_smc/*-mtf-smc.json`                    | `signals`                |
 | `data/auto_paper_loop/*.jsonl`                   | `loop_state`             |
-| `data/runtime/KILL_SWITCH`                       | `loop_state.payload`     |
+| `data/KILL_SWITCH` (canonical, file-presence)    | `loop_state.payload`     |
 | `data/runtime/mtf_auto_paper_enabled`            | `loop_state.payload`     |
 | `data/watchlists/latest-tws-watchlist.csv`       | (read directly as table) |
 
