@@ -54,6 +54,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "auto-paper-intraday-smc": "Run one ICT/SMC Intraday paper bracket pass (paper account only).",
     "run-auto-paper-intraday-loop": "Run the ICT/SMC Intraday paper bracket loop (paper account only).",
     "intraday-paper-status": "Print intraday paper config + runtime + loop state (read-only).",
+    "strategy-lab-engine-status": (
+        "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
+    ),
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -742,6 +745,8 @@ _INTRADAY_PAPER_STATUS_FLAGS_BOOL: frozenset[str] = frozenset(
     {"--json"}
 )
 
+_STRATEGY_LAB_ENGINE_STATUS_FLAGS: frozenset[str] = frozenset({"--json"})
+
 
 def _check_no_forbidden(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     for tok in args:
@@ -893,6 +898,22 @@ def validate_intraday_paper_status_args(args: tuple[str, ...]) -> tuple[bool, st
     return True, ""
 
 
+def validate_strategy_lab_engine_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``strategy-lab-engine-status`` (read-only, no TWS)."""
+    ok, err = _check_no_forbidden("strategy-lab-engine-status", args)
+    if not ok:
+        return ok, err
+    for token in args:
+        if token not in _STRATEGY_LAB_ENGINE_STATUS_FLAGS:
+            return False, (
+                f"strategy-lab-engine-status: unexpected token {token!r}; only "
+                f"{sorted(_STRATEGY_LAB_ENGINE_STATUS_FLAGS)} or no args are allowed."
+            )
+    if len([t for t in args if t == "--json"]) > 1:
+        return False, "strategy-lab-engine-status: duplicate --json."
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -929,4 +950,6 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_run_auto_paper_intraday_loop_args(args)
     if command == "intraday-paper-status":
         return validate_intraday_paper_status_args(args)
+    if command == "strategy-lab-engine-status":
+        return validate_strategy_lab_engine_status_args(args)
     return True, ""

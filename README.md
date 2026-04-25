@@ -54,6 +54,18 @@ Run the tests:
 pytest
 ```
 
+## Strategy Lab (local UI)
+
+The FastAPI UI is **read-only on startup** (no TWS connection). For a
+daily workflow, helper scripts, and smoke tests, see
+[`docs/strategy-lab-daily-workflow.md`](docs/strategy-lab-daily-workflow.md).
+
+| Command | Purpose |
+|--------|---------|
+| `python3 -m bot_ui` | Open the UI (default `http://127.0.0.1:8765/`) |
+| `python3 -m bot.cli strategy-lab-engine-status --json` | Engine + config snapshot (read-only) |
+| `make strategy-lab-smoke` | Pytest: pages + healthz + engine status |
+
 ## Project layout
 
 ```
@@ -68,6 +80,8 @@ ibkr-trading-bot/
 │   ├── journal.py          # SQLite + JSONL persistence
 │   ├── scheduler.py        # APScheduler with safe jobs
 │   └── notifications/      # Telegram adapter (with fallback)
+├── bot_ui/                 # local Strategy Lab (FastAPI; no TWS on startup)
+├── scripts/                # e.g. strategy-lab.sh (start/stop/status)
 ├── config/                 # settings.yaml / strategy.yaml / watchlist.yaml
 ├── data/                   # SQLite + JSONL audit logs (gitignored)
 ├── docs/                   # ibkr-setup / safety-rules / runbook
