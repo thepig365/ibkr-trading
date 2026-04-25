@@ -19,6 +19,10 @@ dependencies = [
     "rich>=13.7.0",
     "httpx>=0.27.0",
     "APScheduler>=3.10.4",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +37,7 @@ dev = [
 bot = "bot.cli:app"
 
 [tool.setuptools.packages.find]
-include = ["bot*"]
+include = ["bot*", "bot_ui*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

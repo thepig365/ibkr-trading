@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+{% block subtitle %}<div class="page-sub">Tail-only viewer for project log/jsonl files. Secrets are masked before render. Read-only.</div>{% endblock %}
+
+{% block content %}
+  {% if error %}<div class="flash fail">{{ error }}</div>{% endif %}
+
+  <div class="layout" style="grid-template-columns: 320px 1fr; gap: 14px; min-height: 0;">
+    <div class="section" style="padding: 12px;">
+      <h2>Files</h2>
+      {% if files %}
+        <ul style="list-style:none; padding:0; margin:0;">
+          {% for f in files %}
+            <li style="padding:4px 0; border-bottom:1px solid var(--border);">
+              <a href="{{ url_for('logs_page') }}?file={{ f.rel|urlencode }}&bytes={{ bytes_to_show }}" class="text-mono text-small">
+                {{ f.rel }}
+              </a>
+              <div class="text-dim text-small">{{ f.size }} bytes</div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty">No log/jsonl files found yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <div class="flex-between">
+        <h2 style="margin:0;">Tail</h2>
+        <div class="text-small text-dim">
+          {% if selected_rel %}<span class="text-mono">{{ selected_rel }}</span>{% endif %}
+          · last <span class="text-mono">{{ bytes_to_show }}</span> bytes (max 1MB)
+        </div>
+      </div>
+      {% if content %}
+        <pre class="code">{{ content }}</pre>
+      {% else %}
+        <div class="empty">{% if selected_rel %}File is empty.{% else %}Select a file from the left.{% endif %}</div>
+      {% endif %}
+      <div class="text-small text-dim mt-12">
+        Adjust window: <a href="?file={{ (selected_rel or '')|urlencode }}&bytes=8192">8&nbsp;KB</a> ·
+        <a href="?file={{ (selected_rel or '')|urlencode }}&bytes=65536">64&nbsp;KB</a> ·
+        <a href="?file={{ (selected_rel or '')|urlencode }}&bytes=262144">256&nbsp;KB</a> ·
+        <a href="?file={{ (selected_rel or '')|urlencode }}&bytes=1000000">1&nbsp;MB</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

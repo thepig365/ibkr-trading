@@ -1,0 +1,48 @@
+{# Reusable: show last N command runs from the LocalCommandRunner ring buffer. #}
+{% if recent_results %}
+<div class="section">
+  <h2>Recent commands</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>When (UTC)</th>
+        <th>Command</th>
+        <th>Status</th>
+        <th class="num">Took (s)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recent_results %}
+      <tr>
+        <td class="text-mono text-small">{{ r.started_utc }}</td>
+        <td class="text-mono">{{ r.request.display() }}</td>
+        <td>
+          {% if r.status_label.startswith('OK') %}
+            <span class="pill good">{{ r.status_label }}</span>
+          {% elif r.status_label == 'REJECTED' %}
+            <span class="pill bad">{{ r.status_label }}</span>
+            <div class="text-small text-dim">{{ r.rejected_reason }}</div>
+          {% elif r.status_label.startswith('FAIL') %}
+            <span class="pill bad">{{ r.status_label }}</span>
+          {% else %}
+            <span class="pill neutral">{{ r.status_label }}</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ "%.2f"|format(r.duration_seconds or 0) }}</td>
+      </tr>
+      {% if r.stdout or r.stderr %}
+      <tr>
+        <td colspan="4">
+          <details>
+            <summary>output</summary>
+            {% if r.stdout %}<pre class="code">{{ r.stdout }}</pre>{% endif %}
+            {% if r.stderr %}<pre class="code">{{ r.stderr }}</pre>{% endif %}
+          </details>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

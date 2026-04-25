@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Paper Trading{% endblock %}
+{% block subtitle %}<div class="page-sub">PAPER ACCOUNT ONLY. This page never places orders. It runs read-only checks and toggles runtime flags consumed by the auto-paper loop process.</div>{% endblock %}
+
+{% block content %}
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Account (paper)</div>
+      {% if account.is_empty %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">No snapshot. Click "Refresh paper account state" below.</div>
+      {% else %}
+        <div class="card-value">
+          {% if account.net_liquidation is not none %}
+            {{ "{:,.2f}".format(account.net_liquidation) }} {{ account.currency }}
+          {% else %}—{% endif %}
+        </div>
+        <div class="card-sub">{{ account.account_id }}</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Positions</div>
+      <div class="card-value">{{ positions|length }}</div>
+      <div class="card-sub">
+        {% if positions %}
+          {% for p in positions %}<span class="pill neutral">{{ p.symbol }} × {{ p.position }}</span> {% endfor %}
+        {% else %}Account is flat.{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Loop status</div>
+      {% if loop.is_empty %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">Loop has not run on this machine yet.</div>
+      {% else %}
+        <div class="card-value">
+          {% if loop.last_status == 'success' %}<span class="pill good">success</span>
+          {% elif loop.last_status %}<span class="pill warn">{{ loop.last_status }}</span>
+          {% else %}<span class="pill neutral">unknown</span>{% endif %}
+        </div>
+        <div class="card-sub">cycles {{ loop.cycles }} · last cycle {{ loop.last_cycle_utc[:19] }}Z</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Kill switch</div>
+      <div class="card-value">
+        {% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}
+      </div>
+      <form action="{{ url_for('toggle_kill_switch') }}" method="post" class="form-row mt-12">
+        {% if runtime.kill_switch_active %}
+          <input type="hidden" name="enable" value="off" />
+          <button type="submit" class="btn warn">Resume (remove kill switch)</button>
+        {% else %}
+          <input type="hidden" name="enable" value="on" />
+          <button type="submit" class="btn danger">Engage kill switch</button>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">MTF auto-paper enabled</div>
+      <div class="card-value">
+        {% if runtime.mtf_auto_paper_explicit_off %}<span class="pill warn">EXPLICITLY OFF</span>
+        {% elif runtime.mtf_auto_paper_enabled %}<span class="pill good">ON</span>
+        {% else %}<span class="pill neutral">unset</span>{% endif %}
+      </div>
+      <form action="{{ url_for('toggle_mtf_auto') }}" method="post" class="form-row mt-12">
+        {% if runtime.mtf_auto_paper_enabled %}
+          <input type="hidden" name="state" value="off" />
+          <button type="submit" class="btn warn">Disable MTF auto-paper</button>
+        {% else %}
+          <input type="hidden" name="state" value="on" />
+          <button type="submit" class="btn">Enable MTF auto-paper</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Read-only paper actions</h2>
+    <div class="form-row">
+      {% with command='paper-reconcile', label='Run paper-reconcile', return_to='/paper', btn_class='' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='refresh-paper-account-state', label='Refresh paper account state', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+    <div class="text-small text-dim">
+      Both commands are read-only with respect to broker orders. They only update the local journal.
+    </div>
+  </div>
+
+  {% include "_recent_results.html" %}
+{% endblock %}

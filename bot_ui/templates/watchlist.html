@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Watchlist{% endblock %}
+{% block subtitle %}<div class="page-sub">Latest dynamic watchlist file. Buttons run allowlisted CLI commands.</div>{% endblock %}
+
+{% block content %}
+  <div class="section">
+    <h2>Actions</h2>
+    <div class="form-row">
+      {% with command='build-watchlist', label='Rebuild watchlist', return_to='/watchlist', btn_class='' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='build-watchlist', args='--limit 30', label='Rebuild (limit 30)', return_to='/watchlist', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+    <div class="text-small text-dim">
+      Source file: <span class="text-mono">{{ watchlist.file_path or '—' }}</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Symbols ({{ watchlist.symbols|length }})</h2>
+    {% if watchlist.is_empty %}
+      <div class="empty">No watchlist available yet. Click "Rebuild watchlist" above.</div>
+    {% else %}
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th class="num">Latest price</th>
+            <th class="num">Rel vol</th>
+            <th>Reason</th>
+            <th>Blocked</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in watchlist.symbols %}
+          <tr>
+            <td class="text-mono">{{ s.symbol }}</td>
+            <td class="num">{{ ("%.2f"|format(s.latest_price)) if s.latest_price is not none else "—" }}</td>
+            <td class="num">{{ ("%.2f"|format(s.relative_volume)) if s.relative_volume is not none else "—" }}</td>
+            <td>{% for r in s.reason %}<span class="pill neutral">{{ r }}</span> {% endfor %}</td>
+            <td>{% if s.blocked %}<span class="pill bad">YES</span>{% else %}<span class="pill good">no</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+
+  {% include "_recent_results.html" %}
+{% endblock %}

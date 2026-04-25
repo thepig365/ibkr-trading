@@ -47,6 +47,15 @@ data/*.jsonl
 logs/
 *.log
 
+# Local Strategy Lab UI runtime / auto-paper loop state (machine-specific, never commit)
+data/runtime/
+data/auto_paper_loop/
+
+# UI server scratch (sessions, sqlite caches, etc.)
+bot_ui/.cache/
+bot_ui/__pycache__/
+.uvicorn.pid
+
 # Memory rolling files (do not leak personal trade data)
 memory/DAILY-SUMMARY.md
 

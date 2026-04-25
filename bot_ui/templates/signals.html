@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Signals (MTF SMC){% endblock %}
+{% block subtitle %}<div class="page-sub">Latest MTF SMC/ICT scan summary. Read-only view; the buttons re-run the scan.</div>{% endblock %}
+
+{% block content %}
+  <div class="section">
+    <h2>Actions</h2>
+    <div class="form-row">
+      {% with command='scan-mtf-smc-watchlist', label='Run MTF scan', return_to='/signals', btn_class='' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='scan-mtf-smc-watchlist', args='--limit 20', label='Run MTF scan (limit 20)', return_to='/signals', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='mtf-near-alignment-alert', args='--latest', label='Near-alignment alerts (latest)', return_to='/signals', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+    <div class="text-small text-dim">
+      Source file: <span class="text-mono">{{ signals.file_path or '—' }}</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Counts</h2>
+    {% if signals.counts %}
+      <div class="form-row">
+        {% for k, v in signals.counts.items() %}
+          <span class="pill {% if k == 'FULL_ALIGNMENT' and v > 0 %}good{% elif k == 'BLOCKED' %}neutral{% elif k == 'CONFLICTED' %}warn{% else %}neutral{% endif %}">{{ k }}: {{ v }}</span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">No counts yet. Run the scan above.</div>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Top by alignment score</h2>
+    {% if signals.top %}
+      <table>
+        <thead>
+          <tr><th>Symbol</th><th>Alignment</th><th class="num">Score</th><th>Eligible (paper)</th></tr>
+        </thead>
+        <tbody>
+          {% for s in signals.top %}
+          <tr>
+            <td class="text-mono">{{ s.symbol }}</td>
+            <td>
+              {% if s.alignment_category == 'FULL_ALIGNMENT' %}<span class="pill good">{{ s.alignment_category }}</span>
+              {% elif s.alignment_category == 'BLOCKED' %}<span class="pill bad">{{ s.alignment_category }}</span>
+              {% elif s.alignment_category == 'CONFLICTED' %}<span class="pill warn">{{ s.alignment_category }}</span>
+              {% else %}<span class="pill neutral">{{ s.alignment_category }}</span>{% endif %}
+            </td>
+            <td class="num">{{ "%.0f"|format(s.mtf_alignment_score or 0) }}</td>
+            <td>{% if s.eligible_for_future_paper_trade %}<span class="pill good">YES</span>{% else %}<span class="pill neutral">no</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">No signals available yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Eligible for paper bracket</h2>
+    {% if signals.eligible %}
+      <div>
+        {% for sym in signals.eligible %}<span class="pill good text-mono">{{ sym }}</span> {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-dim">None right now (paper bracket placement is gated on FULL_ALIGNMENT + 5m confirmation).</div>
+    {% endif %}
+  </div>
+
+  {% include "_recent_results.html" %}
+{% endblock %}

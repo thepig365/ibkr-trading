@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Strategy Lab{% endblock %} — Strategy Lab (Local)</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Strategy Lab</div>
+        <div class="brand-sub">Local · Paper Only</div>
+      </div>
+      <ul class="nav">
+        <li><a href="{{ url_for('dashboard') }}" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a></li>
+        <li><a href="{{ url_for('watchlist_page') }}" class="{% if active=='watchlist' %}active{% endif %}">Watchlist</a></li>
+        <li><a href="{{ url_for('signals_page') }}" class="{% if active=='signals' %}active{% endif %}">Signals (MTF)</a></li>
+        <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>
+        <li><a href="{{ url_for('logs_page') }}" class="{% if active=='logs' %}active{% endif %}">Logs</a></li>
+        <li><a href="{{ url_for('settings_page') }}" class="{% if active=='settings' %}active{% endif %}">Settings</a></li>
+      </ul>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 class="page-title">{% block heading %}{{ self.title() }}{% endblock %}</h1>
+          {% block subtitle %}{% endblock %}
+        </div>
+        <div class="badges">
+          <span class="badge {% if safety.ibkr_account_mode_env == 'paper' %}good{% else %}bad{% endif %}">
+            ACCOUNT: {{ safety.ibkr_account_mode_env|upper }}
+          </span>
+          <span class="badge good">PAPER ONLY</span>
+          <span class="badge {% if backend == 'local' %}neutral{% else %}warn{% endif %}">
+            BACKEND: {{ backend|upper }}
+          </span>
+        </div>
+      </div>
+
+      {% if flash %}
+        <div class="flash {{ flash.kind }}">{{ flash.message }}</div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+
+      <div class="footer">
+        Strategy Lab UI · bound to <span class="text-mono">{{ ui_host }}:{{ ui_port }}</span>
+        · Project: <span class="text-mono">{{ project_root_short }}</span>
+        · This UI never connects to TWS at startup, never places orders.
+      </div>
+    </main>
+  </div>
+</body>
+</html>

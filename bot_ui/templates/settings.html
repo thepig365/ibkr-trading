@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block subtitle %}<div class="page-sub">Read-only view of UI safety configuration. Editing settings still goes through <span class="text-mono">config/*.yaml</span>.</div>{% endblock %}
+
+{% block content %}
+  <div class="section">
+    <h2>Safety</h2>
+    <table>
+      <tbody>
+        <tr><th>Paper-only by construction</th><td><span class="pill good">YES</span></td></tr>
+        <tr><th>Block live trading</th><td><span class="pill good">YES</span></td></tr>
+        <tr><th>UI account mode</th><td class="text-mono">{{ safety.account_mode }}</td></tr>
+        <tr><th>IBKR_ACCOUNT_MODE env</th><td class="text-mono">{{ safety.ibkr_account_mode_env }}</td></tr>
+        <tr><th>UI backend</th><td class="text-mono">{{ backend }}</td></tr>
+        <tr><th>Bind address</th><td class="text-mono">{{ ui_host }}:{{ ui_port }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Allowlisted UI commands</h2>
+    <table>
+      <thead><tr><th>Command</th><th>Description</th></tr></thead>
+      <tbody>
+        {% for cmd, desc in allowed_commands.items() %}
+          <tr>
+            <td class="text-mono">{{ cmd }}</td>
+            <td>{{ desc }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <details class="mt-12">
+      <summary>Forbidden command tokens (deny-list)</summary>
+      <div class="text-small">
+        {% for tok in forbidden_command_tokens %}<span class="pill bad text-mono">{{ tok }}</span> {% endfor %}
+      </div>
+    </details>
+    <details>
+      <summary>Forbidden argument tokens</summary>
+      <div class="text-small">
+        {% for tok in forbidden_arg_tokens %}<span class="pill bad text-mono">{{ tok }}</span> {% endfor %}
+      </div>
+    </details>
+  </div>
+
+  <div class="section">
+    <h2>Runtime flags</h2>
+    <table>
+      <tbody>
+        <tr><th>Kill switch</th><td>{% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}</td></tr>
+        <tr><th>MTF auto-paper enabled</th><td>
+          {% if runtime.mtf_auto_paper_explicit_off %}<span class="pill warn">EXPLICITLY OFF</span>
+          {% elif runtime.mtf_auto_paper_enabled %}<span class="pill good">ON</span>
+          {% else %}<span class="pill neutral">unset</span>{% endif %}
+        </td></tr>
+        <tr><th>Runtime dir</th><td class="text-mono text-small">{{ runtime.runtime_dir }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Architecture</h2>
+    <p class="text-small text-dim">
+      See <span class="text-mono">docs/deployment-architecture.md</span> and
+      <span class="text-mono">docs/vercel-worker-architecture.md</span> for the
+      full local→cloud roadmap. The same UI code runs locally today and on
+      Vercel later by switching <span class="text-mono">STRATEGY_LAB_BACKEND</span>
+      to <span class="text-mono">remote</span> once the worker + database
+      backends are implemented.
+    </p>
+  </div>
+{% endblock %}

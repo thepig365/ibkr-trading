@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block subtitle %}<div class="page-sub">Read-only snapshot of the local strategy lab — no orders are placed from this view.</div>{% endblock %}
+
+{% block content %}
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Account (paper)</div>
+      {% if account.is_empty %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">No account snapshot yet. Run <span class="text-mono">refresh-paper-account-state</span> from Paper Trading.</div>
+      {% else %}
+        <div class="card-value">
+          {% if account.net_liquidation is not none %}
+            {{ "{:,.2f}".format(account.net_liquidation) }} {{ account.currency }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="card-sub">
+          {{ account.account_id or "unknown" }} · cash {{ ("{:,.2f}".format(account.total_cash)) if account.total_cash is not none else "—" }}
+        </div>
+        <div class="card-sub text-mono text-small">snapshot {{ account.snapshot_ts_utc[:19] }}Z</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Open positions</div>
+      <div class="card-value">{{ positions|length }}</div>
+      {% if positions %}
+        <div class="card-sub">
+          {% for p in positions %}<span class="pill neutral">{{ p.symbol }} × {{ p.position }}</span> {% endfor %}
+        </div>
+      {% else %}
+        <div class="card-sub">Account is flat.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Watchlist</div>
+      <div class="card-value">{{ watchlist.symbols|length }}</div>
+      <div class="card-sub">
+        {% if watchlist.is_empty %}
+          No watchlist file. Build one from the Watchlist page.
+        {% else %}
+          {{ watchlist.source }} · {{ watchlist.date }}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">MTF signals (latest)</div>
+      <div class="card-value">{{ signals.symbols_scanned }}</div>
+      <div class="card-sub">
+        {% if signals.is_empty %}
+          No MTF SMC summary. Run a scan from Signals.
+        {% else %}
+          {% for k, v in signals.counts.items() %}<span class="pill {% if k == 'FULL_ALIGNMENT' and v > 0 %}good{% elif k == 'BLOCKED' %}neutral{% else %}neutral{% endif %}">{{ k }}: {{ v }}</span> {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Auto-paper loop</div>
+      {% if loop.is_empty %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">Loop has not run yet on this machine.</div>
+      {% else %}
+        <div class="card-value">
+          {% if loop.last_status == "success" %}<span class="pill good">{{ loop.last_status }}</span>
+          {% elif loop.last_status %}<span class="pill warn">{{ loop.last_status }}</span>
+          {% else %}<span class="pill neutral">unknown</span>{% endif %}
+        </div>
+        <div class="card-sub">
+          cycles {{ loop.cycles }} · last cycle <span class="text-mono">{{ loop.last_cycle_utc[:19] }}Z</span>
+        </div>
+        <div class="card-sub">
+          full-aligned {{ loop.last_full_alignment_count }} · orders submitted {{ loop.last_orders_submitted }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Runtime safety</div>
+      <div class="card-value">
+        {% if runtime.kill_switch_active %}<span class="pill bad">KILL SWITCH ON</span>{% else %}<span class="pill good">No kill switch</span>{% endif %}
+      </div>
+      <div class="card-sub">
+        MTF auto-paper:
+        {% if runtime.mtf_auto_paper_explicit_off %}<span class="pill warn">EXPLICITLY OFF</span>
+        {% elif runtime.mtf_auto_paper_enabled %}<span class="pill good">enabled</span>
+        {% else %}<span class="pill neutral">unset (default off)</span>{% endif %}
+      </div>
+      <div class="card-sub">Account env: <span class="text-mono">{{ safety.ibkr_account_mode_env }}</span></div>
+    </div>
+  </div>
+
+  {% if signals.top %}
+  <div class="section">
+    <h2>Top signals (latest scan)</h2>
+    <table>
+      <thead>
+        <tr><th>Symbol</th><th>Alignment</th><th class="num">Score</th><th>Eligible (paper)</th></tr>
+      </thead>
+      <tbody>
+        {% for s in signals.top[:10] %}
+        <tr>
+          <td class="text-mono">{{ s.symbol }}</td>
+          <td>
+            {% if s.alignment_category == 'FULL_ALIGNMENT' %}<span class="pill good">{{ s.alignment_category }}</span>
+            {% elif s.alignment_category == 'BLOCKED' %}<span class="pill bad">{{ s.alignment_category }}</span>
+            {% elif s.alignment_category == 'CONFLICTED' %}<span class="pill warn">{{ s.alignment_category }}</span>
+            {% else %}<span class="pill neutral">{{ s.alignment_category }}</span>{% endif %}
+          </td>
+          <td class="num">{{ "%.0f"|format(s.mtf_alignment_score or 0) }}</td>
+          <td>
+            {% if s.eligible_for_future_paper_trade %}<span class="pill good">YES</span>
+            {% else %}<span class="pill neutral">no</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if safety.issues %}
+  <div class="section">
+    <h2>Safety issues</h2>
+    <ul>
+      {% for issue in safety.issues %}<li class="pill warn">{{ issue }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endblock %}
