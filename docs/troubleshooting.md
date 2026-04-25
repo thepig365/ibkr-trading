@@ -7,6 +7,7 @@
 
 ## UI 起不来
 
+0. **macOS**：双击打 `Start Strategy Lab.command` 若被系统拦截、或提示无法执行，见 `docs/mac-launchers.md`（`chmod +x`、右键「打开」等）。  
 1. 看日志：`logs/strategy-lab-ui.stdout.log` 与 `logs/strategy-lab-ui.stderr.log`。  
 2. 确认 venv 已 `pip install -r requirements.txt`，且 `python3 -c "import uvicorn, fastapi"` 正常。  
 3. 用 `./scripts/strategy_lab_doctor.sh` 看 Python/依赖/gitignore。  

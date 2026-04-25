@@ -3,6 +3,8 @@
 > 按顺序执行；**不**包含实盘交易步骤。环境变量与密钥仍放在本机 `.env`（已 gitignore），勿提交。  
 > 与 `docs/strategy-lab-user-manual.md` 配合使用。
 
+**macOS 推荐首选：** 在仓库根目录**双击** `Start Strategy Lab.command` 启动并打开浏览器；收工可双击 `Stop Strategy Lab.command`。说明见 `docs/mac-launchers.md`。（终端下仍可用 `./scripts/start_strategy_lab_ui.sh` 等。）
+
 ---
 
 ## 盘前
@@ -23,8 +25,8 @@
 
 ## 启动 UI
 
-- [ ] 启动：`python3 -m bot_ui` **或** `./scripts/start_strategy_lab_ui.sh`  
-- [ ] 浏览器打开：`http://127.0.0.1:8765/`（或 `open_strategy_lab_ui.sh` 在 macOS）  
+- [ ] **（macOS 主路径）** 仓库根目录双击 `Start Strategy Lab.command`（内部调用 `scripts/start_strategy_lab_ui.sh` 与 `open_strategy_lab_ui.sh`，本机、纸面、启动时不连 TWS。）  
+- [ ] 备选：终端中 `python3 -m bot_ui` **或** `./scripts/start_strategy_lab_ui.sh`，再 `http://127.0.0.1:8765/` 或 `./scripts/open_strategy_lab_ui.sh`  
 - [ ] 打开 **Dashboard** 看 badges（ACCOUNT: PAPER、BACKEND: LOCAL 等）。  
 
 ---
@@ -72,8 +74,7 @@
 ## 收工
 
 - [ ] 记录当日结论（可写在 `memory/` 或个人笔记，**勿**提交含隐私内容）。  
-- [ ] 若需释放端口：  
-  `./scripts/stop_strategy_lab_ui.sh`  
+- [ ] 若需释放 **UI 端口**（macOS 可）双击 `Stop Strategy Lab.command`，**或**终端：`./scripts/stop_strategy_lab_ui.sh`  
 - [ ] **不需要**为「正常关 UI」而关闭 TWS（除非你希望完全断连）。  
 
 ---
