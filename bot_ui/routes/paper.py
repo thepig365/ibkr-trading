@@ -22,6 +22,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..services.state_store import (
+    INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
     KILL_SWITCH_RELPATH,
     MTF_AUTO_PAPER_ENABLED_RELPATH,
 )
@@ -38,6 +39,10 @@ def paper_page(request: Request) -> HTMLResponse:
     ctx["positions"] = state.positions()
     ctx["loop"] = state.loop_status()
     ctx["runtime"] = state.runtime_flags()
+    # Prompt 13F: intraday paper bracket section. Both reads are pure file
+    # I/O — the UI render must NEVER connect to IBKR / TWS.
+    ctx["intraday_paper_config"] = state.get_intraday_paper_config()
+    ctx["intraday_paper_loop"] = state.get_intraday_paper_loop_status()
     ctx["recent_results"] = request.app.state.command_queue.list_recent(limit=8)
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
@@ -85,6 +90,31 @@ def toggle_mtf_auto(
     """
     project_root = request.app.state.project_root
     target = (project_root / MTF_AUTO_PAPER_ENABLED_RELPATH).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    val = (state or "").strip().lower()
+    if val in {"1", "on", "true", "yes"}:
+        target.write_text("1\n", encoding="utf-8")
+    else:
+        target.write_text("0\n", encoding="utf-8")
+    return RedirectResponse(url="/paper", status_code=303)
+
+
+@router.post("/paper/runtime/intraday-auto", name="toggle_intraday_auto")
+def toggle_intraday_auto(
+    request: Request,
+    state: str = Form(default="off"),
+) -> RedirectResponse:
+    """Write the canonical intraday auto-paper flag file (Prompt 13F).
+
+    Writes ``<project_root>/data/runtime/intraday_auto_paper_enabled``
+    with ``1`` (ON) or ``0`` (explicit OFF). Consumed by
+    :func:`bot.execution.intraday_paper_execution.is_intraday_paper_runtime_enabled`
+    and the intraday paper loop running in a separate process. The UI
+    NEVER places orders here — it just toggles a runtime flag the worker
+    polls.
+    """
+    project_root = request.app.state.project_root
+    target = (project_root / INTRADAY_AUTO_PAPER_ENABLED_RELPATH).resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     val = (state or "").strip().lower()
     if val in {"1", "on", "true", "yes"}:

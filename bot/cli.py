@@ -3701,6 +3701,203 @@ def run_auto_paper_mtf_loop_cmd(
 
 
 # ---------------------------------------------------------------------------
+# 13F: ICT/SMC intraday paper bracket commands (PAPER only).
+# ---------------------------------------------------------------------------
+@app.command("auto-paper-intraday-smc")
+def auto_paper_intraday_smc_cmd(
+    source: str = typer.Option(
+        "dynamic", "--source", help="static | dynamic | manual.",
+    ),
+    limit: int = typer.Option(20, "--limit", min=1),
+    telegram: bool = typer.Option(False, "--telegram"),
+    chart: bool = typer.Option(False, "--chart"),
+) -> None:
+    """One ICT/SMC intraday paper bracket pass (paper account only).
+
+    Hard rules: paper-only, every order is a LIMIT bracket, kill switch +
+    runtime intraday flag honoured, reconciliation gated by config, no
+    duplicate same-symbol entries. See PROMPT 13F.
+    """
+    from dataclasses import asdict
+
+    from .execution.intraday_paper_execution import run_intraday_paper_pass
+
+    if source not in {"static", "dynamic", "manual"}:
+        console.print("[red]--source must be static|dynamic|manual[/red]")
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    result = run_intraday_paper_pass(
+        cfg,
+        journal,
+        source=source,
+        limit=limit,
+        telegram=telegram,
+        chart=chart,
+    )
+    payload = asdict(result)
+    payload["submissions"] = [
+        {
+            "symbol": s.symbol,
+            "submitted": s.submitted,
+            "skipped_reasons": list(s.skipped_reasons),
+            "order_ids": list(s.order_ids),
+            "intent": s.intent.as_audit_dict() if s.intent else None,
+            "error": s.error,
+        }
+        for s in result.submissions
+    ]
+    console.print(
+        Panel.fit(
+            json.dumps(payload, indent=2, default=str, ensure_ascii=False),
+            title="auto-paper-intraday-smc",
+            style="cyan",
+        )
+    )
+    journal.record_event(
+        category="ict_smc_intraday_paper",
+        level="INFO",
+        message="auto-paper-intraday-smc",
+        payload={
+            "orders_submitted": result.orders_submitted,
+            "strict_ready_count": result.strict_ready_count,
+            "aggressive_ready_count": result.aggressive_ready_count,
+            "last_status": result.last_status,
+            "last_reason": result.last_reason,
+            "paper_only": True,
+            "live_trading_allowed": False,
+        },
+    )
+    raise typer.Exit(0 if result.last_status not in {"failed", "error"} else 2)
+
+
+@app.command("run-auto-paper-intraday-loop")
+def run_auto_paper_intraday_loop_cmd(
+    source: str = typer.Option("dynamic", "--source"),
+    limit: int = typer.Option(20, "--limit", min=1),
+    interval_seconds: int = typer.Option(60, "--interval-seconds", min=5),
+    market_hours_only: bool = typer.Option(
+        True,
+        "--market-hours-only/--ignore-market-hours",
+        help="US RTH 09:45-15:30 NY for intraday paper submissions.",
+    ),
+    telegram: bool = typer.Option(False, "--telegram"),
+    once: bool = typer.Option(False, "--once"),
+    stop_after_minutes: Optional[float] = typer.Option(
+        None, "--stop-after-minutes", help="Stop the loop after this many minutes.",
+    ),
+    heartbeat_minutes: int = typer.Option(
+        30, "--heartbeat-minutes", min=1,
+        help="Minimum minutes between Telegram heartbeats (no spam every cycle).",
+    ),
+) -> None:
+    """ICT/SMC intraday paper bracket loop. PAPER only. Ctrl+C to stop."""
+    from .auto_paper_intraday_loop import run_auto_paper_intraday_loop
+
+    if source not in {"static", "dynamic", "manual"}:
+        console.print("[red]--source must be static|dynamic|manual[/red]")
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    console.print(
+        "[cyan]run-auto-paper-intraday-loop: PAPER only; block_live_trading must stay true. "
+        "Ctrl+C to stop.[/cyan]"
+    )
+    try:
+        run_auto_paper_intraday_loop(
+            cfg,
+            journal,
+            source=source,
+            limit=limit,
+            interval_seconds=interval_seconds,
+            market_hours_only=market_hours_only,
+            telegram=telegram,
+            once=once,
+            stop_after_minutes=stop_after_minutes,
+            heartbeat_minutes=heartbeat_minutes,
+        )
+    except KeyboardInterrupt:
+        console.print("[yellow]Interrupted by user.[/yellow]")
+    raise typer.Exit(0)
+
+
+@app.command("intraday-paper-status")
+def intraday_paper_status_cmd(
+    as_json: bool = typer.Option(False, "--json"),
+) -> None:
+    """Print intraday paper config + runtime + last loop state (read-only).
+
+    Never connects to IBKR. Safe to run from any context.
+    """
+    from .execution.intraday_paper_execution import (
+        INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
+        INTRADAY_LOOP_STATE_RELPATH,
+        KILL_SWITCH_RELPATH,
+        PAPER_ORDERS_DIR,
+        is_intraday_paper_runtime_enabled,
+        is_kill_switch_active,
+    )
+
+    cfg, _journal = _bootstrap()
+    ip = cfg.settings.trading.intraday_paper
+    runtime_on, runtime_explicit_off = is_intraday_paper_runtime_enabled(cfg)
+    kill = is_kill_switch_active(cfg)
+    state_path = Path(cfg.absolute(INTRADAY_LOOP_STATE_RELPATH))
+    audit_dir = Path(cfg.absolute(PAPER_ORDERS_DIR))
+    latest_audit: Path | None = None
+    if audit_dir.exists():
+        cands = sorted(audit_dir.glob("*-intraday-paper-orders.jsonl"))
+        latest_audit = cands[-1] if cands else None
+    state_payload: dict[str, Any] = {}
+    if state_path.exists():
+        try:
+            state_payload = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            state_payload = {}
+    payload: dict[str, Any] = {
+        "config_enabled": bool(ip.enabled),
+        "fully_automatic": bool(ip.fully_automatic),
+        "allow_strict_entries": bool(ip.allow_strict_entries),
+        "allow_aggressive_entries": bool(ip.allow_aggressive_entries),
+        "risk_per_trade_pct": float(ip.risk_per_trade_pct),
+        "max_concurrent_positions": int(ip.max_concurrent_positions),
+        "max_one_position_per_symbol": bool(ip.max_one_position_per_symbol),
+        "require_reconciliation_pass": bool(ip.require_reconciliation_pass),
+        "no_new_entries_before": ip.no_new_entries_before,
+        "no_new_entries_after": ip.no_new_entries_after,
+        "exit_open_positions_at": ip.exit_open_positions_at,
+        "paper_only": True,
+        "live_trading_allowed": False,
+        "market_orders_allowed": False,
+        "bracket_required": True,
+        "stop_required": True,
+        "target_required": True,
+        "dry_run": bool(ip.dry_run),
+        "min_rr": float(ip.min_rr),
+        "kill_switch": kill,
+        "runtime_intraday_on": runtime_on,
+        "runtime_intraday_off_explicit": runtime_explicit_off,
+        "runtime_flag_path": str(cfg.absolute(INTRADAY_AUTO_PAPER_ENABLED_RELPATH)),
+        "kill_switch_path": str(cfg.absolute(KILL_SWITCH_RELPATH)),
+        "loop_state_path": str(state_path),
+        "loop_state_exists": state_path.exists(),
+        "loop_state": state_payload,
+        "latest_audit_log_path": str(latest_audit) if latest_audit else None,
+    }
+    if as_json:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="intraday-paper-status",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
+
+
+# ---------------------------------------------------------------------------
 # Daily scheduler commands (Prompt 9 Part B)
 # ---------------------------------------------------------------------------
 @app.command("schedule-status")

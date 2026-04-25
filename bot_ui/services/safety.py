@@ -47,6 +47,13 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "backtest-intraday-smc": "Run the ICT/SMC Intraday backtest engine on a single symbol (cache-only, no broker).",
     "backtest-intraday-smc-watchlist": "Run the ICT/SMC Intraday backtest engine on multiple symbols (cache-only, no broker).",
     "backtest-report": "Print the latest backtest summary written under data/backtests/intraday/.",
+    # Prompt 13F: ICT/SMC intraday paper bracket controls. PAPER ONLY —
+    # the broker enforces account.mode=paper + every other invariant.
+    # Although the names contain "paper", we still apply tight per-flag
+    # validators below so the UI cannot smuggle ``--live`` etc.
+    "auto-paper-intraday-smc": "Run one ICT/SMC Intraday paper bracket pass (paper account only).",
+    "run-auto-paper-intraday-loop": "Run the ICT/SMC Intraday paper bracket loop (paper account only).",
+    "intraday-paper-status": "Print intraday paper config + runtime + loop state (read-only).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -79,6 +86,20 @@ FORBIDDEN_ARG_TOKENS: frozenset[str] = frozenset(
         "$(",
         "--live",
         "--enable-live-trading",
+        # Prompt 13F: intraday paper controls share the command runner;
+        # belt-and-suspenders against an operator typing a live/market
+        # token in the UI custom-args field.
+        "--market",
+        "--market-order",
+        "--mkt",
+        "--enable-live",
+        "--allow-live",
+        "--place-order",
+        "--place_order",
+        "--buy",
+        "--sell",
+        "--short",
+        "--long",
     }
 )
 
@@ -686,6 +707,192 @@ def validate_backtest_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return True, ""
 
 
+# ---------------------------------------------------------------------------
+# Intraday paper bracket validators (Prompt 13F)
+# ---------------------------------------------------------------------------
+# These commands are PAPER-ONLY at the broker layer; the validators below
+# reject any unknown / dangerous flag and re-validate every numeric range.
+_INTRADAY_PAPER_LIMIT_MIN = 1
+_INTRADAY_PAPER_LIMIT_MAX = 100
+_INTRADAY_PAPER_INTERVAL_MIN = 5
+_INTRADAY_PAPER_INTERVAL_MAX = 3600
+_INTRADAY_PAPER_HEARTBEAT_MIN = 1
+_INTRADAY_PAPER_HEARTBEAT_MAX = 360
+
+_AUTO_PAPER_INTRADAY_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--source", "--limit"}
+)
+_AUTO_PAPER_INTRADAY_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--telegram", "--no-telegram"}
+)
+
+_RUN_INTRADAY_LOOP_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--source", "--limit", "--interval-seconds", "--heartbeat-minutes"}
+)
+_RUN_INTRADAY_LOOP_FLAGS_BOOL: frozenset[str] = frozenset(
+    {
+        "--telegram",
+        "--no-telegram",
+        "--market-hours-only",
+        "--ignore-market-hours",
+    }
+)
+
+_INTRADAY_PAPER_STATUS_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--json"}
+)
+
+
+def _check_no_forbidden(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
+    for tok in args:
+        low = tok.lower()
+        if low in FORBIDDEN_ARG_TOKENS:
+            return False, f"{command}: forbidden token {tok!r} in args."
+        for needle in (";", "&&", "||", "|", "`", "$("):
+            if needle in tok:
+                return False, f"{command}: shell metacharacter in {tok!r}."
+    return True, ""
+
+
+def validate_auto_paper_intraday_smc_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``auto-paper-intraday-smc`` (one paper bracket pass)."""
+    ok, err = _check_no_forbidden("auto-paper-intraday-smc", args)
+    if not ok:
+        return ok, err
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _AUTO_PAPER_INTRADAY_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _AUTO_PAPER_INTRADAY_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, f"auto-paper-intraday-smc: flag {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"auto-paper-intraday-smc: unexpected token {token!r}; only "
+            f"{sorted(_AUTO_PAPER_INTRADAY_FLAGS_BOOL | _AUTO_PAPER_INTRADAY_FLAGS_VALUE)} are allowed."
+        )
+    if "--source" in flags:
+        v = str(flags["--source"]).lower()
+        if v not in _INTRADAY_SOURCE_VALUES:
+            return False, (
+                "auto-paper-intraday-smc: --source must be one of "
+                f"{sorted(_INTRADAY_SOURCE_VALUES)}."
+            )
+    if "--limit" in flags:
+        try:
+            n = int(str(flags["--limit"]))
+        except (TypeError, ValueError):
+            return False, "auto-paper-intraday-smc: --limit must be an integer."
+        if not (_INTRADAY_PAPER_LIMIT_MIN <= n <= _INTRADAY_PAPER_LIMIT_MAX):
+            return False, (
+                "auto-paper-intraday-smc: --limit must be in "
+                f"[{_INTRADAY_PAPER_LIMIT_MIN}, {_INTRADAY_PAPER_LIMIT_MAX}]."
+            )
+    if "--telegram" in flags and "--no-telegram" in flags:
+        return False, "auto-paper-intraday-smc: --telegram and --no-telegram are mutually exclusive."
+    return True, ""
+
+
+def validate_run_auto_paper_intraday_loop_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Validator for ``run-auto-paper-intraday-loop``."""
+    ok, err = _check_no_forbidden("run-auto-paper-intraday-loop", args)
+    if not ok:
+        return ok, err
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _RUN_INTRADAY_LOOP_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _RUN_INTRADAY_LOOP_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, (
+                    f"run-auto-paper-intraday-loop: flag {token!r} requires a value."
+                )
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"run-auto-paper-intraday-loop: unexpected token {token!r}; only "
+            f"{sorted(_RUN_INTRADAY_LOOP_FLAGS_BOOL | _RUN_INTRADAY_LOOP_FLAGS_VALUE)} are allowed."
+        )
+    if "--source" in flags:
+        v = str(flags["--source"]).lower()
+        if v not in _INTRADAY_SOURCE_VALUES:
+            return False, (
+                "run-auto-paper-intraday-loop: --source must be one of "
+                f"{sorted(_INTRADAY_SOURCE_VALUES)}."
+            )
+    if "--limit" in flags:
+        try:
+            n = int(str(flags["--limit"]))
+        except (TypeError, ValueError):
+            return False, "run-auto-paper-intraday-loop: --limit must be an integer."
+        if not (_INTRADAY_PAPER_LIMIT_MIN <= n <= _INTRADAY_PAPER_LIMIT_MAX):
+            return False, (
+                "run-auto-paper-intraday-loop: --limit must be in "
+                f"[{_INTRADAY_PAPER_LIMIT_MIN}, {_INTRADAY_PAPER_LIMIT_MAX}]."
+            )
+    if "--interval-seconds" in flags:
+        try:
+            n = int(str(flags["--interval-seconds"]))
+        except (TypeError, ValueError):
+            return False, (
+                "run-auto-paper-intraday-loop: --interval-seconds must be an integer."
+            )
+        if not (_INTRADAY_PAPER_INTERVAL_MIN <= n <= _INTRADAY_PAPER_INTERVAL_MAX):
+            return False, (
+                "run-auto-paper-intraday-loop: --interval-seconds must be in "
+                f"[{_INTRADAY_PAPER_INTERVAL_MIN}, {_INTRADAY_PAPER_INTERVAL_MAX}]."
+            )
+    if "--heartbeat-minutes" in flags:
+        try:
+            n = int(str(flags["--heartbeat-minutes"]))
+        except (TypeError, ValueError):
+            return False, (
+                "run-auto-paper-intraday-loop: --heartbeat-minutes must be an integer."
+            )
+        if not (_INTRADAY_PAPER_HEARTBEAT_MIN <= n <= _INTRADAY_PAPER_HEARTBEAT_MAX):
+            return False, (
+                "run-auto-paper-intraday-loop: --heartbeat-minutes must be in "
+                f"[{_INTRADAY_PAPER_HEARTBEAT_MIN}, {_INTRADAY_PAPER_HEARTBEAT_MAX}]."
+            )
+    if "--telegram" in flags and "--no-telegram" in flags:
+        return False, (
+            "run-auto-paper-intraday-loop: --telegram and --no-telegram are mutually exclusive."
+        )
+    if "--market-hours-only" in flags and "--ignore-market-hours" in flags:
+        return False, (
+            "run-auto-paper-intraday-loop: --market-hours-only and "
+            "--ignore-market-hours are mutually exclusive."
+        )
+    return True, ""
+
+
+def validate_intraday_paper_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``intraday-paper-status`` (read-only print)."""
+    ok, err = _check_no_forbidden("intraday-paper-status", args)
+    if not ok:
+        return ok, err
+    for token in args:
+        if token not in _INTRADAY_PAPER_STATUS_FLAGS_BOOL:
+            return False, (
+                f"intraday-paper-status: unexpected token {token!r}; only "
+                f"{sorted(_INTRADAY_PAPER_STATUS_FLAGS_BOOL)} are allowed."
+            )
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -716,4 +923,10 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_backtest_intraday_smc_watchlist_args(args)
     if command == "backtest-report":
         return validate_backtest_report_args(args)
+    if command == "auto-paper-intraday-smc":
+        return validate_auto_paper_intraday_smc_args(args)
+    if command == "run-auto-paper-intraday-loop":
+        return validate_run_auto_paper_intraday_loop_args(args)
+    if command == "intraday-paper-status":
+        return validate_intraday_paper_status_args(args)
     return True, ""

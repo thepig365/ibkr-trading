@@ -77,6 +77,7 @@ def create_app(
     # any chance of circular imports across the routes/services layers.
     from .routes import backtest as backtest_routes  # noqa: PLC0415
     from .routes import dashboard as dashboard_routes  # noqa: PLC0415
+    from .routes import journal as journal_routes  # noqa: PLC0415
     from .routes import logs as logs_routes  # noqa: PLC0415
     from .routes import paper as paper_routes  # noqa: PLC0415
     from .routes import research as research_routes  # noqa: PLC0415
@@ -90,6 +91,7 @@ def create_app(
     app.include_router(watchlist_routes.router)
     app.include_router(signals_routes.router)
     app.include_router(paper_routes.router)
+    app.include_router(journal_routes.router)
     app.include_router(strategies_routes.router)
     app.include_router(research_routes.router)
     app.include_router(backtest_routes.router)

@@ -261,14 +261,110 @@ class RuntimeFlags:
     ``bot/auto_paper_mtf.is_kill_switch_active`` and Telegram /kill /resume).
     The MTF auto-paper toggle lives at ``data/runtime/mtf_auto_paper_enabled``
     (the canonical path used by ``bot/auto_paper_mtf`` and the auto-paper loop).
+    The intraday auto-paper toggle (Prompt 13F) lives at
+    ``data/runtime/intraday_auto_paper_enabled`` and is read by
+    :mod:`bot.execution.intraday_paper_execution` and the intraday loop.
     """
 
     kill_switch_active: bool = False
     mtf_auto_paper_enabled: bool = False
     mtf_auto_paper_explicit_off: bool = False
+    intraday_auto_paper_enabled: bool = False
+    intraday_auto_paper_explicit_off: bool = False
     runtime_dir: str | None = None
     kill_switch_path: str | None = None
     mtf_auto_paper_enabled_path: str | None = None
+    intraday_auto_paper_enabled_path: str | None = None
+
+
+@dataclass(frozen=True)
+class IntradayPaperConfigView:
+    """UI-friendly snapshot of ``trading.intraday_paper`` config block."""
+
+    enabled: bool = False
+    fully_automatic: bool = False
+    allow_strict_entries: bool = True
+    allow_aggressive_entries: bool = True
+    risk_per_trade_pct: float = 0.10
+    max_concurrent_positions: int = 5
+    max_one_position_per_symbol: bool = True
+    require_reconciliation_pass: bool = True
+    no_new_entries_before: str = "09:45"
+    no_new_entries_after: str = "15:30"
+    exit_open_positions_at: str = "15:55"
+    paper_only: bool = True
+    live_trading_allowed: bool = False
+    market_orders_allowed: bool = False
+    bracket_required: bool = True
+    stop_required: bool = True
+    target_required: bool = True
+    dry_run: bool = True
+    min_rr: float = 1.2
+    config_path: str | None = None
+
+
+@dataclass(frozen=True)
+class IntradayPaperLoopStatus:
+    """UI-friendly snapshot of ``data/runtime/intraday_auto_paper_loop_state.json``."""
+
+    last_cycle_utc: str = ""
+    cycles: int = 0
+    last_status: str = ""
+    last_reason: str = ""
+    last_symbols_scanned: list[str] = field(default_factory=list)
+    strict_ready_count: int = 0
+    aggressive_ready_count: int = 0
+    orders_submitted: int = 0
+    skipped_reasons: list[str] = field(default_factory=list)
+    kill_switch: bool = False
+    runtime_intraday_on: bool = False
+    reconciliation_status: str = ""
+    paper_only: bool = True
+    last_heartbeat_ts: float | None = None
+    file_path: str | None = None
+    latest_audit_log_path: str | None = None
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.last_cycle_utc and self.cycles == 0
+
+
+@dataclass(frozen=True)
+class IntradayPaperOrderRow:
+    """One row from ``data/paper_orders/*-intraday-paper-orders.jsonl``."""
+
+    timestamp: str = ""
+    strategy_id: str = ""
+    symbol: str = ""
+    direction: str = ""
+    signal_category: str = ""
+    submitted: bool = False
+    skipped_reasons: list[str] = field(default_factory=list)
+    entry: float | None = None
+    stop: float | None = None
+    target: float | None = None
+    planned_rr: float | None = None
+    quantity: float | None = None
+    order_ids: list[int] = field(default_factory=list)
+    paper_only: bool = True
+    live_trading_allowed: bool = False
+    source_scan_path: str | None = None
+    chart_paths: list[str] = field(default_factory=list)
+    source_jsonl_path: str | None = None
+
+
+@dataclass(frozen=True)
+class JournalView:
+    """Aggregate of paper orders + (optionally) latest backtest trades."""
+
+    paper_orders: list[IntradayPaperOrderRow] = field(default_factory=list)
+    backtest_trades: list["BacktestTradeRow"] = field(default_factory=list)
+    paper_orders_files: list[str] = field(default_factory=list)
+    backtest_trades_csv_path: str | None = None
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.paper_orders and not self.backtest_trades
 
 
 @dataclass(frozen=True)
@@ -379,6 +475,9 @@ class StateStore(Protocol):
     def get_research_summary(self) -> ResearchSummary: ...
     def get_strategy_registry_summary(self) -> StrategyRegistrySummary: ...
     def get_backtest_summary(self) -> BacktestSummaryView: ...
+    def get_intraday_paper_config(self) -> IntradayPaperConfigView: ...
+    def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus: ...
+    def get_journal_view(self, *, limit: int = 200) -> JournalView: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
 
@@ -404,11 +503,21 @@ class StateStore(Protocol):
 KILL_SWITCH_RELPATH = "data/KILL_SWITCH"
 MTF_AUTO_PAPER_ENABLED_RELPATH = "data/runtime/mtf_auto_paper_enabled"
 LOOP_STATE_RELPATH = "data/runtime/auto_paper_loop_state.json"
+# Prompt 13F: intraday paper auto-flag and loop state. Distinct from the
+# MTF flag so an operator can run intraday paper forward-testing without
+# touching the MTF auto-paper switch (and vice-versa). Same canonical
+# semantics as MTF: file content "1/on/true/yes" => ON, "0/off/false/no"
+# => explicit OFF, missing file => fall back to config.
+INTRADAY_AUTO_PAPER_ENABLED_RELPATH = "data/runtime/intraday_auto_paper_enabled"
+INTRADAY_LOOP_STATE_RELPATH = "data/runtime/intraday_auto_paper_loop_state.json"
+PAPER_ORDERS_DIRNAME = "data/paper_orders"
 
 # Backwards-compatible filename constants (used by older imports/tests).
 KILL_SWITCH_FILE = "KILL_SWITCH"
 MTF_AUTO_PAPER_ENABLED_FILE = "mtf_auto_paper_enabled"
 LOOP_STATE_FILE = "auto_paper_loop_state.json"
+INTRADAY_AUTO_PAPER_ENABLED_FILE = "intraday_auto_paper_enabled"
+INTRADAY_LOOP_STATE_FILE = "intraday_auto_paper_loop_state.json"
 
 
 def _safe_read_json(path: Path) -> dict[str, Any] | None:
@@ -500,6 +609,14 @@ class LocalFileStateStore:
         self.kill_switch_path = self.project_root / KILL_SWITCH_RELPATH
         self.mtf_auto_paper_enabled_path = self.project_root / MTF_AUTO_PAPER_ENABLED_RELPATH
         self.loop_state_path = self.project_root / LOOP_STATE_RELPATH
+        # 13F: intraday paper canonical paths (kept distinct from MTF).
+        self.intraday_auto_paper_enabled_path = (
+            self.project_root / INTRADAY_AUTO_PAPER_ENABLED_RELPATH
+        )
+        self.intraday_loop_state_path = (
+            self.project_root / INTRADAY_LOOP_STATE_RELPATH
+        )
+        self.paper_orders_dir = self.project_root / PAPER_ORDERS_DIRNAME
 
     # ------------------------------------------------------------------
     # Account / positions
@@ -1015,27 +1132,180 @@ class LocalFileStateStore:
         # and bot/telegram_commands.py.
         ks = self.kill_switch_path
         en = self.mtf_auto_paper_enabled_path
+        ie = self.intraday_auto_paper_enabled_path
         kill_switch = ks.exists() and ks.is_file()
-        # mtf_auto_paper_enabled: file presence + content "1"/"true" => on
-        # explicit "0"/"off" => explicit off
-        explicit_off = False
-        enabled = False
-        if en.exists() and en.is_file():
-            try:
-                content = en.read_text(encoding="utf-8").strip().lower()
-            except OSError:
-                content = ""
-            if content in {"0", "off", "false", "no"}:
-                explicit_off = True
-            elif content in {"1", "on", "true", "yes", ""}:
-                enabled = True
+        mtf_enabled, mtf_explicit_off = _read_runtime_flag_file(en)
+        intraday_enabled, intraday_explicit_off = _read_runtime_flag_file(ie)
         return RuntimeFlags(
             kill_switch_active=kill_switch,
-            mtf_auto_paper_enabled=enabled,
-            mtf_auto_paper_explicit_off=explicit_off,
+            mtf_auto_paper_enabled=mtf_enabled,
+            mtf_auto_paper_explicit_off=mtf_explicit_off,
+            intraday_auto_paper_enabled=intraday_enabled,
+            intraday_auto_paper_explicit_off=intraday_explicit_off,
             runtime_dir=str(self.runtime_dir),
             kill_switch_path=str(ks),
             mtf_auto_paper_enabled_path=str(en),
+            intraday_auto_paper_enabled_path=str(ie),
+        )
+
+    # ------------------------------------------------------------------
+    # Intraday paper (Prompt 13F)
+    # ------------------------------------------------------------------
+    def get_intraday_paper_config(self) -> IntradayPaperConfigView:
+        """Read ``settings.yaml`` (+ optional ``settings.local.yaml`` overlay).
+
+        Returns a typed-empty view when ``trading.intraday_paper`` is missing
+        or the YAML cannot be parsed. Uses ``yaml.safe_load`` only — no
+        broker / IBKR imports.
+        """
+        cfg_path = self.project_root / "config" / "settings.yaml"
+        local_path = self.project_root / "config" / "settings.local.yaml"
+        view = IntradayPaperConfigView(
+            config_path=str(cfg_path) if cfg_path.exists() else None,
+        )
+        try:
+            import yaml  # noqa: PLC0415
+        except Exception:  # noqa: BLE001
+            return view
+        merged: dict[str, Any] = {}
+        for p in (cfg_path, local_path):
+            if not p.exists() or not p.is_file():
+                continue
+            try:
+                data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+            except (OSError, yaml.YAMLError):
+                continue
+            if isinstance(data, dict):
+                trading = data.get("trading") or {}
+                ip = trading.get("intraday_paper") if isinstance(trading, dict) else None
+                if isinstance(ip, dict):
+                    merged.update(ip)
+        if not merged:
+            return view
+        return IntradayPaperConfigView(
+            enabled=bool(merged.get("enabled", False)),
+            fully_automatic=bool(merged.get("fully_automatic", False)),
+            allow_strict_entries=bool(merged.get("allow_strict_entries", True)),
+            allow_aggressive_entries=bool(merged.get("allow_aggressive_entries", True)),
+            risk_per_trade_pct=float(merged.get("risk_per_trade_pct", 0.10)),
+            max_concurrent_positions=int(merged.get("max_concurrent_positions", 5)),
+            max_one_position_per_symbol=bool(
+                merged.get("max_one_position_per_symbol", True)
+            ),
+            require_reconciliation_pass=bool(
+                merged.get("require_reconciliation_pass", True)
+            ),
+            no_new_entries_before=str(merged.get("no_new_entries_before", "09:45")),
+            no_new_entries_after=str(merged.get("no_new_entries_after", "15:30")),
+            exit_open_positions_at=str(merged.get("exit_open_positions_at", "15:55")),
+            paper_only=bool(merged.get("paper_only", True)),
+            live_trading_allowed=bool(merged.get("live_trading_allowed", False)),
+            market_orders_allowed=bool(merged.get("market_orders_allowed", False)),
+            bracket_required=bool(merged.get("bracket_required", True)),
+            stop_required=bool(merged.get("stop_required", True)),
+            target_required=bool(merged.get("target_required", True)),
+            dry_run=bool(merged.get("dry_run", True)),
+            min_rr=float(merged.get("min_rr", 1.2)),
+            config_path=str(cfg_path) if cfg_path.exists() else None,
+        )
+
+    def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus:
+        """Read ``data/runtime/intraday_auto_paper_loop_state.json``.
+
+        Returns a typed empty :class:`IntradayPaperLoopStatus` when missing,
+        plus the most-recent paper orders audit path when present.
+        """
+        latest_audit = self._latest_intraday_paper_audit_path()
+        latest_audit_str = str(latest_audit) if latest_audit else None
+        data = _safe_read_json(self.intraday_loop_state_path)
+        if data is None:
+            return IntradayPaperLoopStatus(
+                file_path=str(self.intraday_loop_state_path)
+                if self.intraday_loop_state_path.exists() else None,
+                latest_audit_log_path=latest_audit_str,
+            )
+        scanned_raw = data.get("last_symbols_scanned") or []
+        scanned = [str(s) for s in scanned_raw if s] if isinstance(scanned_raw, list) else []
+        skipped_raw = data.get("skipped_reasons") or []
+        skipped = [str(s) for s in skipped_raw if s] if isinstance(skipped_raw, list) else []
+        return IntradayPaperLoopStatus(
+            last_cycle_utc=str(data.get("last_cycle_utc") or data.get("timestamp") or ""),
+            cycles=int(data.get("cycles") or data.get("cycle") or 0),
+            last_status=str(data.get("last_status") or data.get("status") or ""),
+            last_reason=str(data.get("last_reason") or data.get("reason") or ""),
+            last_symbols_scanned=scanned,
+            strict_ready_count=int(data.get("strict_ready_count") or 0),
+            aggressive_ready_count=int(data.get("aggressive_ready_count") or 0),
+            orders_submitted=int(data.get("orders_submitted") or 0),
+            skipped_reasons=skipped,
+            kill_switch=bool(data.get("kill_switch")),
+            runtime_intraday_on=bool(data.get("runtime_intraday_on")),
+            reconciliation_status=str(data.get("reconciliation_status") or ""),
+            paper_only=bool(data.get("paper_only", True)),
+            last_heartbeat_ts=_to_float(data.get("last_heartbeat_ts")),
+            file_path=str(self.intraday_loop_state_path),
+            latest_audit_log_path=latest_audit_str,
+        )
+
+    def _latest_intraday_paper_audit_path(self) -> Path | None:
+        if not self.paper_orders_dir.exists():
+            return None
+        candidates = sorted(
+            self.paper_orders_dir.glob("*-intraday-paper-orders.jsonl")
+        )
+        return candidates[-1] if candidates else None
+
+    # ------------------------------------------------------------------
+    # Journal page (Prompt 13F PART E)
+    # ------------------------------------------------------------------
+    def get_journal_view(self, *, limit: int = 200) -> JournalView:
+        """Aggregate UI-friendly view of paper orders + backtest trades.
+
+        * Reads every ``data/paper_orders/*-intraday-paper-orders.jsonl`` and
+          returns the most recent ``limit`` rows (newest first).
+        * Loads up to ``limit`` rows from the latest backtest trades CSV
+          when available.
+        * Never imports broker / IBKR code.
+        """
+        rows: list[IntradayPaperOrderRow] = []
+        files: list[str] = []
+        if self.paper_orders_dir.exists():
+            paths = sorted(self.paper_orders_dir.glob("*-intraday-paper-orders.jsonl"))
+            for p in paths:
+                files.append(str(p))
+                try:
+                    with p.open("r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                obj = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            if not isinstance(obj, dict):
+                                continue
+                            row = _row_from_paper_order(obj, source_path=str(p))
+                            if row is not None:
+                                rows.append(row)
+                except OSError:
+                    continue
+        rows.sort(key=lambda r: r.timestamp, reverse=True)
+        if limit > 0:
+            rows = rows[:int(limit)]
+
+        backtest_trades: list[BacktestTradeRow] = []
+        backtest_csv_path: str | None = None
+        bt = self.get_backtest_summary()
+        if not bt.is_empty:
+            backtest_trades = list(bt.trades[:limit])
+            backtest_csv_path = bt.trades_csv_path
+
+        return JournalView(
+            paper_orders=rows,
+            backtest_trades=backtest_trades,
+            paper_orders_files=files,
+            backtest_trades_csv_path=backtest_csv_path,
         )
 
     # ------------------------------------------------------------------
@@ -1337,6 +1607,74 @@ def _to_float(v: Any) -> float | None:
         return None
 
 
+def _read_runtime_flag_file(path: Path) -> tuple[bool, bool]:
+    """Return ``(enabled, explicit_off)`` for a runtime flag file.
+
+    Empty file ``""`` is treated as "explicitly enabled" (matches existing
+    MTF semantics). Missing file returns ``(False, False)`` — caller falls
+    back to config.
+    """
+    if not path.exists() or not path.is_file():
+        return False, False
+    try:
+        content = path.read_text(encoding="utf-8").strip().lower()
+    except OSError:
+        return False, False
+    if content in {"0", "off", "false", "no"}:
+        return False, True
+    if content in {"1", "on", "true", "yes", ""}:
+        return True, False
+    return False, False
+
+
+def _row_from_paper_order(
+    obj: dict[str, Any], *, source_path: str | None = None
+) -> "IntradayPaperOrderRow | None":
+    sym = str(obj.get("symbol") or "").upper().strip()
+    if not sym:
+        return None
+    skipped_raw = obj.get("skipped_reasons") or []
+    if not isinstance(skipped_raw, list):
+        skipped_raw = []
+    oids_raw = obj.get("order_ids") or []
+    oids: list[int] = []
+    if isinstance(oids_raw, list):
+        for o in oids_raw:
+            try:
+                if o is None:
+                    continue
+                oids.append(int(o))
+            except (TypeError, ValueError):
+                continue
+    chart_paths_raw = obj.get("chart_paths") or []
+    chart_paths = (
+        [str(p) for p in chart_paths_raw if p]
+        if isinstance(chart_paths_raw, list)
+        else []
+    )
+    return IntradayPaperOrderRow(
+        timestamp=str(obj.get("timestamp") or obj.get("ts") or ""),
+        strategy_id=str(obj.get("strategy_id") or ""),
+        symbol=sym,
+        direction=str(obj.get("direction") or ""),
+        signal_category=str(obj.get("signal_category") or ""),
+        submitted=bool(obj.get("submitted")),
+        skipped_reasons=[str(r) for r in skipped_raw if r],
+        entry=_to_float(obj.get("entry")),
+        stop=_to_float(obj.get("stop")),
+        target=_to_float(obj.get("target")),
+        planned_rr=_to_float(obj.get("planned_rr")),
+        quantity=_to_float(obj.get("quantity")),
+        order_ids=oids,
+        paper_only=bool(obj.get("paper_only", True)),
+        live_trading_allowed=bool(obj.get("live_trading_allowed", False)),
+        source_scan_path=str(obj.get("source_scan_path"))
+        if obj.get("source_scan_path") else None,
+        chart_paths=chart_paths,
+        source_jsonl_path=source_path,
+    )
+
+
 def _as_list_of_dict(value: Any) -> list[dict[str, Any]]:
     """Coerce ``value`` into a list of dicts; non-dict items are dropped."""
     if not isinstance(value, list):
@@ -1401,6 +1739,15 @@ class DatabaseStateStore:
     def get_backtest_summary(self) -> BacktestSummaryView:  # pragma: no cover - stub
         raise self._not_yet()
 
+    def get_intraday_paper_config(self) -> IntradayPaperConfigView:  # pragma: no cover - stub
+        raise self._not_yet()
+
+    def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus:  # pragma: no cover - stub
+        raise self._not_yet()
+
+    def get_journal_view(self, *, limit: int = 200) -> JournalView:  # pragma: no cover - stub
+        raise self._not_yet()
+
     def list_log_files(self) -> list[Path]:  # pragma: no cover - stub
         raise self._not_yet()
 
@@ -1433,6 +1780,10 @@ __all__ = [
     "SignalsView",
     "IntradaySignalRow",
     "IntradaySignalsView",
+    "IntradayPaperConfigView",
+    "IntradayPaperLoopStatus",
+    "IntradayPaperOrderRow",
+    "JournalView",
     "LoopStatus",
     "RuntimeFlags",
     "ResearchSummary",
@@ -1446,4 +1797,9 @@ __all__ = [
     "KILL_SWITCH_FILE",
     "MTF_AUTO_PAPER_ENABLED_FILE",
     "LOOP_STATE_FILE",
+    "INTRADAY_AUTO_PAPER_ENABLED_FILE",
+    "INTRADAY_AUTO_PAPER_ENABLED_RELPATH",
+    "INTRADAY_LOOP_STATE_FILE",
+    "INTRADAY_LOOP_STATE_RELPATH",
+    "PAPER_ORDERS_DIRNAME",
 ]

@@ -102,5 +102,119 @@
     </div>
   </div>
 
+  <div class="section">
+    <h2>ICT/SMC Intraday Paper Trading</h2>
+    <div class="text-small text-dim mb-12">
+      PAPER ONLY · Every order is a LIMIT bracket (entry + stop + target).
+      Live trading is hard-blocked at the broker layer.
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Intraday auto (runtime)</div>
+        <div class="card-value">
+          {% if runtime.intraday_auto_paper_explicit_off %}<span class="pill warn">EXPLICITLY OFF</span>
+          {% elif runtime.intraday_auto_paper_enabled %}<span class="pill good">ON</span>
+          {% else %}<span class="pill neutral">unset</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">
+          Canonical path: <code>{{ runtime.intraday_auto_paper_enabled_path or 'data/runtime/intraday_auto_paper_enabled' }}</code>
+        </div>
+        <form action="{{ url_for('toggle_intraday_auto') }}" method="post" class="form-row mt-12">
+          {% if runtime.intraday_auto_paper_enabled %}
+            <input type="hidden" name="state" value="off" />
+            <button type="submit" class="btn warn">Disable Intraday Paper</button>
+          {% else %}
+            <input type="hidden" name="state" value="on" />
+            <button type="submit" class="btn">Enable Intraday Paper</button>
+          {% endif %}
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Intraday config</div>
+        <div class="card-value">
+          {% if intraday_paper_config.enabled %}<span class="pill good">enabled</span>{% else %}<span class="pill neutral">disabled</span>{% endif %}
+          {% if intraday_paper_config.fully_automatic %}<span class="pill warn">fully automatic</span>{% endif %}
+          {% if intraday_paper_config.dry_run %}<span class="pill neutral">dry-run</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">
+          allow_strict: {{ 'yes' if intraday_paper_config.allow_strict_entries else 'no' }} ·
+          allow_aggressive: {{ 'yes' if intraday_paper_config.allow_aggressive_entries else 'no' }}<br />
+          risk: {{ "{:.2f}".format(intraday_paper_config.risk_per_trade_pct) }}% ·
+          max positions: {{ intraday_paper_config.max_concurrent_positions }} ·
+          min R/R: {{ intraday_paper_config.min_rr }}<br />
+          window: {{ intraday_paper_config.no_new_entries_before }}–{{ intraday_paper_config.no_new_entries_after }} (NY)
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Last intraday cycle</div>
+        {% if intraday_paper_loop.is_empty %}
+          <div class="card-value text-dim">—</div>
+          <div class="card-sub">Intraday paper loop has not run on this machine yet.</div>
+        {% else %}
+          <div class="card-value">
+            {% if intraday_paper_loop.last_status in ('ok', 'success') %}<span class="pill good">{{ intraday_paper_loop.last_status }}</span>
+            {% elif intraday_paper_loop.last_status %}<span class="pill warn">{{ intraday_paper_loop.last_status }}</span>
+            {% else %}<span class="pill neutral">unknown</span>{% endif %}
+          </div>
+          <div class="card-sub text-small">
+            cycles {{ intraday_paper_loop.cycles }} · last cycle {{ intraday_paper_loop.last_cycle_utc[:19] }}Z<br />
+            recon: {{ intraday_paper_loop.reconciliation_status or '-' }} ·
+            kill: {{ 'ON' if intraday_paper_loop.kill_switch else 'off' }} ·
+            runtime: {{ 'ON' if intraday_paper_loop.runtime_intraday_on else 'off' }}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Intraday counts</div>
+        <div class="card-value">
+          <span class="pill good">strict {{ intraday_paper_loop.strict_ready_count }}</span>
+          <span class="pill neutral">aggr {{ intraday_paper_loop.aggressive_ready_count }}</span>
+          <span class="pill">orders {{ intraday_paper_loop.orders_submitted }}</span>
+        </div>
+        <div class="card-sub text-small">
+          {% if intraday_paper_loop.last_symbols_scanned %}
+            symbols: {% for s in intraday_paper_loop.last_symbols_scanned[:8] %}<code>{{ s }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+            {% if intraday_paper_loop.last_symbols_scanned|length > 8 %}…{% endif %}
+          {% else %}
+            No scan yet.
+          {% endif %}
+        </div>
+        {% if intraday_paper_loop.skipped_reasons %}
+          <div class="card-sub text-small mt-12">
+            <strong>Latest skipped:</strong>
+            {% for r in intraday_paper_loop.skipped_reasons[:4] %}<span class="pill warn">{{ r }}</span> {% endfor %}
+          </div>
+        {% endif %}
+        {% if intraday_paper_loop.latest_audit_log_path %}
+          <div class="card-sub text-small mt-12">
+            audit: <code>{{ intraday_paper_loop.latest_audit_log_path }}</code>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="form-row mt-12">
+      {% with command='auto-paper-intraday-smc', label='Run One Intraday Paper Pass', return_to='/paper', btn_class='', args='--source dynamic --limit 20' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='intraday-paper-status', label='Intraday Paper Status', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='paper-reconcile', label='Reconcile Now', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='refresh-paper-account-state', label='Refresh Account State', return_to='/paper', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+    <div class="text-small text-dim mt-12">
+      The "Run One Pass" button enqueues <code>auto-paper-intraday-smc</code>; submission is gated by the broker's
+      paper-only gates AND by the runtime flag above. The kill-switch and resume buttons live in the cards above.
+    </div>
+  </div>
+
   {% include "_recent_results.html" %}
 {% endblock %}

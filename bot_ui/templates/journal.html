@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Trade Journal{% endblock %}
+{% block subtitle %}<div class="page-sub">PAPER ONLY · Read-only aggregate of <code>data/paper_orders/*.jsonl</code> and the latest backtest trades CSV. This page never connects to IBKR / TWS and never places, cancels, or modifies any order.</div>{% endblock %}
+
+{% block content %}
+  {% set j = journal %}
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Paper bracket submissions</div>
+      <div class="card-value">{{ j.paper_orders|length }}</div>
+      <div class="card-sub text-small">
+        {% if j.paper_orders_files %}
+          {{ j.paper_orders_files|length }} JSONL log file{{ '' if j.paper_orders_files|length == 1 else 's' }} · paper-only
+        {% else %}
+          No paper-bracket logs on this machine yet. Run the intraday paper loop or one pass to populate.
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Backtest trades (latest)</div>
+      <div class="card-value">{{ j.backtest_trades|length }}</div>
+      <div class="card-sub text-small">
+        {% if j.backtest_trades_csv_path %}
+          source: <code>{{ j.backtest_trades_csv_path }}</code>
+        {% else %}
+          No backtest trades CSV available. Run <code>backtest-intraday-smc[-watchlist]</code> first.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Paper bracket submissions</h2>
+    {% if not j.paper_orders %}
+      <div class="card-sub text-small text-dim">
+        Empty. After enabling intraday paper trading and running
+        <code>auto-paper-intraday-smc</code> (or the loop), submissions and
+        skipped reasons will appear here.
+      </div>
+    {% else %}
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time (UTC)</th>
+              <th>Symbol</th>
+              <th>Strategy</th>
+              <th>Mode</th>
+              <th>Dir</th>
+              <th>Entry</th>
+              <th>Stop</th>
+              <th>Target</th>
+              <th>R/R</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Order IDs</th>
+              <th>Reason / Skipped</th>
+              <th>Charts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in j.paper_orders %}
+              <tr>
+                <td><code>{{ r.timestamp[:19] }}Z</code></td>
+                <td><strong>{{ r.symbol }}</strong></td>
+                <td><code>{{ r.strategy_id }}</code></td>
+                <td>
+                  {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">strict</span>
+                  {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill neutral">aggressive</span>
+                  {% else %}<span class="pill warn">{{ r.signal_category or '-' }}</span>{% endif %}
+                </td>
+                <td>{{ r.direction or '-' }}</td>
+                <td>{% if r.entry is not none %}{{ "%.2f"|format(r.entry) }}{% else %}—{% endif %}</td>
+                <td>{% if r.stop is not none %}{{ "%.2f"|format(r.stop) }}{% else %}—{% endif %}</td>
+                <td>{% if r.target is not none %}{{ "%.2f"|format(r.target) }}{% else %}—{% endif %}</td>
+                <td>{% if r.planned_rr is not none %}{{ "%.2f"|format(r.planned_rr) }}{% else %}—{% endif %}</td>
+                <td>{% if r.quantity is not none %}{{ r.quantity|int }}{% else %}—{% endif %}</td>
+                <td>
+                  {% if r.submitted %}<span class="pill good">submitted</span>
+                  {% else %}<span class="pill warn">skipped</span>{% endif %}
+                </td>
+                <td>{% if r.order_ids %}{{ r.order_ids|join(', ') }}{% else %}—{% endif %}</td>
+                <td class="text-small">
+                  {% if r.skipped_reasons %}
+                    {% for reason in r.skipped_reasons %}<span class="pill warn">{{ reason }}</span> {% endfor %}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-small">
+                  {% if r.chart_paths %}
+                    {% for c in r.chart_paths %}<code>{{ c.split('/')[-1] }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="text-small text-dim mt-12">
+        Showing the {{ j.paper_orders|length }} most recent rows · paper-only · live trading is hard-blocked at the broker layer.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Backtest trades (latest)</h2>
+    {% if not j.backtest_trades %}
+      <div class="card-sub text-small text-dim">
+        No backtest trades to show. Run <code>backtest-intraday-smc[-watchlist]</code>
+        (or use the Backtest page) to populate.
+      </div>
+    {% else %}
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Symbol</th>
+              <th>Mode</th>
+              <th>Dir</th>
+              <th>Entry</th>
+              <th>Stop</th>
+              <th>Target</th>
+              <th>Exit</th>
+              <th>Outcome</th>
+              <th>R</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in j.backtest_trades %}
+              <tr>
+                <td><code>{{ t.date or '-' }}</code></td>
+                <td><strong>{{ t.symbol }}</strong></td>
+                <td>
+                  {% if t.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">strict</span>
+                  {% elif t.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill neutral">aggressive</span>
+                  {% else %}{{ t.signal_category or '-' }}{% endif %}
+                </td>
+                <td>{{ t.direction or '-' }}</td>
+                <td>{% if t.entry_price is not none %}{{ "%.2f"|format(t.entry_price) }}{% else %}—{% endif %}</td>
+                <td>{% if t.stop_price is not none %}{{ "%.2f"|format(t.stop_price) }}{% else %}—{% endif %}</td>
+                <td>{% if t.target_price is not none %}{{ "%.2f"|format(t.target_price) }}{% else %}—{% endif %}</td>
+                <td>{% if t.exit_price is not none %}{{ "%.2f"|format(t.exit_price) }}{% else %}—{% endif %}</td>
+                <td>{{ t.outcome or '-' }}</td>
+                <td>{% if t.pnl_r is not none %}{{ "%.2f"|format(t.pnl_r) }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

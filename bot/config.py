@@ -44,6 +44,94 @@ class MtfAutoPaperConfig(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class IntradayPaperConfig(BaseModel):
+    """13F: ICT/SMC intraday paper bracket execution (PAPER only; never live).
+
+    Hard invariants enforced by :mod:`bot.execution.intraday_paper_execution`
+    and :class:`bot.broker.Broker._submit_intraday_paper_bracket`:
+
+    * paper_only / live_trading_allowed / market_orders_allowed must remain
+      ``True / False / False``. The loader rejects any deviation.
+    * bracket / stop / target are always required at submit time. There is
+      no flag a user can set that turns this into a single LIMIT or MKT.
+    """
+
+    enabled: bool = False
+    fully_automatic: bool = False
+    allow_strict_entries: bool = True
+    allow_aggressive_entries: bool = True
+    risk_per_trade_pct: float = 0.10
+    max_concurrent_positions: int = 5
+    max_one_position_per_symbol: bool = True
+    require_reconciliation_pass: bool = True
+    no_new_entries_before: str = "09:45"
+    no_new_entries_after: str = "15:30"
+    exit_open_positions_at: str = "15:55"
+    paper_only: bool = True
+    live_trading_allowed: bool = False
+    market_orders_allowed: bool = False
+    bracket_required: bool = True
+    stop_required: bool = True
+    target_required: bool = True
+    # Defence-in-depth knobs the operator should not normally touch.
+    # ``dry_run`` mirrors ``trading.mtf_paper_dry_run``: when ``True``
+    # the broker validates the bracket but does not call placeOrder.
+    dry_run: bool = True
+    min_rr: float = 1.2
+
+    model_config = {"extra": "ignore"}
+
+    @field_validator("paper_only")
+    @classmethod
+    def _paper_only_must_be_true(cls, v: bool) -> bool:
+        if v is not True:
+            raise ValueError(
+                "trading.intraday_paper.paper_only must be true (paper-only invariant)."
+            )
+        return True
+
+    @field_validator("live_trading_allowed")
+    @classmethod
+    def _live_trading_must_be_false(cls, v: bool) -> bool:
+        if v is not False:
+            raise ValueError(
+                "trading.intraday_paper.live_trading_allowed must be false."
+            )
+        return False
+
+    @field_validator("market_orders_allowed")
+    @classmethod
+    def _market_orders_must_be_false(cls, v: bool) -> bool:
+        if v is not False:
+            raise ValueError(
+                "trading.intraday_paper.market_orders_allowed must be false."
+            )
+        return False
+
+    @field_validator("bracket_required", "stop_required", "target_required")
+    @classmethod
+    def _bracket_pieces_required(cls, v: bool) -> bool:
+        if v is not True:
+            raise ValueError(
+                "trading.intraday_paper.{bracket,stop,target}_required must all be true."
+            )
+        return True
+
+    @field_validator("risk_per_trade_pct", "min_rr")
+    @classmethod
+    def _positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("must be > 0")
+        return v
+
+    @field_validator("max_concurrent_positions")
+    @classmethod
+    def _non_negative_int(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("must be >= 0")
+        return v
+
+
 class TradingConfig(BaseModel):
     enabled: bool = False
     dry_run_default: bool = True
@@ -62,6 +150,8 @@ class TradingConfig(BaseModel):
     mtf_paper_require_confirmed_5m: bool = True
     mtf_paper_auto_bracket_enabled: bool = False
     mtf_auto_paper: MtfAutoPaperConfig = Field(default_factory=MtfAutoPaperConfig)
+    # 13F: intraday paper bracket execution (PAPER only; never live).
+    intraday_paper: IntradayPaperConfig = Field(default_factory=IntradayPaperConfig)
 
 
 class RiskConfig(BaseModel):
