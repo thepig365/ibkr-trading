@@ -1,0 +1,57 @@
+# Manually curated macro calendar consumed by the Research Intelligence
+# Layer (bot/research_providers/manual_macro_calendar.py).
+#
+# Conventions
+# -----------
+# - All times are US/Eastern (ET); the loader converts to UTC.
+# - `handling` defaults to soft_flag; only set hard_block when you really
+#   want to stop new paper submissions during the event window. Macro
+#   events should normally NOT block paper testing.
+# - `impact_level` is high/medium/low — operator's call.
+# - `category` examples: CPI, PPI, PCE, NFP, unemployment, jobless_claims,
+#   FOMC, Fed_speech, GDP, retail_sales, ISM, bond_auction, oil_OPEC,
+#   geopolitical
+#
+# Add a new event by appending to `events:`. Empty/missing `time_et`
+# means "scheduled all day".
+
+events:
+  - date: "2026-04-25"
+    time_et: "08:30"
+    event: "Initial Jobless Claims"
+    category: "jobless_claims"
+    impact_level: "medium"
+    handling: "soft_flag"
+    notes: "Tag trades near release; do not hard-block paper testing by default."
+
+  - date: "2026-04-30"
+    time_et: "08:30"
+    event: "Q1 GDP (Advance)"
+    category: "GDP"
+    impact_level: "medium"
+    handling: "soft_flag"
+    notes: "Watch reaction in IWM and bonds."
+
+  - date: "2026-05-02"
+    time_et: "08:30"
+    event: "Non-Farm Payrolls"
+    category: "NFP"
+    impact_level: "high"
+    handling: "soft_flag"
+    notes: "Strong volatility around 09:30 ET open; soft flag, not hard block."
+
+  - date: "2026-05-13"
+    time_et: "08:30"
+    event: "CPI (Apr)"
+    category: "CPI"
+    impact_level: "high"
+    handling: "soft_flag"
+    notes: "Headline + core. Soft flag pre-release."
+
+  - date: "2026-06-18"
+    time_et: "14:00"
+    event: "FOMC Statement + Powell Press Conference"
+    category: "FOMC"
+    impact_level: "high"
+    handling: "soft_flag"
+    notes: "14:00 statement, 14:30 presser. Soft flag; consider manual_review if widening positions."

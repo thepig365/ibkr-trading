@@ -45,6 +45,7 @@ from .safety import (
     FORBIDDEN_COMMAND_TOKENS,
     is_allowed,
     is_forbidden,
+    validate_args_for,
 )
 
 DEFAULT_TIMEOUT_SECONDS = 600  # 10 minutes max per UI-issued command
@@ -133,6 +134,9 @@ def validate_request(request: CommandRequest) -> tuple[bool, str]:
         for tok in FORBIDDEN_ARG_TOKENS:
             if tok in lowered:
                 return False, f"Argument contains forbidden token {tok!r}."
+    ok, reason = validate_args_for(cmd, tuple(request.args))
+    if not ok:
+        return False, reason
     return True, ""
 
 

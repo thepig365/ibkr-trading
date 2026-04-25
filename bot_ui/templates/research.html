@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Research{% endblock %}
+{% block subtitle %}<div class="page-sub">RESEARCH-ONLY VIEW. This page reads files written by <code>python -m bot.cli research-report</code>. It never connects to TWS or imports the IBKR client. Buttons run safe, allowlisted CLI commands only.</div>{% endblock %}
+
+{% block content %}
+  {% set inst = research.instruction or {} %}
+  {% set status = research.ibkr_news_provider_status or {} %}
+  {% set md = research.market_regime or {} %}
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Latest report</div>
+      {% if research.is_empty %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">No research report yet. Click <code>Run Research Report</code>.</div>
+      {% else %}
+        <div class="card-value">
+          {{ research.date or '—' }}
+          {% if research.is_stale %}<span class="pill warn">stale</span>{% else %}<span class="pill good">today</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">
+          Generated {{ research.generated_at_utc or '—' }}<br/>
+          report: <code>{{ research.report_path }}</code><br/>
+          instructions: <code>{{ research.instruction_path }}</code>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Market regime</div>
+      <div class="card-value">{{ md.market_regime or 'unknown' }}</div>
+      <div class="card-sub text-small">
+        confidence: {{ md.regime_confidence or 'n/a' }}<br/>
+        new_positions_allowed: {{ 'yes' if md.new_positions_allowed else 'no' }}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">IBKR news provider</div>
+      <div class="card-value">
+        {% if status.ibkr_news_available %}<span class="pill good">available</span>
+        {% else %}<span class="pill warn">unavailable</span>{% endif %}
+      </div>
+      <div class="card-sub text-small">
+        detected: {{ (status.providers_detected or [])|join(', ') or '—' }}<br/>
+        checked: {{ status.checked_at_utc or '—' }}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Bot instruction</div>
+      <div class="card-value">
+        {% if inst.auto_paper_allowed %}<span class="pill good">auto-paper allowed</span>
+        {% else %}<span class="pill warn">auto-paper held</span>{% endif %}
+        <span class="pill good">paper-only</span>
+      </div>
+      <div class="card-sub text-small">
+        priority: {{ (inst.priority_watchlist or [])|length }} ·
+        soft-flag: {{ (inst.soft_flag_symbols or [])|length }} ·
+        hard-block: {{ (inst.blocked_symbols or [])|length }} ·
+        manual review: {{ (inst.manual_review_symbols or [])|length }}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Run safe research commands</h2>
+    <p class="text-dim text-small">Each button POSTs to the allowlisted command runner. Forbidden tokens (place_order, --live, etc.) are rejected. <code>ibkr-news-fetch</code> is restricted to comma-separated UPPER tickers and a numeric limit between 1 and 200.</p>
+    <div>
+      {% with command='research-report', label='Run Research Report', return_to='/research', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='research-report', args='--telegram', label='Send Telegram Summary', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='ibkr-news-status', label='IBKR News Status', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='macro-calendar', args='--today', label='Macro Calendar Today', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='research-status', label='Research Status', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Today's macro events</h2>
+    {% if not research.macro_events %}
+      <p class="text-dim">No macro events for today (or <code>config/macro_calendar.yaml</code> empty).</p>
+    {% else %}
+      <table class="table">
+        <thead><tr><th>Time (ET)</th><th>Event</th><th>Category</th><th>Impact</th><th>Handling</th><th>Summary (zh)</th></tr></thead>
+        <tbody>
+          {% for ev in research.macro_events %}
+            {% set extra = ev.extra or {} %}
+            <tr>
+              <td>{{ extra.time_et or '全天' }}</td>
+              <td>{{ ev.title_en }}</td>
+              <td>{{ extra.macro_category or ev.category }}</td>
+              <td><span class="pill {{ 'bad' if ev.impact_level=='high' else 'warn' if ev.impact_level=='medium' else 'neutral' }}">{{ ev.impact_level }}</span></td>
+              <td><code>{{ ev.action }}</code></td>
+              <td class="text-small">{{ ev.summary_zh }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Breaking news / IBKR headlines</h2>
+    {% if not research.ibkr_news %}
+      <p class="text-dim">No IBKR headlines yet. Run <code>IBKR News Status</code> first to confirm entitlements; then <code>Run Research Report</code> to populate. If your account has no news subscription this section will stay empty (paper testing is not blocked).</p>
+    {% else %}
+      <table class="table">
+        <thead><tr><th>Symbol</th><th>Impact</th><th>Confidence</th><th>Action</th><th>Headline</th><th>Summary (zh)</th></tr></thead>
+        <tbody>
+          {% for ev in research.ibkr_news[:50] %}
+            <tr>
+              <td><strong>{{ ev.symbol or '—' }}</strong></td>
+              <td><span class="pill {{ 'bad' if ev.impact_level=='high' else 'warn' if ev.impact_level=='medium' else 'neutral' }}">{{ ev.impact_level }}</span></td>
+              <td>{{ ev.confidence }}</td>
+              <td><code>{{ ev.action }}</code></td>
+              <td>{{ ev.title_en }}</td>
+              <td class="text-small">{{ ev.summary_zh }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Themes</h2>
+    {% if not research.themes %}
+      <p class="text-dim">No active themes detected. Themes boost priority — they never hard-block.</p>
+    {% else %}
+      <ul>
+        {% for t in research.themes %}
+          <li><strong>{{ t.theme }}</strong> <span class="pill {{ 'bad' if t.strength=='high' else 'warn' if t.strength=='medium' else 'neutral' }}">{{ t.strength }}</span> — {{ (t.symbols or [])|join(', ') or '(no watchlist hits)' }} · <span class="text-dim text-small">{{ t.reason }}</span></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Priority watchlist</h2>
+    {% if not inst.priority_watchlist %}
+      <p class="text-dim">Empty. Generate a report or refresh the dynamic watchlist first.</p>
+    {% else %}
+      <p>{% for s in inst.priority_watchlist %}<span class="pill good">{{ s }}</span> {% endfor %}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Soft flags</h2>
+    {% if not inst.soft_flag_symbols %}<p class="text-dim">None.</p>{% else %}
+      <p>{% for s in inst.soft_flag_symbols %}<span class="pill warn">{{ s }}</span> {% endfor %}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Hard blocks</h2>
+    {% if not inst.blocked_symbols %}<p class="text-dim">None.</p>{% else %}
+      <p>{% for s in inst.blocked_symbols %}<span class="pill bad">{{ s }}</span> {% endfor %}</p>
+    {% endif %}
+  </div>
+
+  {% if research.notes %}
+  <div class="section">
+    <h2>Notes</h2>
+    <ul>{% for n in research.notes %}<li class="text-dim">{{ n }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if research.markdown_excerpt %}
+  <div class="section">
+    <h2>Latest <code>memory/RESEARCH-REPORT.md</code> (excerpt)</h2>
+    <pre class="codeblock" style="max-height: 480px; overflow:auto; white-space:pre-wrap;">{{ research.markdown_excerpt }}</pre>
+  </div>
+  {% endif %}
+{% endblock %}

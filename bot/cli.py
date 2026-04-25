@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -3101,6 +3102,647 @@ def run_scheduler_cmd() -> None:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         console.print("[yellow]Scheduler stopped.[/yellow]")
+    raise typer.Exit(code=0)
+
+
+# ---------------------------------------------------------------------------
+# Research Intelligence Layer v2 (Prompt 13B)
+# ---------------------------------------------------------------------------
+#
+# Commands here NEVER place orders, NEVER enable live trading, and only
+# connect to IBKR when explicitly invoked (ibkr-news-status /
+# ibkr-news-fetch / research-report). All other research commands are
+# pure-disk readers.
+#
+# UI buttons hit these via the LocalCommandRunner allowlist
+# (bot_ui/services/safety.py); see also docs/deployment-architecture.md.
+def _latest_dynamic_watchlist_symbols(cfg: AppConfig) -> tuple[list[str], str | None]:
+    root = cfg.absolute("data/watchlists")
+    if not root.exists():
+        return [], None
+    files = sorted(root.glob("*-dynamic-watchlist.json"))
+    if not files:
+        return [], None
+    try:
+        with files[-1].open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return [], str(files[-1])
+    symbols: list[str] = []
+    if isinstance(data, dict):
+        items = data.get("symbols") or data.get("items") or data.get("watchlist") or []
+        if isinstance(items, list):
+            for it in items:
+                if isinstance(it, str):
+                    symbols.append(it.upper())
+                elif isinstance(it, dict) and it.get("symbol"):
+                    symbols.append(str(it["symbol"]).upper())
+    return symbols, str(files[-1])
+
+
+def _latest_market_regime(cfg: AppConfig) -> dict[str, object]:
+    root = cfg.absolute("data/market_regime")
+    if not root.exists():
+        return {}
+    files = sorted(root.glob("*.json"))
+    if not files:
+        return {}
+    try:
+        with files[-1].open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _latest_smc_summary(cfg: AppConfig) -> dict[str, object]:
+    root = cfg.absolute("data/mtf_smc")
+    if not root.exists():
+        return {}
+    files = sorted(root.glob("*-watchlist-mtf-smc-summary.json"))
+    if not files:
+        return {}
+    try:
+        with files[-1].open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+@app.command("macro-calendar")
+def macro_calendar_cmd(
+    today: bool = typer.Option(
+        False, "--today", help="Show today's macro events (US/Eastern)."
+    ),
+    date: Optional[str] = typer.Option(
+        None, "--date", help="Show macro events for YYYY-MM-DD (overrides --today)."
+    ),
+) -> None:
+    """Print the manual macro calendar (Chinese-friendly).
+
+    Reads ``config/macro_calendar.yaml``. Never connects to IBKR. Never
+    places orders. Macro events default to ``soft_flag``; ``hard_block``
+    must be set explicitly per row in the YAML.
+    """
+    from .research_providers.manual_macro_calendar import (
+        load_macro_calendar,
+        render_calendar_zh,
+    )
+
+    cfg, _journal = _bootstrap()
+    cal = load_macro_calendar(cfg)
+
+    if date:
+        events = cal.for_date(date)
+        label = date
+    elif today:
+        events = cal.for_today_et()
+        label = "今日 (US/Eastern)"
+    else:
+        events = list(cal.events)
+        label = "全部条目"
+
+    text = render_calendar_zh(events, target_label=label)
+    console.print(Panel.fit(text, title="macro-calendar", style="cyan"))
+    if cal.notes:
+        for n in cal.notes:
+            console.print(f"[dim]note: {n}[/dim]")
+    console.print(
+        "[dim]execution_allowed=false. This CLI never places orders "
+        "and never modifies broker state.[/dim]"
+    )
+    raise typer.Exit(code=0)
+
+
+@app.command("ibkr-news-status")
+def ibkr_news_status_cmd() -> None:
+    """Probe IBKR for news provider entitlements.
+
+    Connects to IBKR read-only, calls reqNewsProviders, prints/returns
+    a structured status, then disconnects. Never places orders.
+    """
+    from .research_providers.ibkr_news_provider import (
+        connect_for_news,
+        get_provider_status,
+    )
+
+    cfg, journal = _bootstrap()
+    client = None
+    try:
+        try:
+            client = connect_for_news(cfg)
+        except (IBKRClientError, LiveTradingBlocked) as exc:
+            status_payload = {
+                "ibkr_news_available": False,
+                "providers_detected": [],
+                "missing_entitlements": [],
+                "notes": [f"connect failed: {exc!r}"],
+            }
+            console.print(
+                Panel.fit(
+                    json.dumps(status_payload, ensure_ascii=False, indent=2),
+                    title="ibkr-news-status",
+                    style="yellow",
+                )
+            )
+            journal.record_event(
+                category="research_news",
+                level="WARNING",
+                message="ibkr-news-status connect failed",
+                payload=status_payload,
+            )
+            raise typer.Exit(code=2)
+
+        status = get_provider_status(cfg, client=client)
+        console.print(
+            Panel.fit(
+                json.dumps(status.to_dict(), ensure_ascii=False, indent=2),
+                title="ibkr-news-status",
+                style="cyan" if status.ibkr_news_available else "yellow",
+            )
+        )
+        journal.record_event(
+            category="research_news",
+            level="INFO",
+            message="ibkr-news-status",
+            payload=status.to_dict(),
+        )
+    finally:
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+    raise typer.Exit(code=0)
+
+
+_TICKER_LIST_RE = re.compile(r"^[A-Z]{1,5}(?:,[A-Z]{1,5})*$")
+
+
+def _parse_symbols_arg(raw: str) -> list[str]:
+    """Strict comma-separated UPPER ticker parser.
+
+    Mirrors the validation done by the UI command queue, so a hostile
+    operator cannot smuggle shell metacharacters via this CLI.
+    """
+    s = (raw or "").strip().upper()
+    if not s:
+        raise typer.BadParameter("symbols must be a non-empty comma-separated list")
+    if not _TICKER_LIST_RE.match(s):
+        raise typer.BadParameter(
+            "symbols must match ^[A-Z]{1,5}(,[A-Z]{1,5})*$ (e.g. AAPL,TSLA,NVDA)"
+        )
+    return s.split(",")
+
+
+@app.command("ibkr-news-fetch")
+def ibkr_news_fetch_cmd(
+    symbols: str = typer.Option(
+        ...,
+        "--symbols",
+        help="Comma-separated UPPER tickers, e.g. AAPL,TSLA,NVDA",
+    ),
+    limit: int = typer.Option(
+        50, "--limit", min=1, max=200, help="Max headlines per symbol (1-200)."
+    ),
+) -> None:
+    """Fetch IBKR historical news for ``symbols`` and cache the result.
+
+    Writes ``data/research/cache/ibkr_news/YYYY-MM-DD-news.json``. Never
+    places orders. Connects to IBKR only for the duration of this call.
+    """
+    from .research_providers.ibkr_news_provider import (
+        connect_for_news,
+        fetch_ibkr_news,
+        write_news_cache,
+    )
+
+    cfg, journal = _bootstrap()
+    syms = _parse_symbols_arg(symbols)
+
+    client = None
+    try:
+        try:
+            client = connect_for_news(cfg)
+        except (IBKRClientError, LiveTradingBlocked) as exc:
+            console.print(
+                f"[yellow]ibkr-news-fetch: connect failed ({exc!r}); "
+                "writing empty cache for the day.[/yellow]"
+            )
+            journal.record_event(
+                category="research_news",
+                level="WARNING",
+                message="ibkr-news-fetch connect failed",
+                payload={"error": repr(exc), "symbols": syms},
+            )
+            from .research_providers.ibkr_news_provider import (
+                IBKRNewsProviderStatus,
+            )
+
+            status = IBKRNewsProviderStatus(
+                ibkr_news_available=False,
+                providers_detected=[],
+                missing_entitlements=[],
+                notes=[f"connect failed: {exc!r}"],
+                checked_at_utc=datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+            )
+            cache_path = write_news_cache(cfg, catalysts=[], status=status)
+            console.print(f"[green]Cache written:[/green] {cache_path}")
+            raise typer.Exit(code=2)
+
+        catalysts, status = fetch_ibkr_news(
+            cfg, symbols=syms, client=client, limit_per_symbol=limit
+        )
+        cache_path = write_news_cache(cfg, catalysts=catalysts, status=status)
+        console.print(
+            Panel.fit(
+                f"providers={status.providers_detected or '[]'}\n"
+                f"available={status.ibkr_news_available}\n"
+                f"symbols={','.join(syms)}\n"
+                f"headlines={len(catalysts)}\n"
+                f"cache={cache_path}",
+                title="ibkr-news-fetch",
+                style="cyan" if status.ibkr_news_available else "yellow",
+            )
+        )
+        journal.record_event(
+            category="research_news",
+            level="INFO",
+            message="ibkr-news-fetch",
+            payload={
+                "symbols": syms,
+                "limit": limit,
+                "headline_count": len(catalysts),
+                "available": status.ibkr_news_available,
+                "providers": status.providers_detected,
+                "cache": str(cache_path),
+            },
+        )
+    finally:
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+    raise typer.Exit(code=0)
+
+
+def _build_research_report(
+    cfg: AppConfig,
+    *,
+    use_ibkr: bool = True,
+):
+    """Pure function: assemble a ResearchReport from cached/local state.
+
+    Returns the freshly-built :class:`ResearchReport`. Does not write to
+    disk and does not send Telegram. The CLI handler does both.
+    """
+    from .research_intelligence import (
+        ResearchReport,
+        aggregate_symbol_profiles,
+        build_instruction,
+        classify_news_catalysts,
+        detect_themes,
+    )
+    from .research_providers.ibkr_news_provider import (
+        IBKRNewsProviderStatus,
+        connect_for_news,
+        fetch_ibkr_news,
+        get_provider_status,
+        read_latest_news_cache,
+        write_news_cache,
+    )
+    from .research_providers.manual_macro_calendar import load_macro_calendar
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    notes: list[str] = []
+
+    market_regime = _latest_market_regime(cfg)
+    if not market_regime:
+        notes.append("no data/market_regime/*.json found; market_regime=unknown")
+
+    cal = load_macro_calendar(cfg)
+    macro_for_today = cal.for_today_et()
+    macro_events = [m.to_research_event() for m in macro_for_today]
+    notes.extend(cal.notes)
+
+    watchlist_symbols, wl_path = _latest_dynamic_watchlist_symbols(cfg)
+    if not watchlist_symbols:
+        notes.append(
+            "no data/watchlists/*-dynamic-watchlist.json found; "
+            "skipping symbol-specific news fetch"
+        )
+
+    smc_summary = _latest_smc_summary(cfg)
+
+    # IBKR news: try connecting only if asked AND watchlist is non-empty.
+    catalysts = []
+    status = IBKRNewsProviderStatus(
+        ibkr_news_available=False,
+        providers_detected=[],
+        missing_entitlements=[],
+        notes=["IBKR news fetch skipped"],
+    )
+    if use_ibkr and watchlist_symbols:
+        client = None
+        try:
+            try:
+                client = connect_for_news(cfg)
+            except (IBKRClientError, LiveTradingBlocked) as exc:
+                notes.append(f"IBKR connect failed: {exc!r}")
+                client = None
+            if client is not None:
+                catalysts, status = fetch_ibkr_news(
+                    cfg,
+                    symbols=watchlist_symbols[:30],
+                    client=client,
+                    limit_per_symbol=20,
+                )
+                write_news_cache(cfg, catalysts=catalysts, status=status)
+        finally:
+            if client is not None:
+                try:
+                    client.disconnect()
+                except Exception:  # noqa: BLE001
+                    pass
+
+    # If we couldn't fetch fresh news, fall back to today's cache.
+    if not catalysts:
+        cached = read_latest_news_cache(cfg)
+        if cached and isinstance(cached.get("catalysts"), list):
+            from .research_intelligence import NewsCatalyst  # noqa: PLC0415
+
+            for row in cached["catalysts"]:
+                if not isinstance(row, dict):
+                    continue
+                catalysts.append(
+                    NewsCatalyst(
+                        timestamp=str(row.get("timestamp") or ""),
+                        provider=str(row.get("provider") or ""),
+                        article_id=str(row.get("article_id") or ""),
+                        symbol=(str(row.get("symbol")) if row.get("symbol") else None),
+                        headline=str(row.get("headline") or ""),
+                    )
+                )
+            notes.append("used cached IBKR news (no fresh fetch)")
+            cached_status = cached.get("provider_status") or {}
+            if isinstance(cached_status, dict):
+                status = IBKRNewsProviderStatus(
+                    ibkr_news_available=bool(
+                        cached_status.get("ibkr_news_available")
+                    ),
+                    providers_detected=list(
+                        cached_status.get("providers_detected") or []
+                    ),
+                    missing_entitlements=list(
+                        cached_status.get("missing_entitlements") or []
+                    ),
+                    notes=list(cached_status.get("notes") or []),
+                    checked_at_utc=str(cached_status.get("checked_at_utc") or ""),
+                )
+
+    classified_news = classify_news_catalysts(catalysts)
+    classified_all = list(macro_events) + list(classified_news)
+    themes = detect_themes(
+        classified_events=classified_all,
+        watchlist_symbols=watchlist_symbols,
+    )
+    profiles = aggregate_symbol_profiles(
+        classified_events=classified_all,
+        themes=themes,
+        watchlist_symbols=watchlist_symbols,
+    )
+    instruction = build_instruction(
+        date=today,
+        market_regime=market_regime,
+        macro_events=macro_events,
+        ibkr_news_provider_status=status.to_dict(),
+        symbol_profiles=profiles,
+        watchlist_symbols=watchlist_symbols,
+        smc_summary=smc_summary,
+        extra_notes=notes,
+    )
+
+    if wl_path:
+        notes.append(f"watchlist source: {wl_path}")
+
+    return ResearchReport(
+        date=today,
+        generated_at_utc=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        market_regime=market_regime,
+        macro_events=macro_events,
+        ibkr_news=classified_news,
+        earnings=[],
+        analyst_ratings=[],
+        themes=themes,
+        symbol_profiles=profiles,
+        watchlist_today=watchlist_symbols,
+        smc_summary=smc_summary,
+        ibkr_news_provider_status=status.to_dict(),
+        instruction=instruction,
+        notes=notes,
+        paper_only=True,
+        block_live_trading=True,
+    )
+
+
+@app.command("research-report")
+def research_report_cmd(
+    telegram: bool = typer.Option(
+        False,
+        "--telegram",
+        help="Also send a short Chinese digest via Telegram (graceful if creds missing).",
+    ),
+    full: bool = typer.Option(
+        False,
+        "--full",
+        help="Send the full Markdown report via Telegram (split into Part i/N).",
+    ),
+    use_ibkr: bool = typer.Option(
+        True,
+        "--ibkr/--no-ibkr",
+        help="Fetch fresh IBKR news (default). Use --no-ibkr to skip the connect.",
+    ),
+) -> None:
+    """Build the v2 Research Report (JSON + instructions JSON + Markdown).
+
+    Never places orders, never enables live trading. IBKR connection is
+    opened only when ``--ibkr`` is on AND the watchlist is non-empty.
+    """
+    from .news_report_zh import split_for_telegram
+    from .notifications.telegram import send_telegram_message
+    from .research_intelligence import (
+        render_markdown_report,
+        render_telegram_digest,
+        write_research_artifacts,
+    )
+
+    cfg, journal = _bootstrap()
+
+    report = _build_research_report(cfg, use_ibkr=use_ibkr)
+
+    paths = write_research_artifacts(
+        report,
+        research_dir=cfg.absolute("data/research"),
+        memory_path=cfg.absolute("memory/RESEARCH-REPORT.md"),
+    )
+
+    summary = (
+        f"date={report.date}\n"
+        f"watchlist={len(report.watchlist_today)}\n"
+        f"macro_events={len(report.macro_events)}\n"
+        f"ibkr_news_items={len(report.ibkr_news)}\n"
+        f"themes={len(report.themes)}\n"
+        f"priority={len(report.instruction.priority_watchlist)}\n"
+        f"blocked={len(report.instruction.blocked_symbols)}\n"
+        f"manual_review={len(report.instruction.manual_review_symbols)}\n"
+        f"soft_flagged={len(report.instruction.soft_flag_symbols)}\n"
+        f"auto_paper_allowed={report.instruction.auto_paper_allowed}\n"
+        f"paper_only={report.paper_only}\n"
+        f"report_json={paths['report_json']}\n"
+        f"instruction_json={paths['instruction_json']}\n"
+        f"markdown={paths['markdown']}"
+    )
+    console.print(
+        Panel.fit(summary, title="research-report", style="cyan")
+    )
+    journal.record_event(
+        category="research_report",
+        level="INFO",
+        message="research-report generated",
+        payload={
+            "date": report.date,
+            "paths": paths,
+            "ibkr_news_available": bool(
+                report.ibkr_news_provider_status.get("ibkr_news_available")
+            ),
+            "headline_count": len(report.ibkr_news),
+            "auto_paper_allowed": report.instruction.auto_paper_allowed,
+        },
+    )
+
+    if telegram or full:
+        text = (
+            render_markdown_report(report)
+            if full
+            else render_telegram_digest(report)
+        )
+        limit = int(
+            (cfg.telegram_cfg or {}).get("max_message_length", 3500) or 3500
+        )
+        parts = split_for_telegram(text, limit=limit)
+        for part in parts:
+            send_telegram_message(part, cfg=cfg, journal=journal)
+        console.print(
+            f"[cyan]Telegram parts queued: {len(parts)} "
+            f"(limit={limit}, full={full})[/cyan]"
+        )
+
+    console.print(
+        "[dim]execution_allowed=false. This CLI never places orders "
+        "and never modifies broker state.[/dim]"
+    )
+    raise typer.Exit(code=0)
+
+
+@app.command("research-status")
+def research_status_cmd() -> None:
+    """Show the freshness/health of the latest research report."""
+    cfg, _journal = _bootstrap()
+    research_dir = cfg.absolute("data/research")
+    report_files = (
+        sorted(research_dir.glob("*-research-report.json"))
+        if research_dir.exists()
+        else []
+    )
+    inst_files = (
+        sorted(research_dir.glob("*-research-instructions.json"))
+        if research_dir.exists()
+        else []
+    )
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    status_payload: dict[str, object] = {
+        "today_utc": today,
+        "research_dir": str(research_dir),
+        "report_files": [str(p) for p in report_files[-5:]],
+        "instruction_files": [str(p) for p in inst_files[-5:]],
+    }
+
+    if report_files:
+        latest = report_files[-1]
+        status_payload["latest_report"] = str(latest)
+        try:
+            with latest.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            report_date = str(data.get("date") or "")
+            status_payload["latest_date"] = report_date
+            status_payload["stale"] = report_date != today
+            status_payload["paper_only"] = bool(data.get("paper_only", True))
+            ip = data.get("instruction") or {}
+            status_payload["auto_paper_allowed"] = bool(
+                ip.get("auto_paper_allowed", False)
+            )
+            status_payload["priority_count"] = len(ip.get("priority_watchlist") or [])
+            status_payload["blocked_count"] = len(ip.get("blocked_symbols") or [])
+        except (OSError, json.JSONDecodeError) as exc:
+            status_payload["error"] = f"could not parse latest report: {exc!r}"
+    else:
+        status_payload["latest_report"] = None
+        status_payload["stale"] = True
+        status_payload["notes"] = [
+            "No research report yet. Run `python -m bot.cli research-report` first."
+        ]
+
+    console.print(
+        Panel.fit(
+            json.dumps(status_payload, ensure_ascii=False, indent=2, default=str),
+            title="research-status",
+            style="cyan" if not status_payload.get("stale") else "yellow",
+        )
+    )
+    raise typer.Exit(code=0)
+
+
+@app.command("research-instructions")
+def research_instructions_cmd(
+    latest: bool = typer.Option(
+        True, "--latest/--all", help="Show the latest instruction packet (default) or all."
+    ),
+) -> None:
+    """Print the machine-readable research instruction JSON."""
+    cfg, _journal = _bootstrap()
+    research_dir = cfg.absolute("data/research")
+    files = (
+        sorted(research_dir.glob("*-research-instructions.json"))
+        if research_dir.exists()
+        else []
+    )
+    if not files:
+        console.print(
+            "[yellow]No research instructions found. Run "
+            "`python -m bot.cli research-report` first.[/yellow]"
+        )
+        raise typer.Exit(code=2)
+
+    targets = files[-1:] if latest else files
+    for path in targets:
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            console.print(f"[red]could not read {path}: {exc!r}[/red]")
+            continue
+        console.print(
+            Panel.fit(
+                json.dumps(data, ensure_ascii=False, indent=2, default=str),
+                title=f"research-instructions: {path.name}",
+                style="cyan",
+            )
+        )
     raise typer.Exit(code=0)
 
 

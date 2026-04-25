@@ -20,6 +20,8 @@ Rules:
 
 from __future__ import annotations
 
+import re
+
 # Subcommand of ``python -m bot.cli`` -> human-readable description.
 ALLOWED_COMMANDS: dict[str, str] = {
     "paper-reconcile": "Read-only paper reconciliation (broker vs local).",
@@ -29,9 +31,11 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "build-watchlist": "Rebuild the dynamic watchlist for today.",
     "scan-mtf-smc-watchlist": "Run MTF SMC/ICT scan over the current watchlist.",
     "mtf-near-alignment-alert": "Surface near-alignment candidates from latest scan.",
-    "research-report": "Generate a research report (Perplexity if configured).",
-    "research-status": "Show research module status / last run.",
-    "macro-calendar": "Show the macro economic calendar relevant to today.",
+    "research-report": "Generate the v2 Research Intelligence report (paper-only).",
+    "research-status": "Show freshness / health of the latest research report.",
+    "macro-calendar": "Show the manual macro economic calendar (config/macro_calendar.yaml).",
+    "ibkr-news-status": "Probe IBKR news provider entitlements (read-only connect).",
+    "ibkr-news-fetch": "Fetch IBKR news for symbols and cache it (read-only connect).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -81,3 +85,120 @@ def is_allowed(command: str) -> bool:
     if is_forbidden(command):
         return False
     return command in ALLOWED_COMMANDS
+
+
+# ---------------------------------------------------------------------------
+# Per-command argument validators
+# ---------------------------------------------------------------------------
+# Strict comma-separated UPPER-case tickers, max 5 chars each, no spaces.
+_TICKER_LIST_RE = re.compile(r"^[A-Z]{1,5}(?:,[A-Z]{1,5})*$")
+
+_IBKR_NEWS_FETCH_LIMIT_MIN = 1
+_IBKR_NEWS_FETCH_LIMIT_MAX = 200
+_IBKR_NEWS_FETCH_ALLOWED_FLAGS: frozenset[str] = frozenset({"--symbols", "--limit"})
+
+
+def validate_ibkr_news_fetch_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Tight validator for ``ibkr-news-fetch``.
+
+    Required: ``--symbols AAPL,TSLA,...`` (comma-separated UPPER tickers).
+    Optional: ``--limit N`` where 1 <= N <= 200.
+    Anything else (extra positional args, unknown flags, junk) is rejected.
+    """
+    flags: dict[str, str] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token not in _IBKR_NEWS_FETCH_ALLOWED_FLAGS:
+            return False, (
+                f"ibkr-news-fetch: unexpected token {token!r}; only "
+                f"{sorted(_IBKR_NEWS_FETCH_ALLOWED_FLAGS)} are allowed."
+            )
+        if i + 1 >= len(args):
+            return False, f"ibkr-news-fetch: flag {token!r} requires a value."
+        flags[token] = args[i + 1]
+        i += 2
+
+    if "--symbols" not in flags:
+        return False, "ibkr-news-fetch: --symbols is required."
+
+    symbols_raw = flags["--symbols"]
+    if not _TICKER_LIST_RE.match(symbols_raw):
+        return False, (
+            "ibkr-news-fetch: --symbols must match "
+            "^[A-Z]{1,5}(,[A-Z]{1,5})*$ (e.g. AAPL,TSLA,NVDA)."
+        )
+
+    if "--limit" in flags:
+        try:
+            n = int(flags["--limit"])
+        except ValueError:
+            return False, "ibkr-news-fetch: --limit must be an integer."
+        if not (_IBKR_NEWS_FETCH_LIMIT_MIN <= n <= _IBKR_NEWS_FETCH_LIMIT_MAX):
+            return False, (
+                f"ibkr-news-fetch: --limit must be in "
+                f"[{_IBKR_NEWS_FETCH_LIMIT_MIN}, {_IBKR_NEWS_FETCH_LIMIT_MAX}]."
+            )
+
+    return True, ""
+
+
+# Strict YYYY-MM-DD pattern for macro-calendar --date.
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_MACRO_CALENDAR_ALLOWED_FLAGS: frozenset[str] = frozenset({"--today", "--date"})
+
+
+def validate_macro_calendar_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Allow only ``--today`` and ``--date YYYY-MM-DD``.
+
+    Both are optional; together they're mutually exclusive in practice
+    (the CLI handles precedence).
+    """
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--today":
+            i += 1
+            continue
+        if token == "--date":
+            if i + 1 >= len(args):
+                return False, "macro-calendar: --date requires YYYY-MM-DD."
+            value = args[i + 1]
+            if not _DATE_RE.match(value):
+                return False, "macro-calendar: --date must be YYYY-MM-DD."
+            i += 2
+            continue
+        if token not in _MACRO_CALENDAR_ALLOWED_FLAGS:
+            return False, (
+                f"macro-calendar: unexpected token {token!r}; only "
+                f"{sorted(_MACRO_CALENDAR_ALLOWED_FLAGS)} are allowed."
+            )
+        i += 1
+    return True, ""
+
+
+# Optional flags accepted on research-report.
+_RESEARCH_REPORT_ALLOWED_FLAGS: frozenset[str] = frozenset(
+    {"--telegram", "--full", "--ibkr", "--no-ibkr"}
+)
+
+
+def validate_research_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    for token in args:
+        if token not in _RESEARCH_REPORT_ALLOWED_FLAGS:
+            return False, (
+                f"research-report: unexpected token {token!r}; only "
+                f"{sorted(_RESEARCH_REPORT_ALLOWED_FLAGS)} are allowed."
+            )
+    return True, ""
+
+
+def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
+    """Dispatch to the per-command validator. Default: accept (no extra rules)."""
+    if command == "ibkr-news-fetch":
+        return validate_ibkr_news_fetch_args(args)
+    if command == "macro-calendar":
+        return validate_macro_calendar_args(args)
+    if command == "research-report":
+        return validate_research_report_args(args)
+    return True, ""

@@ -146,6 +146,35 @@ Notes:
   so that UI templates and tests can assert "this is the same file the
   worker is reading."
 
+## Research Intelligence Layer v2 (Prompt 13B)
+
+A separate UI page at `/research` reads research artefacts written by
+`python -m bot.cli research-report`. The same hard rules apply: the UI
+NEVER imports `bot.ibkr_client` or any provider module on render; it
+only reads files. IBKR connection happens exclusively when the operator
+clicks a button that runs an allowlisted CLI command, or when the
+worker calls the CLI directly.
+
+| Purpose                                    | Canonical path                                                      | Producer                                                                          | Consumer                                                            |
+|--------------------------------------------|---------------------------------------------------------------------|-----------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| Manual macro calendar (input)              | `config/macro_calendar.yaml`                                        | Operator (committed YAML)                                                         | `bot.research_providers.manual_macro_calendar.load_macro_calendar`  |
+| IBKR news cache (per-day)                  | `data/research/cache/ibkr_news/<YYYY-MM-DD>-news.json`              | `python -m bot.cli ibkr-news-fetch`                                               | `bot.cli._build_research_report` (fallback when fresh fetch fails)  |
+| Research report (per-day, full payload)    | `data/research/<YYYY-MM-DD>-research-report.json`                   | `python -m bot.cli research-report`                                               | `LocalFileStateStore.get_research_summary`, `/research` UI page     |
+| Research instruction (per-day, machine-readable) | `data/research/<YYYY-MM-DD>-research-instructions.json`        | `python -m bot.cli research-report`                                               | `LocalFileStateStore.get_research_summary`, future strategy engine  |
+| Latest Chinese Markdown summary            | `memory/RESEARCH-REPORT.md`                                         | `python -m bot.cli research-report`                                               | `/research` UI page (excerpt), human review                         |
+
+UI command runner allowlist additions for v2:
+
+- `research-report` (with optional `--telegram`, `--full`, `--ibkr`/`--no-ibkr`)
+- `research-status`
+- `macro-calendar` (with optional `--today` or strict `--date YYYY-MM-DD`)
+- `ibkr-news-status`
+- `ibkr-news-fetch` (`--symbols ^[A-Z]{1,5}(,[A-Z]{1,5})*$` and `--limit 1..200`)
+
+All other CLI subcommands (especially `auto-paper-mtf`, `place-order`,
+`run-auto-paper-mtf-loop`, `telegram-listen`, `run-scheduler`) remain
+forbidden via `bot_ui.services.safety.FORBIDDEN_COMMAND_TOKENS`.
+
 This contract is enforced by tests in `tests/test_ui_state_store.py`
 (`test_runtime_flags_paths_match_worker_module`,
 `test_paper_route_writes_canonical_kill_switch`,

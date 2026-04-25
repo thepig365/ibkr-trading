@@ -46,6 +46,7 @@ _ALLOWED_RETURNS = {
     "/watchlist",
     "/signals",
     "/paper",
+    "/research",
     "/logs",
     "/settings",
 }

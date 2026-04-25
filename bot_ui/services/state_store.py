@@ -139,6 +139,42 @@ class SafetyView:
     issues: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ResearchSummary:
+    """Latest Research Intelligence Layer snapshot for the UI.
+
+    All fields default to empty so the ``/research`` page renders even
+    when no report has been generated yet. The store NEVER imports
+    ``bot.ibkr_client`` to populate this — it only reads JSON files
+    written by ``python -m bot.cli research-report``.
+    """
+
+    date: str = ""
+    generated_at_utc: str = ""
+    paper_only: bool = True
+    market_regime: dict[str, Any] = field(default_factory=dict)
+    macro_events: list[dict[str, Any]] = field(default_factory=list)
+    ibkr_news: list[dict[str, Any]] = field(default_factory=list)
+    earnings: list[dict[str, Any]] = field(default_factory=list)
+    analyst_ratings: list[dict[str, Any]] = field(default_factory=list)
+    themes: list[dict[str, Any]] = field(default_factory=list)
+    symbol_profiles: list[dict[str, Any]] = field(default_factory=list)
+    watchlist_today: list[str] = field(default_factory=list)
+    smc_summary: dict[str, Any] = field(default_factory=dict)
+    ibkr_news_provider_status: dict[str, Any] = field(default_factory=dict)
+    instruction: dict[str, Any] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
+    report_path: str | None = None
+    instruction_path: str | None = None
+    markdown_path: str | None = None
+    markdown_excerpt: str = ""
+    is_stale: bool = True
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.report_path and not self.instruction_path
+
+
 class StateStore(Protocol):
     """Read-only view of operational state used by the UI."""
 
@@ -149,6 +185,7 @@ class StateStore(Protocol):
     def loop_status(self) -> LoopStatus: ...
     def runtime_flags(self) -> RuntimeFlags: ...
     def safety_view(self) -> SafetyView: ...
+    def get_research_summary(self) -> ResearchSummary: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
 
@@ -259,6 +296,8 @@ class LocalFileStateStore:
         self.account_snapshots_jsonl = self.data_dir / "account_snapshots.jsonl"
         self.sqlite_path = self.data_dir / "trading_bot.sqlite"
         self.logs_dir = self.project_root / "logs"
+        self.research_dir = self.data_dir / "research"
+        self.research_markdown_path = self.project_root / "memory" / "RESEARCH-REPORT.md"
         # Canonical paths shared with the worker (bot/auto_paper_*.py).
         # These MUST equal the paths the worker writes / reads.
         self.kill_switch_path = self.project_root / KILL_SWITCH_RELPATH
@@ -578,6 +617,104 @@ class LocalFileStateStore:
         )
 
     # ------------------------------------------------------------------
+    # Research Intelligence Layer (Prompt 13B)
+    # ------------------------------------------------------------------
+    def get_research_summary(self) -> ResearchSummary:
+        """Read the latest research report + instruction JSON from disk.
+
+        Reads only files under ``data/research/`` and ``memory/`` — never
+        imports ``bot.ibkr_client`` or any provider module, so the UI
+        stays insulated from the IBKR socket.
+        """
+        report_path = self._latest_research_report_path()
+        instruction_path = self._latest_research_instruction_path()
+        report_data = _safe_read_json(report_path) if report_path else None
+        instruction_data = (
+            _safe_read_json(instruction_path) if instruction_path else None
+        )
+
+        # Derive a stale flag: report.date != UTC today.
+        is_stale = True
+        report_date = ""
+        if report_data:
+            report_date = str(report_data.get("date") or "")
+            from datetime import datetime, timezone  # noqa: PLC0415
+
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            is_stale = report_date != today
+
+        markdown_excerpt = ""
+        markdown_path: str | None = None
+        if self.research_markdown_path.exists():
+            markdown_path = str(self.research_markdown_path)
+            text = _safe_read_text(
+                self.research_markdown_path, max_bytes=8_000
+            ) or ""
+            markdown_excerpt = text[:8_000]
+
+        instruction = (
+            instruction_data
+            if isinstance(instruction_data, dict)
+            else (
+                report_data.get("instruction")
+                if isinstance(report_data, dict) and isinstance(report_data.get("instruction"), dict)
+                else {}
+            )
+        )
+
+        if not isinstance(report_data, dict):
+            report_data = {}
+
+        return ResearchSummary(
+            date=report_date,
+            generated_at_utc=str(report_data.get("generated_at_utc") or ""),
+            paper_only=bool(report_data.get("paper_only", True)),
+            market_regime=(
+                report_data.get("market_regime")
+                if isinstance(report_data.get("market_regime"), dict)
+                else {}
+            ),
+            macro_events=_as_list_of_dict(report_data.get("macro_events")),
+            ibkr_news=_as_list_of_dict(report_data.get("ibkr_news")),
+            earnings=_as_list_of_dict(report_data.get("earnings")),
+            analyst_ratings=_as_list_of_dict(report_data.get("analyst_ratings")),
+            themes=_as_list_of_dict(report_data.get("themes")),
+            symbol_profiles=_as_list_of_dict(report_data.get("symbol_profiles")),
+            watchlist_today=[
+                str(s) for s in (report_data.get("watchlist_today") or []) if s
+            ],
+            smc_summary=(
+                report_data.get("smc_summary")
+                if isinstance(report_data.get("smc_summary"), dict)
+                else {}
+            ),
+            ibkr_news_provider_status=(
+                report_data.get("ibkr_news_provider_status")
+                if isinstance(report_data.get("ibkr_news_provider_status"), dict)
+                else {}
+            ),
+            instruction=instruction or {},
+            notes=[str(n) for n in (report_data.get("notes") or [])],
+            report_path=str(report_path) if report_path else None,
+            instruction_path=str(instruction_path) if instruction_path else None,
+            markdown_path=markdown_path,
+            markdown_excerpt=markdown_excerpt,
+            is_stale=is_stale if (report_path or instruction_path) else True,
+        )
+
+    def _latest_research_report_path(self) -> Path | None:
+        if not self.research_dir.exists():
+            return None
+        files = sorted(self.research_dir.glob("*-research-report.json"))
+        return files[-1] if files else None
+
+    def _latest_research_instruction_path(self) -> Path | None:
+        if not self.research_dir.exists():
+            return None
+        files = sorted(self.research_dir.glob("*-research-instructions.json"))
+        return files[-1] if files else None
+
+    # ------------------------------------------------------------------
     # Logs
     # ------------------------------------------------------------------
     def list_log_files(self) -> list[Path]:
@@ -621,6 +758,13 @@ def _to_float(v: Any) -> float | None:
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+def _as_list_of_dict(value: Any) -> list[dict[str, Any]]:
+    """Coerce ``value`` into a list of dicts; non-dict items are dropped."""
+    if not isinstance(value, list):
+        return []
+    return [v for v in value if isinstance(v, dict)]
 
 
 # ---------------------------------------------------------------------------
@@ -668,6 +812,9 @@ class DatabaseStateStore:
     def safety_view(self) -> SafetyView:  # pragma: no cover - stub
         raise self._not_yet()
 
+    def get_research_summary(self) -> ResearchSummary:  # pragma: no cover - stub
+        raise self._not_yet()
+
     def list_log_files(self) -> list[Path]:  # pragma: no cover - stub
         raise self._not_yet()
 
@@ -696,6 +843,7 @@ __all__ = [
     "SignalsView",
     "LoopStatus",
     "RuntimeFlags",
+    "ResearchSummary",
     "SafetyView",
     "StateStore",
     "LocalFileStateStore",

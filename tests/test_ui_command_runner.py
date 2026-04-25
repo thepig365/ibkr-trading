@@ -81,12 +81,21 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Per-command default args that satisfy each command's validator. Most
+# commands accept an empty arg list; ``ibkr-news-fetch`` legitimately
+# requires ``--symbols``.
+_DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
+    "ibkr-news-fetch": ("--symbols", "AAPL,TSLA,NVDA", "--limit", "50"),
+}
+
+
 @pytest.mark.parametrize(
     "command",
     sorted(ALLOWED_COMMANDS),
 )
 def test_validate_request_accepts_allowlisted(command: str) -> None:
-    accepted, reason = validate_request(CommandRequest(command=command))
+    args = _DEFAULT_ARGS_FOR.get(command, ())
+    accepted, reason = validate_request(CommandRequest(command=command, args=args))
     assert accepted is True, reason
     assert reason == ""
 
