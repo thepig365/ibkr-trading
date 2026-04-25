@@ -18,6 +18,7 @@ import csv
 import json
 import logging
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -171,20 +172,53 @@ def _configure_logging(cfg: AppConfig, verbose: bool) -> None:
             lg.addFilter(status_filter)
 
 
-def _connect(cfg: AppConfig, *, readonly: bool = True) -> IBKRClient:
+def _connect(
+    cfg: AppConfig, *, readonly: bool = True, for_cli: bool = True
+) -> IBKRClient:
+    """Connect to IBKR.
+
+    * ``for_cli=True`` (default): print a panel and use ``typer.Exit``
+      for operator-facing commands.
+    * ``for_cli=False``: used from batch/scanner code that must not
+      raise ``typer.Exit`` (e.g. MTF run embedded in
+      :class:`MultiStrategyEngine`, which would otherwise swallow
+      ``ClickException``/``Exit`` as a generic error). Renders the
+      same panel to *stderr* only, then re-raises the original
+      exception so callers can record warnings and keep stdout clean
+      for ``--json`` consumers.
+    """
     client = IBKRClient(cfg)
+    err_console = Console(stderr=True)
     try:
         client.connect(readonly=readonly)
     except LiveTradingBlocked as exc:
-        console.print(
-            Panel.fit(f"[bold red]Live trading blocked:[/bold red] {exc}", style="red")
+        if for_cli:
+            console.print(
+                Panel.fit(
+                    f"[bold red]Live trading blocked:[/bold red] {exc}", style="red"
+                )
+            )
+            raise typer.Exit(code=2)
+        err_console.print(
+            Panel.fit(
+                f"[bold red]Live trading blocked:[/bold red] {exc}", style="red"
+            )
         )
-        raise typer.Exit(code=2)
+        raise
     except IBKRClientError as exc:
-        console.print(
-            Panel.fit(f"[bold red]Connection error:[/bold red] {exc}", style="red")
+        if for_cli:
+            console.print(
+                Panel.fit(
+                    f"[bold red]Connection error:[/bold red] {exc}", style="red"
+                )
+            )
+            raise typer.Exit(code=1)
+        err_console.print(
+            Panel.fit(
+                f"[bold red]Connection error:[/bold red] {exc}", style="red"
+            )
         )
-        raise typer.Exit(code=1)
+        raise
     return client
 
 
@@ -2228,7 +2262,7 @@ def _mtf_connect_and_fetch(
     w: list[str] = []
     b = MtfCandleBundle()
     try:
-        client = _connect(cfg)
+        client = _connect(cfg, for_cli=False)
     except (IBKRClientError, LiveTradingBlocked) as exc:
         w.append(f"ibkr_connect: {exc}")
         return b, w, None
@@ -5105,7 +5139,8 @@ def multi_strategy_scan_cmd(
         },
     )
     if json_out:
-        console.print_json(data=summary.to_dict())
+        # Machine-readable only: one JSON object on stdout (no Rich panels).
+        sys.stdout.write(json.dumps(summary.to_dict(), default=str) + "\n")
     else:
         console.print(
             Panel.fit(

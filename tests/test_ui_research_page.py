@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import Any
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -156,23 +157,28 @@ def test_research_page_returns_200_with_empty_project(project: Path) -> None:
 
 def test_research_page_does_not_import_ibkr_on_render(project: Path) -> None:
     """Rendering /research must not pull in bot.ibkr_client or ib_async."""
-    sys.modules.pop("bot.ibkr_client", None)
-    sys.modules.pop("ib_async", None)
-    sys.modules.pop("bot.broker", None)
+    removed: dict[str, Any] = {}
+    for key in ("bot.ibkr_client", "ib_async", "bot.broker"):
+        if key in sys.modules:
+            removed[key] = sys.modules.pop(key)
+    try:
+        client = _client(project)
+        r = client.get("/research")
+        assert r.status_code == 200
 
-    client = _client(project)
-    r = client.get("/research")
-    assert r.status_code == 200
-
-    assert "bot.ibkr_client" not in sys.modules, (
-        "rendering /research must not import bot.ibkr_client"
-    )
-    assert "ib_async" not in sys.modules, (
-        "rendering /research must not import ib_async"
-    )
-    assert "bot.broker" not in sys.modules, (
-        "rendering /research must not import bot.broker"
-    )
+        assert "bot.ibkr_client" not in sys.modules, (
+            "rendering /research must not import bot.ibkr_client"
+        )
+        assert "ib_async" not in sys.modules, (
+            "rendering /research must not import ib_async"
+        )
+        assert "bot.broker" not in sys.modules, (
+            "rendering /research must not import bot.broker"
+        )
+    finally:
+        # Other tests re-use ``bot.cli``'s class bindings; leave sys.modules
+        # consistent for monkeypatch on ``IBKRClient`` (reconciliation, etc.).
+        sys.modules.update(removed)
 
 
 def test_research_page_surfaces_report_metadata(project: Path) -> None:

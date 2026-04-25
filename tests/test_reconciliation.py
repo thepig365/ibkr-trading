@@ -128,17 +128,19 @@ def test_reconcile_failure_triggers_notification_fallback(
     from typer.testing import CliRunner
 
     from bot import cli as cli_module
-    from bot.ibkr_client import IBKRClient
 
     def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
-    monkeypatch.setattr(IBKRClient, "connect", fake_connect)
-    monkeypatch.setattr(IBKRClient, "disconnect", lambda self: None)
+    # Patch the class object bound in ``bot.cli`` (stale
+    # ``from bot.ibkr_client import IBKRClient`` if another test removed
+    # ``bot.ibkr_client`` from ``sys.modules`` and forced a re-import).
+    monkeypatch.setattr(cli_module.IBKRClient, "connect", fake_connect)
+    monkeypatch.setattr(cli_module.IBKRClient, "disconnect", lambda self: None)
     monkeypatch.setattr(
-        IBKRClient, "get_positions", lambda self: [_row_pos("AAPL", 100)]
+        cli_module.IBKRClient, "get_positions", lambda self: [_row_pos("AAPL", 100)]
     )
-    monkeypatch.setattr(IBKRClient, "get_open_orders", lambda self: [])
+    monkeypatch.setattr(cli_module.IBKRClient, "get_open_orders", lambda self: [])
     monkeypatch.setattr(
         cli_module, "load_config", lambda: load_config(project_root=tmp_project)
     )
@@ -162,7 +164,6 @@ def test_refresh_paper_account_state_cli_read_only(
     from typer.testing import CliRunner
 
     from bot import cli as cli_module
-    from bot.ibkr_client import IBKRClient
 
     def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
@@ -178,11 +179,11 @@ def test_refresh_paper_account_state_cli_read_only(
     def fake_oo(self) -> list:
         return []
 
-    monkeypatch.setattr(IBKRClient, "connect", fake_connect)
-    monkeypatch.setattr(IBKRClient, "disconnect", lambda self: None)
-    monkeypatch.setattr(IBKRClient, "get_account_summary", fake_acct)
-    monkeypatch.setattr(IBKRClient, "get_positions", fake_pos)
-    monkeypatch.setattr(IBKRClient, "get_open_orders", fake_oo)
+    monkeypatch.setattr(cli_module.IBKRClient, "connect", fake_connect)
+    monkeypatch.setattr(cli_module.IBKRClient, "disconnect", lambda self: None)
+    monkeypatch.setattr(cli_module.IBKRClient, "get_account_summary", fake_acct)
+    monkeypatch.setattr(cli_module.IBKRClient, "get_positions", fake_pos)
+    monkeypatch.setattr(cli_module.IBKRClient, "get_open_orders", fake_oo)
     monkeypatch.setattr(
         cli_module, "load_config", lambda: load_config(project_root=tmp_project)
     )

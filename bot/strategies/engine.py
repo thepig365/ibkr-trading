@@ -35,6 +35,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from click.exceptions import Exit as ClickExit
+
 from .base import StrategyContext, StrategyScanResult, _utc_now_iso
 from .config import StrategyRuntimeConfig
 from .registry import StrategyRegistry, default_registry
@@ -184,6 +186,10 @@ class MultiStrategyEngine:
             )
             try:
                 result = strategy.scan(sub_ctx)
+            except ClickExit:
+                raise
+            except SystemExit:
+                raise
             except Exception as exc:  # noqa: BLE001
                 LOG.exception("strategy %s scan raised", key)
                 now = _utc_now_iso()

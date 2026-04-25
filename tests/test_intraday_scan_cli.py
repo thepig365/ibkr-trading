@@ -84,7 +84,11 @@ def _make_project(tmp_path: Path) -> Path:
 
 
 def _run_cli(
-    args: list[str], *, cwd: Path, timeout: int = 60
+    args: list[str],
+    *,
+    cwd: Path,
+    timeout: int = 60,
+    config_root: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["IBKR_ACCOUNT_MODE"] = "paper"
@@ -93,6 +97,9 @@ def _run_cli(
     env.setdefault("IBKR_HOST", "127.0.0.1")
     env.setdefault("IBKR_PORT", "65530")  # closed port
     env.setdefault("IBKR_CLIENT_ID", "9999")
+    # Hermetic data/ + config/ (overrides repo-root ``load_config`` default).
+    if config_root is not None:
+        env["IBKR_TRADING_PROJECT_ROOT"] = str(config_root.resolve())
     return subprocess.run(
         [sys.executable, "-m", "bot.cli", *args],
         cwd=str(cwd),
@@ -229,6 +236,7 @@ def test_cli_watchlist_dynamic_without_built_watchlist_exits_3(
             "--limit", "2",
         ],
         cwd=proj,
+        config_root=proj,
     )
     assert p.returncode == 3, p.stdout + p.stderr
     assert "Build dynamic watchlist" in (p.stdout + p.stderr)

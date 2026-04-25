@@ -391,6 +391,25 @@ def _load_env(project_root: Path) -> tuple[IBKREnv, TelegramEnv, PerplexityEnv]:
     return ibkr, telegram, perplexity
 
 
+def _project_root_from_environment() -> Path | None:
+    """Optional hermetic project root for subprocess/CLI tests.
+
+    When set, all ``data/`` and ``config/`` resolution follows this
+    directory instead of the install location. Recognised (first wins)::
+
+    * ``IBKR_TRADING_PROJECT_ROOT`` — preferred, explicit
+    * ``BOT_PROJECT_ROOT`` — legacy alias (see e.g. chart CLI tests)
+    """
+    for key in ("IBKR_TRADING_PROJECT_ROOT", "BOT_PROJECT_ROOT"):
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            continue
+        p = Path(raw).expanduser().resolve()
+        if p.is_dir():
+            return p
+    return None
+
+
 def load_config(
     project_root: Path | None = None,
     settings_path: Path | None = None,
@@ -405,7 +424,7 @@ def load_config(
     Parameters are exposed mainly for tests; production code calls
     `load_config()` with no arguments.
     """
-    root = project_root or PROJECT_ROOT
+    root = project_root or _project_root_from_environment() or PROJECT_ROOT
     s_path = settings_path or (root / "config" / "settings.yaml")
     s_local = root / "config" / "settings.local.yaml"
     st_path = strategy_path or (root / "config" / "strategy.yaml")

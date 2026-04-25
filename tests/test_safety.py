@@ -113,7 +113,6 @@ def test_broker_submission_path_still_disabled_in_foundation(
 def test_cli_portfolio_does_not_call_place_order(monkeypatch, tmp_project: Path) -> None:
     """`bot.cli portfolio` must not invoke any order-placement path."""
     from bot import cli as cli_module
-    from bot.ibkr_client import IBKRClient
 
     # Stub the connect method so we never touch a real socket.
     fake_summary = []
@@ -122,10 +121,12 @@ def test_cli_portfolio_does_not_call_place_order(monkeypatch, tmp_project: Path)
     def fake_connect(self, timeout: float = 10.0, *args, **kwargs) -> None:
         self._ib = MagicMock(isConnected=lambda: True)
 
-    monkeypatch.setattr(IBKRClient, "connect", fake_connect)
-    monkeypatch.setattr(IBKRClient, "disconnect", lambda self: None)
-    monkeypatch.setattr(IBKRClient, "get_account_summary", lambda self, account=None: fake_summary)
-    monkeypatch.setattr(IBKRClient, "get_positions", lambda self: fake_positions)
+    monkeypatch.setattr(cli_module.IBKRClient, "connect", fake_connect)
+    monkeypatch.setattr(cli_module.IBKRClient, "disconnect", lambda self: None)
+    monkeypatch.setattr(
+        cli_module.IBKRClient, "get_account_summary", lambda self, account=None: fake_summary
+    )
+    monkeypatch.setattr(cli_module.IBKRClient, "get_positions", lambda self: fake_positions)
     monkeypatch.setattr(cli_module, "load_config", lambda: load_config(project_root=tmp_project))
 
     sentinel = MagicMock(side_effect=AssertionError("place_order must not be called"))

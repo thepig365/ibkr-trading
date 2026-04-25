@@ -177,22 +177,26 @@ def test_journal_route_module_does_not_import_broker_or_ibkr() -> None:
     cause :mod:`bot.broker` / :mod:`bot.ibkr_client` to load."""
     import importlib
     import sys as _sys
+    from typing import Any
 
-    # Force a clean baseline: remove any cached versions.
-    for key in [
+    to_clear = [
         k for k in list(_sys.modules)
         if k in {"bot.broker", "bot.ibkr_client"}
-        or k.startswith("ib_async") or k.startswith("ib_insync")
-    ]:
-        _sys.modules.pop(key, None)
-    importlib.import_module("bot_ui.routes.journal")
-    # Now check none of the IBKR-touching modules got loaded.
-    leaked = [
-        m for m in _sys.modules
-        if m in {"bot.broker", "bot.ibkr_client"}
-        or m.startswith("ib_async") or m.startswith("ib_insync")
+        or k.startswith("ib_async")
+        or k.startswith("ib_insync")
     ]
-    assert leaked == [], f"/journal route leaked broker imports: {leaked}"
+    removed: dict[str, Any] = {k: _sys.modules.pop(k) for k in to_clear if k in _sys.modules}
+    try:
+        importlib.import_module("bot_ui.routes.journal")
+        leaked = [
+            m for m in _sys.modules
+            if m in {"bot.broker", "bot.ibkr_client"}
+            or m.startswith("ib_async")
+            or m.startswith("ib_insync")
+        ]
+        assert leaked == [], f"/journal route leaked broker imports: {leaked}"
+    finally:
+        _sys.modules.update(removed)
 
 
 def test_journal_template_does_not_have_order_submit_form(project: Path) -> None:
