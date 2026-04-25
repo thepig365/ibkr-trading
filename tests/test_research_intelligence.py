@@ -217,7 +217,27 @@ def test_instruction_paper_only_invariant() -> None:
         smc_summary={},
     )
     assert inst.paper_only is True
-    assert inst.auto_paper_allowed is False  # because regime blocks
+    assert inst.auto_paper_allowed is True  # regime alone does not flip the hint
+    assert any("new_positions_allowed=false" in n for n in inst.bot_notes)
+
+
+def test_instruction_auto_paper_false_only_on_per_symbol_hard_block() -> None:
+    profiles = aggregate_symbol_profiles(
+        classified_events=[_ev("XYZ", "hard_block", "regulatory_legal")],
+        themes=[],
+        watchlist_symbols=["XYZ"],
+    )
+    inst = build_instruction(
+        date="2026-04-25",
+        market_regime={"market_regime": "neutral", "new_positions_allowed": True},
+        macro_events=[],
+        ibkr_news_provider_status={},
+        symbol_profiles=profiles,
+        watchlist_symbols=["XYZ"],
+        smc_summary={},
+    )
+    assert inst.auto_paper_allowed is False
+    assert inst.blocked_symbols == ["XYZ"]
 
 
 def test_instruction_json_schema_fields() -> None:

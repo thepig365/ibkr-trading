@@ -104,7 +104,10 @@ def build_engine_status_payload(
     jlogs: list[Path] = sorted(porders.glob("*.jsonl")) if porders.is_dir() else []
 
     artifacts: dict[str, Any] = {
-        "latest_research_json": _latest_under(Path(cfg.absolute("data/research")), "*.json"),
+        "latest_research_json": _latest_under(Path(cfg.absolute("data/research")), "*-research-report.json"),
+        "latest_research_instructions": _latest_under(
+            Path(cfg.absolute("data/research")), "*-research-instructions.json"
+        ),
         "latest_dynamic_watchlist": _latest_under(
             Path(cfg.absolute("data/watchlists")), "*-dynamic-watchlist.json"
         ),

@@ -189,8 +189,9 @@ class ResearchInstruction:
     """Machine-readable instruction packet consumed by other modules.
 
     The shape mirrors PART F in the prompt. ``auto_paper_allowed`` is
-    derived only from market regime + hard blocks; macro / news risks
-    do not flip it (those become soft flags).
+    **False** only when at least one symbol is hard-blocked; regime/VIX
+    / macro / news are advisory (``bot_notes`` / soft flags), not
+    spurious off-switches for paper-forward research.
     """
 
     date: str
@@ -716,11 +717,15 @@ def build_instruction(
 ) -> ResearchInstruction:
     """Synthesise the machine-readable instruction packet.
 
-    Decision rule (deliberately conservative):
-    * Hard blocks come *only* from per-symbol ``hard_blocks``. Macro / VIX
-      missing / news risk never flip ``auto_paper_allowed`` here.
-    * ``auto_paper_allowed`` is also gated on the regime's
-      ``new_positions_allowed`` field (defaults to True if missing).
+    Decision rule (research-hint, not a broker execution gate):
+    * ``auto_paper_allowed`` is *False* only when at least one watchlist
+      symbol has a per-symbol ``hard_block``. Macro events, VIX gaps,
+      incomplete news, and regime posture are **tagged in notes / soft flags
+      only** so paper-forward testing is not spuriously disabled.
+    * The regime's ``new_positions_allowed`` (and missing VIX, etc.) are
+      reflected in ``bot_notes`` for the operator; actual paper brackets remain
+      gated by ``trading.intraday_paper``, kill switch, reconciliation, and
+      runtime flags in the execution layer.
     """
     profiles = list(symbol_profiles)
     blocked = sorted({p.symbol for p in profiles if p.hard_blocks})
@@ -745,11 +750,14 @@ def build_instruction(
     priority_pool = [s for s in priority_pool if s not in blocked]
 
     regime_allows = bool(market_regime.get("new_positions_allowed", True))
-    auto_paper_allowed = regime_allows and not blocked
+    auto_paper_allowed = not bool(blocked)
 
     notes = list(extra_notes)
     if not regime_allows:
-        notes.append("market regime blocks new positions (new_positions_allowed=false)")
+        notes.append(
+            "market regime: new_positions_allowed=false (advisory; does not by itself "
+            "disable this research auto-paper hint; execution still uses local config/KS/reconcile)"
+        )
     if blocked:
         notes.append(f"{len(blocked)} hard-blocked symbol(s)")
     if not ibkr_news_provider_status.get("ibkr_news_available", False):

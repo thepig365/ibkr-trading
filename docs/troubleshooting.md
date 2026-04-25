@@ -5,6 +5,16 @@
 
 ---
 
+## 有信号 / 流程正常，但「没有下单」或 Paper pass 全跳过
+
+1. 在 **Paper** 页看 **Intraday** 卡片区 **skipped** 原因（如 `trading.intraday_paper.enabled=false`、未开 runtime、对账、Kill、时段外、无 READY 等）。  
+2. 运行 `python3 -m bot.cli intraday-paper-status --json` 看结构化输出（只读、不连 IBKR）。  
+3. 读 **`data/runtime/intraday_auto_paper_loop_state.json`** 里 `last_reason` / `skipped_reasons`（**勿**当作文档提交到 git）。  
+4. 确认 `paper-reconcile` 为 **PASS**（若你期望通过券商下纸单）。  
+5. 研究层 **`auto_paper_allowed`** 为否**不一定**表示执行被挡：先查是否有 **per-symbol hard block**；宏观/VIX 多为软提醒（见 `docs/strategy-lab-user-manual.md` §6.2）。
+
+---
+
 ## UI 起不来
 
 0. **macOS**：双击打 `Start Strategy Lab.command` 若被系统拦截、或提示无法执行，见 `docs/mac-launchers.md`（`chmod +x`、右键「打开」等）。  

@@ -5,6 +5,20 @@
 
 **macOS 推荐首选：** 在仓库根目录**双击** `Start Strategy Lab.command` 启动并打开浏览器；收工可双击 `Stop Strategy Lab.command`。说明见 `docs/mac-launchers.md`。（终端下仍可用 `./scripts/start_strategy_lab_ui.sh` 等。）
 
+## 第一次端到端纸面验证（E2E）
+
+> 与 `docs/strategy-lab-user-manual.md` 中 **§6.1** 同序；这里作清单勾选用。
+
+- [ ] 纸面 TWS/IB Gateway 已开（需券商步骤时）  
+- [ ] 双击或脚本 **启动 UI**  
+- [ ] **Research Report**（UI 或 CLI）  
+- [ ] **Build Watchlist**（有 IBKR 时）  
+- [ ] **Intraday Scan**（生成 `data/intraday_smc/` 汇总）  
+- [ ] **Backtest** 或 `backtest-report --latest`  
+- [ ] **Paper** 看 status / 可跑一次 **Intraday Paper Pass**（是否发单以配置+对账+信号为准）  
+- [ ] **Journal**、**Logs**、（可选）Telegram  
+- [ ] 若仍无单：见用户手册 **「为什么没有下单？」** 与 `docs/troubleshooting.md`  
+
 ---
 
 ## 盘前

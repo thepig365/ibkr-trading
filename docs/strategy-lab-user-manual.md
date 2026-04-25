@@ -98,6 +98,40 @@ python3 -m bot.cli engine-status --json
 python3 -m bot.cli engine-status --json --probe-ui
 ```
 
+### 6.1 第一次端到端验证流程
+
+第一次把整条「研究 → 表 → 扫描 → 回测 → 纸面 → 日志」走通时，建议顺序如下（**纸账户；不下实盘单**）：
+
+1. 打开 **TWS / IB Gateway 纸面**（若你要 build-watchlist、扫描、对账、纸 pass 等需要连券商端口的步骤；仅看 UI 可跳过）。  
+2. **启动 UI**（推荐 macOS 双击 `Start Strategy Lab.command`，或 `./scripts/start_strategy_lab_ui.sh`）。  
+3. 在 **Research** 用白名单运行 **Run Research Report**（或 `python3 -m bot.cli research-report`）。  
+4. 在终端或 **Watchlist** 相关流程跑 **Build Watchlist**（`build-watchlist --ibkr` 等，视配置而定）。  
+5. 在 **Signals** 侧跑 **Intraday Scan**（`scan-intraday-smc-watchlist`），确认 `data/intraday_smc/` 有最新汇总。  
+6. 在 **Backtest** 用缓存跑一笔小回测，或 `backtest-report --latest` 看最新摘要。  
+7. 在 **Paper** 看 `intraday-paper-status`、Kill/ runtime 与 **Run One Intraday Paper Pass**；是否真实向纸账户发 bracket **仍受** `trading.intraday_paper`、对账、Kill、交易时段、信号等共同约束。  
+8. 打开 **Journal / Logs** 与（若配置）**Telegram**，核对是否有新审计行或通知。  
+9. 收工可 **停止 UI**（`Stop Strategy Lab.command` 或 `stop_strategy_lab_ui.sh`），不必为关 UI 而关 TWS。
+
+> 研究指令里 **`auto_paper_allowed` 为否** 时，多表示**存在 per-symbol 硬挡**；宏观/VIX/新闻以软标与 `bot_notes` 提醒为主。真正是否下单仍由**执行层**（配置、对账、Kill、runtime）决定。详见下一小节。
+
+### 6.2 为什么没有下单？
+
+在 **Intraday 纸面 pass** 或 **自动纸** 中「没有发出 bracket」时，常见**只读原因**（非完整列表，以当次命令输出和 Paper 卡片区为准）：
+
+| 情况 | 说明 |
+|------|------|
+| `trading.intraday_paper.enabled=false` | 在 `config/settings.yaml` 侧关闭；**不要**为测试去改你本地被保护的 `settings.local.yaml` 除非你有意。 |
+| Intraday **runtime 未开** | `data/runtime/intraday_auto_paper_enabled` 未显式打开（自动 pass 会跳过；「一键 pass」仍可能跑但受配置/时段限制，见当次结果）。 |
+| **Kill Switch** 激活 | 存在 `data/KILL_SWITCH`。 |
+| **对账未通过** | `paper-reconcile` 不 PASS 时执行层会拒绝新风险。 |
+| **没有 READY 信号** | 扫描汇总里无 `DAY_TRADE_READY_*` 等可落单档位。 |
+| **bracket 无效** | 止损/目标等不满足约束。 |
+| **重复仓位/重复挂单** | 与已有持仓或订单冲突。 |
+| **不在允许交易窗** | 如 NY 时间早于/晚于配置的新仓窗口。 |
+| **IBKR 不可用** | 端口未连、只读等。 |
+
+**不会**在 UI 渲染时偷偷连 TWS 或下单；**不会**在默认配置下发「实盘」或**市价**单。纸面为 LIMIT bracket（父限价 + 子止损/目标），由 Broker/配置双重约束。
+
 ---
 
 ## 7. Research Mode 怎么用
