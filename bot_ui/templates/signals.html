@@ -1,77 +1,211 @@
 {% extends "base.html" %}
-{% block title %}Signals (MTF SMC){% endblock %}
-{% block subtitle %}<div class="page-sub">Latest MTF SMC/ICT scan summary. Read-only view; the buttons re-run the scan.</div>{% endblock %}
+{% block title %}Signals{% endblock %}
+{% block subtitle %}<div class="page-sub">Latest scan summaries. Read-only view; the buttons re-run the scans. Research-only — no orders, no live trading.</div>{% endblock %}
 
 {% block content %}
+  {% set tab = active_strategy or 'mtf_smc' %}
   <div class="section">
-    <h2>Actions</h2>
-    <div class="form-row">
-      {% with command='scan-mtf-smc-watchlist', label='Run MTF scan', return_to='/signals', btn_class='' %}
-        {% include "_command_form.html" %}
-      {% endwith %}
-      {% with command='scan-mtf-smc-watchlist', args='--limit 20', label='Run MTF scan (limit 20)', return_to='/signals', btn_class='ghost' %}
-        {% include "_command_form.html" %}
-      {% endwith %}
-      {% with command='mtf-near-alignment-alert', args='--latest', label='Near-alignment alerts (latest)', return_to='/signals', btn_class='ghost' %}
-        {% include "_command_form.html" %}
-      {% endwith %}
+    <h2>Strategy</h2>
+    <div class="form-row" style="gap:6px;">
+      <a class="btn {% if tab == 'mtf_smc' %}{% else %}ghost{% endif %}" href="{{ url_for('signals_page') }}?strategy=mtf_smc">MTF SMC</a>
+      <a class="btn {% if tab == 'ict_smc_intraday_v1' %}{% else %}ghost{% endif %}" href="{{ url_for('signals_page') }}?strategy=ict_smc_intraday_v1">ICT/SMC Intraday</a>
     </div>
-    <div class="text-small text-dim">
-      Source file: <span class="text-mono">{{ signals.file_path or '—' }}</span>
+    <div class="text-small text-dim" style="margin-top:6px;">
+      <span class="pill good">paper-only</span>
+      <span class="pill good">execution off</span>
+      Scans never place orders.
     </div>
   </div>
 
-  <div class="section">
-    <h2>Counts</h2>
-    {% if signals.counts %}
+  {% if tab == 'mtf_smc' %}
+    {# ============================================================
+       MTF SMC tab
+       ============================================================ #}
+    <div class="section">
+      <h2>Actions — MTF SMC</h2>
       <div class="form-row">
-        {% for k, v in signals.counts.items() %}
-          <span class="pill {% if k == 'FULL_ALIGNMENT' and v > 0 %}good{% elif k == 'BLOCKED' %}neutral{% elif k == 'CONFLICTED' %}warn{% else %}neutral{% endif %}">{{ k }}: {{ v }}</span>
-        {% endfor %}
+        {% with command='scan-mtf-smc-watchlist', label='Run MTF scan', return_to='/signals?strategy=mtf_smc', btn_class='' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
+        {% with command='scan-mtf-smc-watchlist', args='--limit 20', label='Run MTF scan (limit 20)', return_to='/signals?strategy=mtf_smc', btn_class='ghost' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
+        {% with command='mtf-near-alignment-alert', args='--latest', label='Near-alignment alerts (latest)', return_to='/signals?strategy=mtf_smc', btn_class='ghost' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
       </div>
-    {% else %}
-      <div class="empty">No counts yet. Run the scan above.</div>
-    {% endif %}
-  </div>
+      <div class="text-small text-dim">
+        Source file: <span class="text-mono">{{ signals.file_path or '—' }}</span>
+      </div>
+    </div>
 
-  <div class="section">
-    <h2>Top by alignment score</h2>
-    {% if signals.top %}
-      <table>
-        <thead>
-          <tr><th>Symbol</th><th>Alignment</th><th class="num">Score</th><th>Eligible (paper)</th></tr>
-        </thead>
-        <tbody>
-          {% for s in signals.top %}
-          <tr>
-            <td class="text-mono">{{ s.symbol }}</td>
-            <td>
-              {% if s.alignment_category == 'FULL_ALIGNMENT' %}<span class="pill good">{{ s.alignment_category }}</span>
-              {% elif s.alignment_category == 'BLOCKED' %}<span class="pill bad">{{ s.alignment_category }}</span>
-              {% elif s.alignment_category == 'CONFLICTED' %}<span class="pill warn">{{ s.alignment_category }}</span>
-              {% else %}<span class="pill neutral">{{ s.alignment_category }}</span>{% endif %}
-            </td>
-            <td class="num">{{ "%.0f"|format(s.mtf_alignment_score or 0) }}</td>
-            <td>{% if s.eligible_for_future_paper_trade %}<span class="pill good">YES</span>{% else %}<span class="pill neutral">no</span>{% endif %}</td>
-          </tr>
+    <div class="section">
+      <h2>Counts</h2>
+      {% if signals.counts %}
+        <div class="form-row">
+          {% for k, v in signals.counts.items() %}
+            <span class="pill {% if k == 'FULL_ALIGNMENT' and v > 0 %}good{% elif k == 'BLOCKED' %}neutral{% elif k == 'CONFLICTED' %}warn{% else %}neutral{% endif %}">{{ k }}: {{ v }}</span>
           {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <div class="empty">No signals available yet.</div>
-    {% endif %}
-  </div>
+        </div>
+      {% else %}
+        <div class="empty">No counts yet. Run the scan above.</div>
+      {% endif %}
+    </div>
 
-  <div class="section">
-    <h2>Eligible for paper bracket</h2>
-    {% if signals.eligible %}
-      <div>
-        {% for sym in signals.eligible %}<span class="pill good text-mono">{{ sym }}</span> {% endfor %}
+    <div class="section">
+      <h2>Top by alignment score</h2>
+      {% if signals.top %}
+        <table>
+          <thead>
+            <tr><th>Symbol</th><th>Alignment</th><th class="num">Score</th><th>Eligible (paper)</th></tr>
+          </thead>
+          <tbody>
+            {% for s in signals.top %}
+            <tr>
+              <td class="text-mono">{{ s.symbol }}</td>
+              <td>
+                {% if s.alignment_category == 'FULL_ALIGNMENT' %}<span class="pill good">{{ s.alignment_category }}</span>
+                {% elif s.alignment_category == 'BLOCKED' %}<span class="pill bad">{{ s.alignment_category }}</span>
+                {% elif s.alignment_category == 'CONFLICTED' %}<span class="pill warn">{{ s.alignment_category }}</span>
+                {% else %}<span class="pill neutral">{{ s.alignment_category }}</span>{% endif %}
+              </td>
+              <td class="num">{{ "%.0f"|format(s.mtf_alignment_score or 0) }}</td>
+              <td>{% if s.eligible_for_future_paper_trade %}<span class="pill good">YES</span>{% else %}<span class="pill neutral">no</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">No signals available yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <h2>Eligible for paper bracket</h2>
+      {% if signals.eligible %}
+        <div>
+          {% for sym in signals.eligible %}<span class="pill good text-mono">{{ sym }}</span> {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-dim">None right now (paper bracket placement is gated on FULL_ALIGNMENT + 5m confirmation).</div>
+      {% endif %}
+    </div>
+
+  {% else %}
+    {# ============================================================
+       ICT/SMC Intraday V1 tab (Prompt 13D)
+       ============================================================ #}
+    {% set ids = intraday_signals %}
+    <div class="section">
+      <h2>Actions — ICT/SMC Intraday V1</h2>
+      <div class="form-row">
+        {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 20 --ibkr --chart --telegram', label='Run Intraday Scan', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
+        {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 10 --ibkr', label='Quick scan (10, no chart)', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='ghost' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
       </div>
-    {% else %}
-      <div class="text-dim">None right now (paper bracket placement is gated on FULL_ALIGNMENT + 5m confirmation).</div>
+      <div class="text-small text-dim">
+        Strategy: <code>{{ ids.strategy_id }}</code>
+        · date: <code>{{ ids.date or '—' }}</code>
+        · source: <code>{{ ids.source or '—' }}</code>
+        · symbols scanned: <strong>{{ ids.symbols_scanned }}</strong>
+        <br/>Source file: <span class="text-mono">{{ ids.file_path or '—' }}</span>
+      </div>
+      <div class="text-small text-dim" style="margin-top:6px;">
+        <span class="pill {% if ids.paper_only %}good{% else %}bad{% endif %}">paper_only={{ ids.paper_only }}</span>
+        <span class="pill {% if not ids.execution_allowed %}good{% else %}bad{% endif %}">execution_allowed={{ ids.execution_allowed }}</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Counts</h2>
+      {% if ids.counts %}
+        <div class="form-row">
+          {% for k, v in ids.counts.items() %}
+            <span class="pill {% if k == 'DAY_TRADE_READY_STRICT' and v > 0 %}good{% elif k == 'DAY_TRADE_READY_AGGRESSIVE' and v > 0 %}good{% elif k == 'WATCH_ONLY' %}neutral{% elif k == 'INVALID_RISK' %}warn{% elif k in ('BLOCKED','ERROR') %}bad{% else %}neutral{% endif %}">{{ k }}: {{ v }}</span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">No intraday scan results yet. Click <em>Run Intraday Scan</em>.</div>
+      {% endif %}
+    </div>
+
+    {% if ids.ready_strict_symbols or ids.ready_aggressive_symbols or ids.watch_symbols %}
+      <div class="section">
+        <h2>Quick lists</h2>
+        {% if ids.ready_strict_symbols %}
+          <div><strong>STRICT</strong>: {% for s in ids.ready_strict_symbols %}<span class="pill good text-mono">{{ s }}</span> {% endfor %}</div>
+        {% endif %}
+        {% if ids.ready_aggressive_symbols %}
+          <div style="margin-top:4px;"><strong>AGGRESSIVE</strong>: {% for s in ids.ready_aggressive_symbols %}<span class="pill good text-mono">{{ s }}</span> {% endfor %}</div>
+        {% endif %}
+        {% if ids.watch_symbols %}
+          <div style="margin-top:4px;"><strong>WATCH</strong>: {% for s in ids.watch_symbols %}<span class="pill neutral text-mono">{{ s }}</span> {% endfor %}</div>
+        {% endif %}
+        {% if ids.invalid_symbols %}
+          <div style="margin-top:4px;"><strong>INVALID_RISK</strong>: {% for s in ids.invalid_symbols %}<span class="pill warn text-mono">{{ s }}</span> {% endfor %}</div>
+        {% endif %}
+      </div>
     {% endif %}
-  </div>
+
+    <div class="section">
+      <h2>All symbols</h2>
+      {% if ids.items %}
+        <table>
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Category</th>
+              <th>Dir</th>
+              <th class="num">Score</th>
+              <th>5m setup</th>
+              <th>1m trigger</th>
+              <th class="num">Entry</th>
+              <th class="num">Stop</th>
+              <th class="num">Target</th>
+              <th class="num">R:R</th>
+              <th>Next</th>
+              <th>Charts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in ids.items %}
+              <tr>
+                <td class="text-mono">{{ r.symbol }}</td>
+                <td>
+                  {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">STRICT</span>
+                  {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill good">AGGRESSIVE</span>
+                  {% elif r.signal_category == 'WATCH_ONLY' %}<span class="pill neutral">WATCH</span>
+                  {% elif r.signal_category == 'INVALID_RISK' %}<span class="pill warn">INVALID</span>
+                  {% elif r.signal_category == 'NO_SETUP' %}<span class="pill neutral">NO_SETUP</span>
+                  {% elif r.signal_category in ('BLOCKED', 'ERROR') %}<span class="pill bad">{{ r.signal_category }}</span>
+                  {% else %}<span class="pill neutral">{{ r.signal_category or '—' }}</span>{% endif %}
+                </td>
+                <td>{{ r.direction or '—' }}</td>
+                <td class="num">{% if r.score is not none %}{{ "%.0f"|format(r.score or 0) }}{% else %}—{% endif %}</td>
+                <td>{% if r.five_min_setup_found %}<span class="pill good">yes</span>{% else %}<span class="pill neutral">—</span>{% endif %}</td>
+                <td>{% if r.one_min_trigger_found %}<span class="pill good">yes</span>{% else %}<span class="pill neutral">—</span>{% endif %}</td>
+                <td class="num">{% if r.entry is not none %}{{ "%.2f"|format(r.entry or 0) }}{% else %}—{% endif %}</td>
+                <td class="num">{% if r.stop is not none %}{{ "%.2f"|format(r.stop or 0) }}{% else %}—{% endif %}</td>
+                <td class="num">{% if r.target is not none %}{{ "%.2f"|format(r.target or 0) }}{% else %}—{% endif %}</td>
+                <td class="num">{% if r.risk_reward is not none %}{{ "%.2f"|format(r.risk_reward or 0) }}{% else %}—{% endif %}</td>
+                <td class="text-small">{{ r.next_condition_to_watch or '—' }}</td>
+                <td class="text-small">
+                  {% if r.chart_paths %}
+                    {% for p in r.chart_paths %}<div class="text-mono">{{ p.split('/')[-1] }}</div>{% endfor %}
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">No intraday rows yet. Run a scan.</div>
+      {% endif %}
+    </div>
+  {% endif %}
 
   {% include "_recent_results.html" %}
 {% endblock %}

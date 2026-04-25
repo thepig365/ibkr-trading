@@ -137,6 +137,8 @@ class SmcTimeframesConfig(BaseModel):
     h4: TimeframeConfig | None = Field(default=None, alias="4h")
     m30: TimeframeConfig | None = Field(default=None, alias="30min")
     m5: TimeframeConfig | None = Field(default=None, alias="5min")
+    # Prompt 13D — 1min trigger timeframe for ICT/SMC Intraday V1.
+    m1: TimeframeConfig | None = Field(default=None, alias="1min")
 
     model_config = {"populate_by_name": True, "extra": "allow"}
 
@@ -153,6 +155,9 @@ class SmcTimeframesConfig(BaseModel):
         if "5min" not in data and data.get("m5") is not None:
             data["5min"] = data.pop("m5")
         data.pop("m5", None)
+        if "1min" not in data and data.get("m1") is not None:
+            data["1min"] = data.pop("m1")
+        data.pop("m1", None)
         return data
 
 

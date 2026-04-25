@@ -92,6 +92,50 @@ class SignalsView:
 
 
 @dataclass(frozen=True)
+class IntradaySignalRow:
+    """One row for the ICT/SMC Intraday signals tab (Prompt 13D)."""
+
+    symbol: str
+    signal_category: str = ""
+    direction: str = ""
+    score: float | None = None
+    five_min_setup_found: bool = False
+    one_min_trigger_found: bool = False
+    entry: float | None = None
+    stop: float | None = None
+    target: float | None = None
+    risk_reward: float | None = None
+    stop_distance_pct: float | None = None
+    next_condition_to_watch: str = ""
+    explanation_zh: str = ""
+    chart_paths: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class IntradaySignalsView:
+    """UI-ready view of latest ICT/SMC Intraday watchlist scan."""
+
+    date: str = ""
+    strategy_id: str = "ict_smc_intraday_v1"
+    source: str = ""
+    symbols_scanned: int = 0
+    paper_only: bool = True
+    execution_allowed: bool = False
+    counts: dict[str, int] = field(default_factory=dict)
+    ready_strict_symbols: list[str] = field(default_factory=list)
+    ready_aggressive_symbols: list[str] = field(default_factory=list)
+    watch_symbols: list[str] = field(default_factory=list)
+    invalid_symbols: list[str] = field(default_factory=list)
+    top_candidates: list[IntradaySignalRow] = field(default_factory=list)
+    items: list[IntradaySignalRow] = field(default_factory=list)
+    file_path: str | None = None
+
+    @property
+    def is_empty(self) -> bool:
+        return self.symbols_scanned == 0 and not self.items
+
+
+@dataclass(frozen=True)
 class LoopStatus:
     last_cycle_utc: str = ""
     last_status: str = ""
@@ -229,6 +273,7 @@ class StateStore(Protocol):
     def positions(self) -> list[PositionRow]: ...
     def watchlist(self) -> WatchlistView: ...
     def signals(self) -> SignalsView: ...
+    def intraday_signals(self) -> IntradaySignalsView: ...
     def loop_status(self) -> LoopStatus: ...
     def runtime_flags(self) -> RuntimeFlags: ...
     def safety_view(self) -> SafetyView: ...
@@ -340,6 +385,7 @@ class LocalFileStateStore:
         self.runtime_dir = self.data_dir / "runtime"
         self.watchlists_dir = self.data_dir / "watchlists"
         self.mtf_smc_dir = self.data_dir / "mtf_smc"
+        self.intraday_smc_dir = self.data_dir / "intraday_smc"
         self.auto_paper_loop_dir = self.data_dir / "auto_paper_loop"
         self.account_snapshots_jsonl = self.data_dir / "account_snapshots.jsonl"
         self.sqlite_path = self.data_dir / "trading_bot.sqlite"
@@ -565,6 +611,98 @@ class LocalFileStateStore:
         if not self.mtf_smc_dir.exists():
             return None
         candidates = sorted(self.mtf_smc_dir.glob("*-watchlist-mtf-smc-summary.json"))
+        if not candidates:
+            return None
+        return candidates[-1]
+
+    # ------------------------------------------------------------------
+    # Intraday Signals (ICT/SMC Intraday V1 — Prompt 13D)
+    # ------------------------------------------------------------------
+    def intraday_signals(self) -> IntradaySignalsView:
+        """Read the latest ICT/SMC intraday watchlist summary from disk.
+
+        Reads only ``data/intraday_smc/*-watchlist-intraday-smc-summary.json``.
+        NEVER imports ``bot.ibkr_client`` or ``bot.broker``.
+        """
+        path = self._latest_intraday_signals_path()
+        if path is None:
+            return IntradaySignalsView()
+        data = _safe_read_json(path)
+        if not data:
+            return IntradaySignalsView(file_path=str(path))
+        counts_raw = data.get("counts") or {}
+        counts: dict[str, int] = {}
+        if isinstance(counts_raw, dict):
+            for k, v in counts_raw.items():
+                try:
+                    counts[str(k)] = int(v)
+                except (TypeError, ValueError):
+                    continue
+
+        def _row_from(item: Any) -> IntradaySignalRow | None:
+            if not isinstance(item, dict):
+                return None
+            sym = str(item.get("symbol") or "").upper().strip()
+            if not sym:
+                return None
+            return IntradaySignalRow(
+                symbol=sym,
+                signal_category=str(item.get("signal_category") or ""),
+                direction=str(item.get("direction") or ""),
+                score=_to_float(item.get("score")),
+                five_min_setup_found=bool(item.get("five_min_setup_found")),
+                one_min_trigger_found=bool(item.get("one_min_trigger_found")),
+                entry=_to_float(item.get("entry")),
+                stop=_to_float(item.get("stop")),
+                target=_to_float(item.get("target")),
+                risk_reward=_to_float(item.get("risk_reward")),
+                stop_distance_pct=_to_float(item.get("stop_distance_pct")),
+                next_condition_to_watch=str(item.get("next_condition_to_watch") or ""),
+                explanation_zh=str(item.get("explanation_zh") or ""),
+                chart_paths=[
+                    str(p) for p in (item.get("chart_paths") or []) if p
+                ],
+            )
+
+        def _list(key: str) -> list[IntradaySignalRow]:
+            out: list[IntradaySignalRow] = []
+            for it in (data.get(key) or []):
+                row = _row_from(it)
+                if row is not None:
+                    out.append(row)
+            return out
+
+        return IntradaySignalsView(
+            date=str(data.get("date") or ""),
+            strategy_id=str(data.get("strategy_id") or "ict_smc_intraday_v1"),
+            source=str(data.get("source") or ""),
+            symbols_scanned=int(data.get("symbols_scanned") or 0),
+            paper_only=bool(data.get("paper_only", True)),
+            execution_allowed=bool(data.get("execution_allowed", False)),
+            counts=counts,
+            ready_strict_symbols=[
+                str(s) for s in (data.get("ready_strict_symbols") or []) if s
+            ],
+            ready_aggressive_symbols=[
+                str(s) for s in (data.get("ready_aggressive_symbols") or []) if s
+            ],
+            watch_symbols=[
+                str(s) for s in (data.get("watch_symbols") or []) if s
+            ],
+            invalid_symbols=[
+                str(s) for s in (data.get("invalid_symbols") or []) if s
+            ],
+            top_candidates=_list("top_candidates"),
+            items=_list("items"),
+            file_path=str(path),
+        )
+
+    def _latest_intraday_signals_path(self) -> Path | None:
+        if not self.intraday_smc_dir.exists():
+            return None
+        candidates = sorted(
+            self.intraday_smc_dir.glob("*-watchlist-intraday-smc-summary.json")
+        )
         if not candidates:
             return None
         return candidates[-1]
@@ -990,6 +1128,9 @@ class DatabaseStateStore:
     def signals(self) -> SignalsView:  # pragma: no cover - stub
         raise self._not_yet()
 
+    def intraday_signals(self) -> IntradaySignalsView:  # pragma: no cover - stub
+        raise self._not_yet()
+
     def loop_status(self) -> LoopStatus:  # pragma: no cover - stub
         raise self._not_yet()
 
@@ -1031,6 +1172,8 @@ __all__ = [
     "WatchlistView",
     "SignalRow",
     "SignalsView",
+    "IntradaySignalRow",
+    "IntradaySignalsView",
     "LoopStatus",
     "RuntimeFlags",
     "ResearchSummary",

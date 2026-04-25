@@ -13,15 +13,27 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _run(args: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def _run(
+    args: list[str],
+    *,
+    cwd: Path | None = None,
+    isolate_ibkr: bool = False,
+    timeout: int = 60,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["IBKR_ACCOUNT_MODE"] = "paper"
+    if isolate_ibkr:
+        # Force any IBKR connect attempt to fail fast (closed port) so
+        # the test does not depend on the developer's TWS / Gateway.
+        env["IBKR_HOST"] = "127.0.0.1"
+        env["IBKR_PORT"] = "65530"
+        env["IBKR_CLIENT_ID"] = "9999"
     return subprocess.run(
         [sys.executable, "-m", "bot.cli", *args],
         cwd=str(cwd or REPO_ROOT),
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=timeout,
         env=env,
         check=False,
     )
@@ -96,7 +108,7 @@ def test_cli_strategy_status_json_safe_with_no_scans(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "key",
-    ["chanlun_intraday_v1", "ict_smc_intraday_v1", "orb_baseline"],
+    ["chanlun_intraday_v1", "orb_baseline"],
 )
 def test_cli_strategy_scan_stub_writes_per_strategy_file(key: str) -> None:
     p = _run(["strategy-scan", "--strategy", key, "--json"])
@@ -109,6 +121,27 @@ def test_cli_strategy_scan_stub_writes_per_strategy_file(key: str) -> None:
     out = REPO_ROOT / "data" / "strategies"
     files = list(out.glob(f"*-{key}-scan.json"))
     assert files, f"no scan file written for {key}"
+
+
+def test_cli_strategy_scan_ict_smc_intraday_runs_without_orders() -> None:
+    """ICT/SMC Intraday V1 graduated from stub in 13D.
+
+    We force the IBKR connect probe to a closed port so the adapter
+    short-circuits via ``status="error"`` (or ``"skipped"`` when the
+    dynamic watchlist is missing) regardless of whether the developer
+    happens to have TWS running locally. The important guarantee is
+    that orders are never placed and execution stays disabled.
+    """
+    p = _run(
+        ["strategy-scan", "--strategy", "ict_smc_intraday_v1", "--json"],
+        isolate_ibkr=True,
+    )
+    assert p.returncode == 0, p.stderr
+    payload = json.loads(p.stdout)
+    assert payload["strategy_key"] == "ict_smc_intraday_v1"
+    assert payload["execution_allowed"] is False
+    assert payload["paper_only"] is True
+    assert payload["status"] in {"skipped", "error", "ok"}
 
 
 def test_cli_strategy_scan_invalid_key_exits_nonzero() -> None:
@@ -130,11 +163,19 @@ def test_cli_multi_strategy_scan_with_only_stubs_via_include_disabled() -> None:
     because there is no live TWS — that is acceptable: the engine catches
     the exception and we get a JSON snapshot regardless.
     """
-    p = _run(["multi-strategy-scan", "--include-disabled", "--json"])
+    p = _run(
+        ["multi-strategy-scan", "--include-disabled", "--json"],
+        isolate_ibkr=True,
+    )
     assert p.returncode == 0, p.stderr
     payload = json.loads(p.stdout)
     assert payload["paper_only"] is True
     assert payload["execution_allowed"] is False
     statuses = {r["strategy_key"]: r["status"] for r in payload["results"]}
-    for key in ("ict_smc_intraday_v1", "chanlun_intraday_v1", "orb_baseline"):
+    # Stubs still report not_implemented.
+    for key in ("chanlun_intraday_v1", "orb_baseline"):
         assert statuses.get(key) == "not_implemented"
+    # ICT/SMC Intraday V1 graduated from stub in 13D and now reports
+    # one of {"skipped", "error", "ok"} depending on watchlist / IBKR
+    # availability — never "not_implemented".
+    assert statuses.get("ict_smc_intraday_v1") in {"skipped", "error", "ok"}

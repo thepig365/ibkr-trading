@@ -2467,6 +2467,258 @@ def scan_mtf_smc_watchlist(
     raise typer.Exit(0)
 
 
+# ---------------------------------------------------------------------------
+# Prompt 13D — ICT/SMC Intraday Liquidity Reversal V1 scan commands.
+#
+# Strict invariants (also enforced by the scanner module):
+#   * Research/scan only. No orders. No paper execution.
+#   * IBKR is touched lazily inside the scanner functions, never at
+#     CLI module load.
+#   * --ibkr is required so a noisy CI default cannot accidentally
+#     wake a TWS connection.
+# ---------------------------------------------------------------------------
+@app.command("scan-intraday-smc")
+def scan_intraday_smc_cmd(
+    symbol: str = typer.Option(
+        ..., "--symbol", "-s", help="Ticker, e.g. AAPL. Research only.",
+    ),
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr", help="Fetch 4h/30m/5m/1m bars from IBKR (read-only).",
+    ),
+    chart: bool = typer.Option(
+        False, "--chart", help="Write 30m/5m/1m PNGs under data/debug_charts/.",
+    ),
+    telegram: bool = typer.Option(
+        False,
+        "--telegram",
+        help="Send Chinese single-symbol digest if Telegram is configured.",
+    ),
+    save_json: bool = typer.Option(
+        True, "--save-json/--no-save-json",
+        help="Write data/intraday_smc/<date>-<SYMBOL>-intraday-smc.json",
+    ),
+    direction_hint: str = typer.Option(
+        "auto", "--direction-hint",
+        help="auto | long | short — restrict scan direction.",
+    ),
+    mode: str = typer.Option(
+        "strict_and_aggressive",
+        "--mode",
+        help="Reserved for future filtering; default 'strict_and_aggressive'.",
+    ),
+) -> None:
+    """ICT/SMC Intraday Liquidity Reversal V1 — single-symbol scan (13D).
+
+    Research-only. No orders. No paper execution.
+    """
+    from .strategies.ict_smc_intraday import (
+        IntradayRiskConfig,
+        format_intraday_telegram_zh,
+        save_intraday_evaluation,
+        scan_symbol_with_ibkr,
+    )
+
+    if not use_ibkr:
+        console.print("[red]--ibkr is required for scan-intraday-smc.[/red]")
+        raise typer.Exit(2)
+    if direction_hint not in {"auto", "long", "short"}:
+        console.print("[red]--direction-hint must be auto|long|short[/red]")
+        raise typer.Exit(2)
+    if mode not in {"strict_and_aggressive", "strict_only", "aggressive_only"}:
+        console.print(
+            "[red]--mode must be strict_and_aggressive|strict_only|aggressive_only[/red]"
+        )
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    chart_dir = cfg.absolute("data/debug_charts") if chart else None
+
+    risk_cfg = IntradayRiskConfig()
+    eval_obj = scan_symbol_with_ibkr(
+        symbol.upper(),
+        cfg,
+        journal,
+        risk_cfg=risk_cfg,
+        direction_hint=direction_hint,
+        chart=chart,
+        chart_dir=chart_dir,
+    )
+
+    saved_path: Path | None = None
+    if save_json:
+        out_dir = cfg.absolute("data/intraday_smc")
+        saved_path = save_intraday_evaluation(out_dir, eval_obj)
+
+    payload = eval_obj.to_dict()
+    payload["_saved_path"] = str(saved_path) if saved_path else None
+    console.print(
+        Panel.fit(
+            json.dumps(payload, indent=2, default=str, ensure_ascii=False),
+            title=f"ICT/SMC Intraday — {symbol.upper()}",
+            style="cyan",
+        )
+    )
+
+    sent = False
+    if telegram and cfg.telegram.is_configured:
+        try:
+            single_summary = {
+                "date": eval_obj.date,
+                "strategy_id": eval_obj.strategy_id,
+                "source": "single",
+                "symbols_scanned": 1,
+                "counts": {eval_obj.signal_category: 1},
+                "ready_strict_symbols": (
+                    [eval_obj.symbol] if eval_obj.signal_category
+                    == "DAY_TRADE_READY_STRICT" else []
+                ),
+                "ready_aggressive_symbols": (
+                    [eval_obj.symbol] if eval_obj.signal_category
+                    == "DAY_TRADE_READY_AGGRESSIVE" else []
+                ),
+                "watch_symbols": (
+                    [eval_obj.symbol] if eval_obj.signal_category
+                    == "WATCH_ONLY" else []
+                ),
+                "invalid_symbols": (
+                    [eval_obj.symbol] if eval_obj.signal_category
+                    == "INVALID_RISK" else []
+                ),
+            }
+            text = format_intraday_telegram_zh(single_summary)
+            sent = bool(send_telegram_message(text, cfg=cfg, journal=journal))
+        except Exception as exc:  # noqa: BLE001
+            console.print(f"[yellow]telegram send skipped: {exc}[/yellow]")
+
+    journal.record_event(
+        category="ict_smc_intraday",
+        level="INFO",
+        message="scan-intraday-smc",
+        payload={
+            "symbol": symbol.upper(),
+            "signal_category": eval_obj.signal_category,
+            "direction": eval_obj.direction,
+            "telegram": sent,
+            "execution_allowed": False,
+            "saved_path": str(saved_path) if saved_path else None,
+        },
+    )
+    raise typer.Exit(0)
+
+
+@app.command("scan-intraday-smc-watchlist")
+def scan_intraday_smc_watchlist_cmd(
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr", help="Fetch 4h/30m/5m/1m bars from IBKR (read-only).",
+    ),
+    chart: bool = typer.Option(False, "--chart"),
+    telegram: bool = typer.Option(False, "--telegram"),
+    limit: Optional[int] = typer.Option(
+        20, "--limit", min=1, help="Max symbols to scan (default 20).",
+    ),
+    source: Optional[str] = typer.Option(
+        "dynamic", "--source",
+        help="static | dynamic | manual (alias of static).",
+    ),
+    save_json: bool = typer.Option(True, "--save-json/--no-save-json"),
+    mode: str = typer.Option(
+        "strict_and_aggressive",
+        "--mode",
+        help="Reserved for future filtering; default 'strict_and_aggressive'.",
+    ),
+) -> None:
+    """ICT/SMC Intraday Liquidity Reversal V1 — watchlist scan (13D).
+
+    Research-only. No orders. No paper execution. Writes:
+
+    * data/intraday_smc/<date>-<SYMBOL>-intraday-smc.json (per-symbol)
+    * data/intraday_smc/<date>-watchlist-intraday-smc-summary.json (summary)
+    """
+    from .strategies.ict_smc_intraday import (
+        IntradayRiskConfig,
+        scan_watchlist_with_ibkr,
+    )
+
+    if not use_ibkr:
+        console.print(
+            "[red]--ibkr is required for scan-intraday-smc-watchlist.[/red]"
+        )
+        raise typer.Exit(2)
+    if mode not in {"strict_and_aggressive", "strict_only", "aggressive_only"}:
+        console.print(
+            "[red]--mode must be strict_and_aggressive|strict_only|aggressive_only[/red]"
+        )
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    risk_cfg = IntradayRiskConfig()
+    try:
+        summary = scan_watchlist_with_ibkr(
+            cfg,
+            journal,
+            use_ibkr=use_ibkr,
+            chart=chart,
+            telegram=telegram,
+            limit=limit,
+            source=source,
+            save_json=save_json,
+            risk_cfg=risk_cfg,
+        )
+    except FileNotFoundError:
+        console.print(
+            "[red]Build dynamic watchlist first (build-watchlist).[/red]"
+        )
+        raise typer.Exit(3)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)
+
+    counts = dict(summary.get("counts") or {})
+    tbl = Table(
+        title=f"ICT/SMC Intraday watchlist — {summary.get('date', '?')} "
+              f"(source={summary.get('source') or '-'})"
+    )
+    tbl.add_column("category")
+    tbl.add_column("count", justify="right")
+    for cat, n in counts.items():
+        tbl.add_row(str(cat), str(n))
+    console.print(tbl)
+
+    p = summary.get("_saved_summary_path")
+    if p:
+        console.print(f"[green]Saved summary:[/green] {p}")
+    if summary.get("ready_strict_symbols"):
+        console.print(
+            "[green]STRICT:[/green] "
+            + ", ".join(summary["ready_strict_symbols"])
+        )
+    if summary.get("ready_aggressive_symbols"):
+        console.print(
+            "[cyan]AGGRESSIVE:[/cyan] "
+            + ", ".join(summary["ready_aggressive_symbols"])
+        )
+    if summary.get("watch_symbols"):
+        console.print(
+            "[yellow]WATCH:[/yellow] "
+            + ", ".join(summary["watch_symbols"])
+        )
+
+    journal.record_event(
+        category="ict_smc_intraday",
+        level="INFO",
+        message="scan-intraday-smc-watchlist",
+        payload={
+            "source": summary.get("source"),
+            "symbols_scanned": summary.get("symbols_scanned"),
+            "counts": counts,
+            "execution_allowed": False,
+            "telegram_sent": bool(summary.get("_telegram_sent")),
+            "saved_summary_path": p,
+        },
+    )
+    raise typer.Exit(0)
+
+
 @app.command("mtf-diagnostic-report")
 def mtf_diagnostic_report(
     use_latest: bool = typer.Option(

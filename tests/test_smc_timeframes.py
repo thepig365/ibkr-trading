@@ -34,7 +34,8 @@ from bot.config import load_config
 # Registry
 # ---------------------------------------------------------------------------
 def test_supported_timeframes_includes_mtf() -> None:
-    assert SUPPORTED_TIMEFRAMES == ("daily", "4h", "30min", "5min")
+    # Prompt 13D added "1min" for the ICT/SMC Intraday strategy.
+    assert SUPPORTED_TIMEFRAMES == ("daily", "4h", "30min", "5min", "1min")
 
 
 def test_normalise_timeframe_aliases() -> None:

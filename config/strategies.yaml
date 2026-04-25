@@ -52,10 +52,42 @@ strategies:
       source: "dynamic"
       chart: false
 
+  # ICT/SMC Intraday Liquidity Reversal V1 — Prompt 13D.
+  # Enabled for research/scan; paper execution still disabled at this
+  # stage. The engine NEVER places orders here.
   ict_smc_intraday_v1:
-    enabled: false
+    enabled: true
     paper_execution_allowed: false
-    params: {}
+    params:
+      timeframes:
+        context_4h:
+          enabled: true
+          hard_gate: false
+        context_30m:
+          enabled: true
+          hard_gate: false
+        setup_5m:
+          enabled: true
+          require_sweep: true
+          require_reclaim: true
+          require_fvg: false
+          allow_order_block: true
+          allow_reclaim_zone: true
+        trigger_1m:
+          enabled: true
+          require_sweep: true
+          require_mss: true
+          require_fvg_for_strict: true
+          allow_ob_without_fvg_for_aggressive: true
+      risk:
+        min_rr_strict: 1.5
+        min_rr_aggressive: 1.2
+        max_stop_distance_pct: 1.2
+        max_extension_from_entry_pct: 1.0
+      max_symbols: 20
+      source: "dynamic"
+      chart: false
+      telegram: false
 
   chanlun_intraday_v1:
     enabled: false

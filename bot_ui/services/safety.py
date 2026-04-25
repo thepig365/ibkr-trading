@@ -41,6 +41,8 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "strategy-status": "Report freshness of per-strategy scan files.",
     "strategy-scan": "Run a single strategy scan via the multi-strategy engine (research-only).",
     "multi-strategy-scan": "Run every enabled strategy via the engine (research-only).",
+    "scan-intraday-smc": "ICT/SMC Intraday V1 — single-symbol research scan (paper-only).",
+    "scan-intraday-smc-watchlist": "ICT/SMC Intraday V1 — watchlist research scan (paper-only).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -290,6 +292,159 @@ def validate_multi_strategy_scan_args(args: tuple[str, ...]) -> tuple[bool, str]
     return True, ""
 
 
+# ---------------------------------------------------------------------------
+# ICT/SMC Intraday scan validators (Prompt 13D)
+# ---------------------------------------------------------------------------
+# Tickers must be uppercase letters only (1–5 chars). Matches the
+# canonical pattern used everywhere else in this module.
+_SINGLE_TICKER_RE = re.compile(r"^[A-Z]{1,5}$")
+_INTRADAY_SOURCE_VALUES: frozenset[str] = frozenset({"static", "dynamic", "manual"})
+_INTRADAY_DIRECTION_VALUES: frozenset[str] = frozenset({"auto", "long", "short"})
+_INTRADAY_MODE_VALUES: frozenset[str] = frozenset(
+    {"strict_and_aggressive", "strict_only", "aggressive_only"}
+)
+_INTRADAY_LIMIT_MIN = 1
+_INTRADAY_LIMIT_MAX = 100
+
+_SCAN_INTRADAY_SMC_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--symbol", "--direction-hint", "--mode"}
+)
+_SCAN_INTRADAY_SMC_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--ibkr", "--chart", "--telegram", "--save-json", "--no-save-json"}
+)
+_SCAN_INTRADAY_SMC_WL_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--source", "--limit", "--mode"}
+)
+_SCAN_INTRADAY_SMC_WL_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--ibkr", "--chart", "--telegram", "--save-json", "--no-save-json"}
+)
+
+
+def validate_scan_intraday_smc_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``scan-intraday-smc`` (single symbol).
+
+    Required: ``--symbol <TICKER>`` and ``--ibkr``.
+    Accepted bool flags: ``--ibkr``, ``--chart``, ``--telegram``,
+    ``--save-json`` / ``--no-save-json``.
+    Accepted value flags: ``--symbol <TICKER>``,
+    ``--direction-hint auto|long|short``,
+    ``--mode strict_and_aggressive|strict_only|aggressive_only``.
+    """
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _SCAN_INTRADAY_SMC_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _SCAN_INTRADAY_SMC_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, f"scan-intraday-smc: flag {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"scan-intraday-smc: unexpected token {token!r}; only "
+            f"{sorted(_SCAN_INTRADAY_SMC_FLAGS_BOOL | _SCAN_INTRADAY_SMC_FLAGS_VALUE)} "
+            f"are allowed."
+        )
+
+    if "--ibkr" not in flags:
+        return False, "scan-intraday-smc: --ibkr is required."
+    if "--symbol" not in flags:
+        return False, "scan-intraday-smc: --symbol is required."
+    sym = str(flags["--symbol"])
+    if not _SINGLE_TICKER_RE.match(sym):
+        return False, (
+            f"scan-intraday-smc: --symbol {sym!r} must match "
+            f"{_SINGLE_TICKER_RE.pattern} (uppercase, 1–5 letters)."
+        )
+    if "--direction-hint" in flags:
+        v = str(flags["--direction-hint"])
+        if v not in _INTRADAY_DIRECTION_VALUES:
+            return False, (
+                "scan-intraday-smc: --direction-hint must be one of "
+                f"{sorted(_INTRADAY_DIRECTION_VALUES)}."
+            )
+    if "--mode" in flags:
+        v = str(flags["--mode"])
+        if v not in _INTRADAY_MODE_VALUES:
+            return False, (
+                "scan-intraday-smc: --mode must be one of "
+                f"{sorted(_INTRADAY_MODE_VALUES)}."
+            )
+    if "--save-json" in flags and "--no-save-json" in flags:
+        return False, "scan-intraday-smc: --save-json and --no-save-json are mutually exclusive."
+    return True, ""
+
+
+def validate_scan_intraday_smc_watchlist_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``scan-intraday-smc-watchlist``.
+
+    Required: ``--ibkr``.
+    Accepted bool flags: ``--ibkr``, ``--chart``, ``--telegram``,
+    ``--save-json`` / ``--no-save-json``.
+    Accepted value flags: ``--source static|dynamic|manual``,
+    ``--limit N`` (1..100),
+    ``--mode strict_and_aggressive|strict_only|aggressive_only``.
+    """
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _SCAN_INTRADAY_SMC_WL_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _SCAN_INTRADAY_SMC_WL_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, (
+                    f"scan-intraday-smc-watchlist: flag {token!r} requires a value."
+                )
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"scan-intraday-smc-watchlist: unexpected token {token!r}; only "
+            f"{sorted(_SCAN_INTRADAY_SMC_WL_FLAGS_BOOL | _SCAN_INTRADAY_SMC_WL_FLAGS_VALUE)} "
+            f"are allowed."
+        )
+
+    if "--ibkr" not in flags:
+        return False, "scan-intraday-smc-watchlist: --ibkr is required."
+    if "--source" in flags:
+        v = str(flags["--source"]).lower()
+        if v not in _INTRADAY_SOURCE_VALUES:
+            return False, (
+                "scan-intraday-smc-watchlist: --source must be one of "
+                f"{sorted(_INTRADAY_SOURCE_VALUES)}."
+            )
+    if "--limit" in flags:
+        try:
+            n = int(str(flags["--limit"]))
+        except (TypeError, ValueError):
+            return False, "scan-intraday-smc-watchlist: --limit must be an integer."
+        if not (_INTRADAY_LIMIT_MIN <= n <= _INTRADAY_LIMIT_MAX):
+            return False, (
+                "scan-intraday-smc-watchlist: --limit must be in "
+                f"[{_INTRADAY_LIMIT_MIN}, {_INTRADAY_LIMIT_MAX}]."
+            )
+    if "--mode" in flags:
+        v = str(flags["--mode"])
+        if v not in _INTRADAY_MODE_VALUES:
+            return False, (
+                "scan-intraday-smc-watchlist: --mode must be one of "
+                f"{sorted(_INTRADAY_MODE_VALUES)}."
+            )
+    if "--save-json" in flags and "--no-save-json" in flags:
+        return False, (
+            "scan-intraday-smc-watchlist: --save-json and --no-save-json are "
+            "mutually exclusive."
+        )
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -308,4 +463,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_strategy_scan_args(args)
     if command == "multi-strategy-scan":
         return validate_multi_strategy_scan_args(args)
+    if command == "scan-intraday-smc":
+        return validate_scan_intraday_smc_args(args)
+    if command == "scan-intraday-smc-watchlist":
+        return validate_scan_intraday_smc_watchlist_args(args)
     return True, ""

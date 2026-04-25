@@ -88,6 +88,8 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "ibkr-news-fetch": ("--symbols", "AAPL,TSLA,NVDA", "--limit", "50"),
     "strategy-info": ("mtf_smc",),
     "strategy-scan": ("--strategy", "mtf_smc"),
+    "scan-intraday-smc": ("--symbol", "AAPL", "--ibkr"),
+    "scan-intraday-smc-watchlist": ("--ibkr",),
 }
 
 

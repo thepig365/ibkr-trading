@@ -73,6 +73,10 @@ data/telegram_commands/
 data/account_snapshots*
 data/paper_orders/
 data/backtests/
+# Prompt 13D: ICT/SMC Intraday research scan outputs (per-symbol JSON +
+# watchlist summary). Generated on demand by ``scan-intraday-smc[_watchlist]``.
+data/intraday_smc/*
+!data/intraday_smc/.gitkeep
 
 # UI server scratch (sessions, sqlite caches, etc.)
 bot_ui/.cache/

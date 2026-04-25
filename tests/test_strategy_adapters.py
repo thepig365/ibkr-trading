@@ -54,7 +54,8 @@ def test_adapter_satisfies_strategy_protocol(cls: type) -> None:
 @pytest.mark.parametrize(
     "cls,key",
     [
-        (IctSmcIntradayV1Strategy, "ict_smc_intraday_v1"),
+        # NOTE: ICT/SMC Intraday V1 graduated from stub to active in
+        # Prompt 13D — see test_ict_smc_intraday_adapter_* below.
         (ChanlunIntradayV1Strategy, "chanlun_intraday_v1"),
         (OrbBaselineStrategy, "orb_baseline"),
     ],
@@ -73,6 +74,95 @@ def test_stub_adapter_returns_not_implemented(cls: type, key: str) -> None:
     assert r.execution_allowed is False
     assert r.paper_only is True
     assert r.notes  # non-empty explanation
+
+
+def test_ict_smc_intraday_adapter_metadata_is_active() -> None:
+    """ICT/SMC Intraday V1 graduated to experimental/active in 13D."""
+    md = IctSmcIntradayV1Strategy.metadata
+    assert md.key == "ict_smc_intraday_v1"
+    assert md.status in {"experimental", "ready"}
+    assert md.research_only is True
+    assert md.requires_ibkr is True
+    assert "1min" in md.timeframes
+    assert md.horizon == "intraday"
+
+
+def test_ict_smc_intraday_adapter_skips_when_no_symbols() -> None:
+    s = IctSmcIntradayV1Strategy()
+    ctx = StrategyContext(symbols=())
+    r = s.scan(ctx)
+    assert isinstance(r, StrategyScanResult)
+    assert r.strategy_key == "ict_smc_intraday_v1"
+    assert r.status == "skipped"
+    assert r.symbol_count == 0
+    assert r.signal_count == 0
+    assert r.execution_allowed is False
+    assert r.paper_only is True
+
+
+def test_ict_smc_intraday_adapter_does_not_place_orders(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Patch the IBKR-backed scanner; assert the adapter never tries to
+    place orders or flip ``execution_allowed``."""
+    from bot.strategies.ict_smc_intraday import (
+        IntradayContext,
+        IntradayEvaluation,
+        IntradayTradePlan,
+        SIGNAL_DAY_TRADE_READY_AGGRESSIVE,
+    )
+    import bot.strategies.ict_smc_intraday.scanner as scanner_mod
+
+    def fake_scan(symbol, cfg, journal, **kw):
+        ctx = IntradayContext(symbol=symbol)
+        plan = IntradayTradePlan(
+            valid=True, direction="long",
+            entry=100.0, stop=98.5, target=103.0,
+            risk_per_share=1.5, reward_per_share=3.0,
+            risk_reward=2.0, stop_distance_pct=1.5,
+        )
+        ev = IntradayEvaluation(
+            symbol=symbol, date="2026-04-25", direction="long",
+            signal_category=SIGNAL_DAY_TRADE_READY_AGGRESSIVE,
+            context=ctx, trade_plan=plan,
+        )
+        return ev
+
+    monkeypatch.setattr(scanner_mod, "scan_symbol_with_ibkr", fake_scan)
+    # adapter does ``from ..ict_smc_intraday import scan_symbol_with_ibkr``
+    # which resolves to the package re-export; patch that too.
+    import bot.strategies.ict_smc_intraday as pkg
+
+    monkeypatch.setattr(pkg, "scan_symbol_with_ibkr", fake_scan)
+
+    s = IctSmcIntradayV1Strategy()
+    ctx = StrategyContext(symbols=("AAA", "BBB"), cfg=object(), journal=object())
+    r = s.scan(ctx)
+    assert r.execution_allowed is False
+    assert r.paper_only is True
+    assert r.symbol_count == 2
+    assert r.signal_count == 2
+    for sig in r.signals:
+        assert sig.payload.get("entry") == 100.0
+        assert sig.confidence in {"high", "medium", "low"}
+    assert r.summary["execution_allowed"] is False
+    assert r.summary["paper_only"] is True
+
+
+def test_ict_smc_intraday_adapter_module_does_not_import_broker_at_top_level() -> None:
+    p = Path("bot/strategies/adapters/ict_smc_intraday_v1.py")
+    tree = ast.parse(p.read_text(encoding="utf-8"))
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                assert "broker" not in alias.name
+                assert "ibkr_client" not in alias.name
+                assert alias.name != "ib_async"
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            assert "broker" not in mod
+            assert "ibkr_client" not in mod
+            assert mod != "ib_async"
 
 
 # ---------------------------------------------------------------------------

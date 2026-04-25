@@ -203,9 +203,21 @@ def test_default_registry_contains_all_planned_keys() -> None:
 def test_default_registry_marks_stubs_not_implemented() -> None:
     reset_default_registry_for_tests()
     reg = default_registry()
-    for k in ("ict_smc_intraday_v1", "chanlun_intraday_v1", "orb_baseline"):
+    # ICT/SMC Intraday V1 graduated from stub in 13D — see
+    # test_default_registry_marks_ict_smc_intraday_active below.
+    for k in ("chanlun_intraday_v1", "orb_baseline"):
         assert reg.get(k).metadata.status == "not_implemented"
     assert reg.get("mtf_smc").metadata.status == "ready"
+
+
+def test_default_registry_marks_ict_smc_intraday_active() -> None:
+    reset_default_registry_for_tests()
+    reg = default_registry()
+    md = reg.get("ict_smc_intraday_v1").metadata
+    assert md.status in {"experimental", "ready"}
+    assert md.research_only is True
+    assert md.requires_ibkr is True
+    assert "1min" in md.timeframes
 
 
 def test_register_builtin_strategies_is_idempotent() -> None:
@@ -232,14 +244,17 @@ def test_load_strategies_config_missing_file_returns_empty() -> None:
 
 def test_load_strategies_config_real_file_parses_enabled_keys() -> None:
     rc = load_strategies_config(Path("config/strategies.yaml"))
-    # The committed config enables mtf_smc only.
+    # The committed config enables mtf_smc and (since 13D) ict_smc_intraday_v1.
     assert "mtf_smc" in rc.strategies
     assert rc.strategies["mtf_smc"].enabled is True
+    assert "ict_smc_intraday_v1" in rc.strategies
+    assert rc.strategies["ict_smc_intraday_v1"].enabled is True
     # Stubs are present but disabled.
-    for k in ("ict_smc_intraday_v1", "chanlun_intraday_v1", "orb_baseline"):
+    for k in ("chanlun_intraday_v1", "orb_baseline"):
         assert k in rc.strategies
         assert rc.strategies[k].enabled is False
-    # Invariants are coerced.
+    # Invariants are coerced for ALL entries — no strategy may flip
+    # paper_execution_allowed to true through config.
     for entry in rc.strategies.values():
         assert entry.paper_execution_allowed is False
     assert rc.defaults.paper_only is True

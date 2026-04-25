@@ -34,6 +34,7 @@ SUPPORTED_TIMEFRAMES: tuple[str, ...] = (
     "4h",
     "30min",
     "5min",
+    "1min",
 )
 
 # Subset used by legacy ``scan-smc`` / 10A (unknown labels still map to daily).
@@ -117,6 +118,20 @@ DEFAULT_TIMEFRAME_SPECS: dict[str, dict[str, Any]] = {
         "what_to_show": "TRADES",
         "role": "entry_trigger",
     },
+    # Prompt 13D — 1m bars are the entry trigger for the ICT/SMC
+    # Intraday Liquidity Reversal V1 strategy. Default duration "2 D"
+    # gives ~780 RTH bars (2 sessions × 390 minutes); we cap at
+    # ``max_bars`` to keep memory + chart density reasonable.
+    "1min": {
+        "enabled": True,
+        "duration": "2 D",
+        "bar_size": "1 min",
+        "use_rth": True,
+        "min_bars": 60,
+        "max_bars": 780,
+        "what_to_show": "TRADES",
+        "role": "intraday_micro_trigger",
+    },
 }
 
 
@@ -158,6 +173,21 @@ DEFAULT_TIMEFRAME_STRATEGY: dict[str, dict[str, Any]] = {
         "max_trigger_extension_pct": 0.5,
         "require_5min_fvg_or_displacement": True,
     },
+    # 13D: 1m thresholds are looser than 5m (smaller bars, tighter stops).
+    # The intraday liquidity-reversal strategy reads these to decide
+    # STRICT vs AGGRESSIVE classification. Defaults below mirror the
+    # values the prompt requested.
+    "1min": {
+        "lookback_period_for_sweep": 30,
+        "max_allowed_stop_pct": 1.2,
+        "max_extension_pct": 1.0,
+        "min_risk_reward": 1.2,
+        "risk_per_trade_pct": 0.10,
+        "trigger_entry_tolerance_pct": 0.3,
+        "max_trigger_extension_pct": 0.5,
+        "min_rr_strict": 1.5,
+        "min_rr_aggressive": 1.2,
+    },
 }
 
 
@@ -193,6 +223,11 @@ def normalise_timeframe(name: str | None) -> str:
         "5mins": "5min",
         "5 mins": "5min",
         "5min": "5min",
+        "1m": "1min",
+        "1 min": "1min",
+        "1mins": "1min",
+        "1 mins": "1min",
+        "1min": "1min",
     }
     if key in aliases:
         return aliases[key]
