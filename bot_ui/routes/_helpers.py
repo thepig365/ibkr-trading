@@ -28,6 +28,7 @@ def base_context(
     """Common context every page template needs."""
     state: StateStore = request.app.state.state_store
     safety = state.safety_view()
+    root = request.app.state.project_root
     return {
         "request": request,
         "active": active,
@@ -35,8 +36,12 @@ def base_context(
         "safety": safety,
         "ui_host": request.app.state.ui_host,
         "ui_port": request.app.state.ui_port,
-        "project_root_short": _project_root_short(request.app.state.project_root),
+        "project_root": str(root),
+        "project_root_short": _project_root_short(root),
         "flash": flash,
+        "doc_manual": "docs/strategy-lab-user-manual.md",
+        "doc_checklist": "docs/daily-operation-checklist.md",
+        "doc_troubleshooting": "docs/troubleshooting.md",
     }
 
 

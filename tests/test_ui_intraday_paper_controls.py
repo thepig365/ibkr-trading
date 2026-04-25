@@ -209,6 +209,10 @@ def test_intraday_paper_commands_validators_accept_safe_args() -> None:
     assert accepted, reason
     accepted, reason = validate_args_for("strategy-lab-engine-status", ("--json",))
     assert accepted, reason
+    accepted, reason = validate_args_for("engine-status", ())
+    assert accepted, reason
+    accepted, reason = validate_args_for("engine-status", ("--json", "--probe-ui"))
+    assert accepted, reason
 
 
 @pytest.mark.parametrize(

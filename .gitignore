@@ -48,6 +48,10 @@ data/*.sqlite-wal
 data/*.jsonl
 logs/
 *.log
+# 13G Strategy Lab UI (explicit; logs/ is already ignored)
+logs/strategy-lab-ui.stdout.log
+logs/strategy-lab-ui.stderr.log
+data/runtime/strategy_lab_ui.pid
 
 # Local Strategy Lab UI runtime / auto-paper loop state (machine-specific, never commit)
 data/runtime/

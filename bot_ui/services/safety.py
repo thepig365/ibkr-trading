@@ -57,6 +57,7 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "strategy-lab-engine-status": (
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
     ),
+    "engine-status": "Full read-only engine snapshot: config, latest artifacts, optional UI /healthz.",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -746,6 +747,7 @@ _INTRADAY_PAPER_STATUS_FLAGS_BOOL: frozenset[str] = frozenset(
 )
 
 _STRATEGY_LAB_ENGINE_STATUS_FLAGS: frozenset[str] = frozenset({"--json"})
+_ENGINE_STATUS_FLAGS: frozenset[str] = frozenset({"--json", "--probe-ui"})
 
 
 def _check_no_forbidden(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
@@ -898,6 +900,22 @@ def validate_intraday_paper_status_args(args: tuple[str, ...]) -> tuple[bool, st
     return True, ""
 
 
+def validate_engine_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """``engine-status`` — JSON and optional UI /healthz probe; no extra tokens."""
+    ok, err = _check_no_forbidden("engine-status", args)
+    if not ok:
+        return ok, err
+    for token in args:
+        if token not in _ENGINE_STATUS_FLAGS:
+            return False, (
+                f"engine-status: unexpected token {token!r}; only "
+                f"{sorted(_ENGINE_STATUS_FLAGS)} or combinations thereof (no values)."
+            )
+    if list(args).count("--json") > 1 or list(args).count("--probe-ui") > 1:
+        return False, "engine-status: duplicate flag."
+    return True, ""
+
+
 def validate_strategy_lab_engine_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
     """Validator for ``strategy-lab-engine-status`` (read-only, no TWS)."""
     ok, err = _check_no_forbidden("strategy-lab-engine-status", args)
@@ -952,4 +970,6 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_intraday_paper_status_args(args)
     if command == "strategy-lab-engine-status":
         return validate_strategy_lab_engine_status_args(args)
+    if command == "engine-status":
+        return validate_engine_status_args(args)
     return True, ""

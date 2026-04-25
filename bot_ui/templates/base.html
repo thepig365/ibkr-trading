@@ -25,6 +25,13 @@
         <li><a href="{{ url_for('logs_page') }}" class="{% if active=='logs' %}active{% endif %}">Logs</a></li>
         <li><a href="{{ url_for('settings_page') }}" class="{% if active=='settings' %}active{% endif %}">Settings</a></li>
       </ul>
+      <div class="nav-help text-small text-dim" style="margin-top:1rem;padding:0 0.5rem;">
+        <div class="text-mono" style="font-size:0.8rem;">Help (repo)</div>
+        <div><span class="text-mono">{{ doc_manual }}</span></div>
+        <div><span class="text-mono">{{ doc_checklist }}</span></div>
+        <div><span class="text-mono">{{ doc_troubleshooting }}</span></div>
+        <div class="text-dim" style="margin-top:0.25rem;">Open in IDE or editor.</div>
+      </div>
     </aside>
     <main class="main">
       <div class="topbar">

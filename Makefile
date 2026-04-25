@@ -5,17 +5,22 @@
 strategy-lab:
 	python3 -m bot_ui
 
-# Background: PID + log under data/runtime/ (see scripts/strategy-lab.sh)
+# Background: PID in data/runtime/strategy_lab_ui.pid, logs in logs/
 strategy-lab-bg:
-	./scripts/strategy-lab.sh start
+	./scripts/start_strategy_lab_ui.sh
 
 strategy-lab-stop:
-	./scripts/strategy-lab.sh stop
+	./scripts/stop_strategy_lab_ui.sh
 
-# Engine snapshot (read-only) + optional UI /healthz if process was started via script
 strategy-lab-status:
-	./scripts/strategy-lab.sh status
+	./scripts/status_strategy_lab_ui.sh
 
-# Fast smoke: pages + healthz + engine-status (no TWS, no browser)
+strategy-lab-open:
+	./scripts/open_strategy_lab_ui.sh
+
+strategy-lab-doctor:
+	./scripts/strategy_lab_doctor.sh
+
+# Pages + healthz + engine-status CLI (no TWS, no browser)
 strategy-lab-smoke:
-	python3 -m pytest -q tests/test_strategy_lab_smoke.py
+	python3 -m pytest -q tests/test_engine_launch_workflow.py

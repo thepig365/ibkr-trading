@@ -6,6 +6,8 @@ place orders, and does not require writing to `.env` (aside from your
 normal IBKR work when you *choose* to run research CLI that connects to
 TWS; the UI still never opens TWS on its own).
 
+**Chinese operator docs:** `docs/strategy-lab-user-manual.md`, `docs/daily-operation-checklist.md`, `docs/troubleshooting.md`.
+
 ## One command: open the UI (foreground)
 
 From the `ibkr-trading-bot` repo root, with the virtualenv active:
@@ -17,42 +19,46 @@ python3 -m bot_ui
 Defaults: `http://127.0.0.1:8765/` (redirects to `/dashboard`). The UI
 **never** connects to IBKR/TWS on startup.
 
-## One command: engine + UI process status
+## One command: engine + lab snapshot (read-only, no TWS)
 
-**Engine + config (read-only, no TWS, no browser):**
+Full snapshot (config + latest `data/*` paths + `ui_process`):
+
+```bash
+python3 -m bot.cli engine-status --json
+```
+
+Optional: probe `GET /healthz` when the UI process is up (no IBKR):
+
+```bash
+python3 -m bot.cli engine-status --json --probe-ui
+```
+
+Legacy, smaller JSON (no `artifacts` / `ui_process`):
 
 ```bash
 python3 -m bot.cli strategy-lab-engine-status --json
 ```
 
-**Background UI** (if you started the UI with the helper script) **and** engine
-snapshot:
+## Start / stop / status (background)
 
-```bash
-./scripts/strategy-lab.sh status
-```
+Canonical scripts (Prompt 13G):
 
-or:
+| Action | Command |
+|--------|---------|
+| Start | `./scripts/start_strategy_lab_ui.sh` |
+| Stop | `./scripts/stop_strategy_lab_ui.sh` |
+| Status + log tail | `./scripts/status_strategy_lab_ui.sh` |
+| Open browser (macOS) | `./scripts/open_strategy_lab_ui.sh` |
+| Environment doctor | `./scripts/strategy_lab_doctor.sh` |
 
-```bash
-make strategy-lab-status
-```
+**Compat wrapper** (delegates to the above): `./scripts/strategy-lab.sh {start|stop|status|open|restart|doctor}`
 
-## Start / stop (background, optional)
-
-- **Start** (detached, log under `data/runtime/`):
-
-  ```bash
-  ./scripts/strategy-lab.sh start
-  ```
-
-- **Stop**:
-
-  ```bash
-  ./scripts/strategy-lab.sh stop
-  ```
+- PID: `data/runtime/strategy_lab_ui.pid`  
+- Logs: `logs/strategy-lab-ui.stdout.log`, `logs/strategy-lab-ui.stderr.log` (gitignored)  
 
 Environment (optional): `STRATEGY_LAB_HOST`, `STRATEGY_LAB_PORT`, `PYTHON`.
+
+**Makefile:** `make strategy-lab-bg|strategy-lab-stop|strategy-lab-status|strategy-lab-open|strategy-lab-doctor` — see `Makefile`.
 
 ## Pages to use each day (smoke / workflow)
 
@@ -76,36 +82,29 @@ http://127.0.0.1:8765/healthz
 
 ```bash
 make strategy-lab-smoke
-# or: python3 -m pytest -q tests/test_strategy_lab_smoke.py
+# or: python3 -m pytest -q tests/test_engine_launch_workflow.py
 ```
-
-## Makefile shortcuts
-
-| Target | What it does |
-|--------|----------------|
-| `make strategy-lab` | Foreground UI |
-| `make strategy-lab-bg` | Background start via `scripts/strategy-lab.sh` |
-| `make strategy-lab-stop` | Stop background UI |
-| `make strategy-lab-status` | Script status (UI pid + engine JSON) |
-| `make strategy-lab-smoke` | Pytest smoke |
 
 ## Worker (CLI) vs UI
 
-- **UI render**: HTTP only, FastAPI, no TWS. Buttons enqueue **allowlisted** commands
-  (see `bot_ui/services/safety.py`). The read-only command
-  `strategy-lab-engine-status` is allowlisted for “engine check” from the
-  command runner with optional `--json` only.
-- **Worker / `python3 -m bot.cli …`**: runs scanners, backtests, and paper
+* **UI render**: HTTP only, FastAPI, no TWS. Buttons enqueue **allowlisted** commands
+  (see `bot_ui/services/safety.py`). The read-only commands
+  `engine-status` and `strategy-lab-engine-status` are allowlisted for status checks.
+* **Worker / `python3 -m bot.cli …`**: runs scanners, backtests, and paper
   execution *when you invoke it*—never from a bare Jinja template import.
-
-## Files that stay local (do not commit)
-
-- `data/runtime/*` (PID, logs, auto-paper / intraday flags, loop state)
-- `config/settings.local.yaml` (optional overlay, gitignored)
-- `.env` (secrets, gitignored)
 
 ## See also
 
-- [deployment-architecture.md](deployment-architecture.md) — UI / worker split
-- [safety-rules.md](safety-rules.md) — paper-only invariants
-- [ibkr-setup.md](ibkr-setup.md) — TWS/Gateway (only for CLI that connects)
+* [deployment-architecture.md](deployment-architecture.md) — UI / worker split
+* [safety-rules.md](safety-rules.md) — paper-only invariants
+* [ibkr-setup.md](ibkr-setup.md) — TWS/Gateway (only for CLI that connects)
+* [strategy-lab-user-manual.md](strategy-lab-user-manual.md) — 中文用户手册
+* [daily-operation-checklist.md](daily-operation-checklist.md) — 中文每日清单
+* [troubleshooting.md](troubleshooting.md) — 中文故障排除
+
+## Files that stay local (do not commit)
+
+* `data/runtime/*` (PID, flags, loop state)
+* `logs/strategy-lab-ui.*`
+* `config/settings.local.yaml` (optional overlay, gitignored)
+* `.env` (secrets, gitignored)

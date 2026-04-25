@@ -3936,76 +3936,17 @@ def intraday_paper_status_cmd(
 def strategy_lab_engine_status_cmd(
     as_json: bool = typer.Option(False, "--json", help="Emit JSON on stdout (machine-readable)."),
 ) -> None:
-    """Read-only snapshot of the Strategy Lab engine and config.
+    """Read-only snapshot of the Strategy Lab engine and config (legacy shape).
 
-    Never connects to IBKR/TWS, never places orders, never enables live
-    trading. Safe for CI, dashboard cron, and local one-liners.
-
-    The local UI is started separately with ``python -m bot_ui``; this
-    command only inspects the filesystem and loaded configuration.
+    Prefer ``engine-status`` for the full payload including latest artifacts
+    and UI process hints. This command omits ``artifacts`` / ``ui_process``.
     """
-    from .execution.intraday_paper_execution import (
-        INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
-        is_intraday_paper_runtime_enabled,
-        is_kill_switch_active,
-    )
-    from .strategies import default_registry  # noqa: PLC0415
+    from .engine_status import build_engine_status_payload  # noqa: PLC0415
 
     cfg = load_config()
-    t = cfg.settings.trading
-    acct = cfg.settings.account
-    _def_host, _def_port = "127.0.0.1", 8765
-    host = (os.environ.get("STRATEGY_LAB_HOST") or _def_host).strip()
-    port_s = (os.environ.get("STRATEGY_LAB_PORT") or str(_def_port)).strip()
-    try:
-        port = int(port_s)
-    except ValueError:
-        port = _def_port
-    mtf_p = Path(cfg.absolute("data/runtime/mtf_auto_paper_enabled"))
-    reg = default_registry()
-    meta_keys = [m.key for m in reg.list_metadata()]
-    strat_cfg = str(cfg.project_root / "config" / "strategies.yaml")
-    try:
-        runtime = _strategies_load_runtime(cfg)
-        if runtime.source_path:
-            strat_cfg = str(runtime.source_path)
-    except Exception:  # noqa: BLE001
-        pass
-    intraday_on, intraday_off_explicit = is_intraday_paper_runtime_enabled(cfg)
-    ip = t.intraday_paper
-    payload: dict[str, Any] = {
-        "ok": True,
-        "paper_only": True,
-        "live_trading": False,
-        "project_root": str(cfg.project_root),
-        "trading": {
-            "enabled": bool(t.enabled),
-            "mtf_paper_dry_run": bool(t.mtf_paper_dry_run),
-            "intraday_paper": {
-                "config_enabled": bool(ip.enabled),
-                "runtime_on": intraday_on,
-                "runtime_explicit_off": intraday_off_explicit,
-            },
-        },
-        "account": {
-            "mode": str(acct.mode),
-            "block_live_trading": bool(acct.block_live_trading),
-        },
-        "kill_switch_active": is_kill_switch_active(cfg),
-        "runtime_paths": {
-            "mtf_auto_paper": str(mtf_p),
-            "intraday_auto_paper": str(cfg.absolute(INTRADAY_AUTO_PAPER_ENABLED_RELPATH)),
-        },
-        "strategies": {
-            "registry_keys": meta_keys,
-            "strategies_yaml": strat_cfg,
-        },
-        "ui": {
-            "default_base_url": f"http://{host}:{port}",
-            "healthz": f"http://{host}:{port}/healthz",
-            "start_command": "python -m bot_ui",
-        },
-    }
+    payload: dict[str, Any] = dict(build_engine_status_payload(cfg, probe_ui=False))
+    payload.pop("artifacts", None)
+    payload.pop("ui_process", None)
     if as_json:
         sys.stdout.write(json.dumps(payload, indent=2, default=str) + "\n")
     else:
@@ -4017,6 +3958,24 @@ def strategy_lab_engine_status_cmd(
             )
         )
     raise typer.Exit(0)
+
+
+@app.command("engine-status")
+def engine_status_cmd(
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON on stdout."),
+    probe_ui: bool = typer.Option(
+        False,
+        "--probe-ui",
+        help="If the Strategy Lab UI PID file exists, probe GET /healthz (no IBKR).",
+    ),
+) -> None:
+    """Read-only end-to-end lab snapshot: config, latest artifacts, optional UI /healthz.
+
+    Never connects to IBKR/TWS. Never places orders. Safe for daily use.
+    """
+    from .engine_status import run_engine_status_cli  # noqa: PLC0415
+
+    raise typer.Exit(run_engine_status_cli(as_json=as_json, probe_ui=probe_ui))
 
 
 # ---------------------------------------------------------------------------
