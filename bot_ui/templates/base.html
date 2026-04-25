@@ -20,6 +20,7 @@
         <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>
         <li><a href="{{ url_for('strategies') }}" class="{% if active=='strategies' %}active{% endif %}">Strategies</a></li>
         <li><a href="{{ url_for('research') }}" class="{% if active=='research' %}active{% endif %}">Research</a></li>
+        <li><a href="{{ url_for('backtest_page') }}" class="{% if active=='backtest' %}active{% endif %}">Backtest</a></li>
         <li><a href="{{ url_for('logs_page') }}" class="{% if active=='logs' %}active{% endif %}">Logs</a></li>
         <li><a href="{{ url_for('settings_page') }}" class="{% if active=='settings' %}active{% endif %}">Settings</a></li>
       </ul>

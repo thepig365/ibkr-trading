@@ -43,6 +43,10 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "multi-strategy-scan": "Run every enabled strategy via the engine (research-only).",
     "scan-intraday-smc": "ICT/SMC Intraday V1 — single-symbol research scan (paper-only).",
     "scan-intraday-smc-watchlist": "ICT/SMC Intraday V1 — watchlist research scan (paper-only).",
+    "fetch-candles": "Fetch historical OHLCV candles from IBKR into the local cache (read-only).",
+    "backtest-intraday-smc": "Run the ICT/SMC Intraday backtest engine on a single symbol (cache-only, no broker).",
+    "backtest-intraday-smc-watchlist": "Run the ICT/SMC Intraday backtest engine on multiple symbols (cache-only, no broker).",
+    "backtest-report": "Print the latest backtest summary written under data/backtests/intraday/.",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -445,6 +449,243 @@ def validate_scan_intraday_smc_watchlist_args(args: tuple[str, ...]) -> tuple[bo
     return True, ""
 
 
+# ---------------------------------------------------------------------------
+# Backtest validators (Prompt 13E)
+# ---------------------------------------------------------------------------
+_BACKTEST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_BACKTEST_TIMEFRAME_VALUES: frozenset[str] = frozenset(
+    {"1min", "5min", "30min", "4h", "daily"}
+)
+_BACKTEST_MODE_VALUES: frozenset[str] = frozenset(
+    {"strict_only", "aggressive_only", "strict_and_aggressive"}
+)
+_BACKTEST_DIRECTION_VALUES: frozenset[str] = frozenset(
+    {"long_only", "short_only", "both"}
+)
+
+_FETCH_CANDLES_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--symbol", "--timeframe", "--start", "--end"}
+)
+_FETCH_CANDLES_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--ibkr", "--force", "--use-rth", "--no-use-rth"}
+)
+
+
+def validate_fetch_candles_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``fetch-candles``.
+
+    Required: ``--symbol``, ``--timeframe``, ``--start``, ``--end``,
+    ``--ibkr``. Optional: ``--force``, ``--use-rth`` / ``--no-use-rth``.
+    """
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _FETCH_CANDLES_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _FETCH_CANDLES_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, f"fetch-candles: flag {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"fetch-candles: unexpected token {token!r}; only "
+            f"{sorted(_FETCH_CANDLES_FLAGS_BOOL | _FETCH_CANDLES_FLAGS_VALUE)} are allowed."
+        )
+    if "--ibkr" not in flags:
+        return False, "fetch-candles: --ibkr is required."
+    for required in ("--symbol", "--timeframe", "--start", "--end"):
+        if required not in flags:
+            return False, f"fetch-candles: {required} is required."
+    if not _SINGLE_TICKER_RE.match(str(flags["--symbol"])):
+        return False, (
+            f"fetch-candles: --symbol {flags['--symbol']!r} must match "
+            f"{_SINGLE_TICKER_RE.pattern}."
+        )
+    if str(flags["--timeframe"]) not in _BACKTEST_TIMEFRAME_VALUES:
+        return False, (
+            "fetch-candles: --timeframe must be one of "
+            f"{sorted(_BACKTEST_TIMEFRAME_VALUES)}."
+        )
+    if not _BACKTEST_DATE_RE.match(str(flags["--start"])):
+        return False, "fetch-candles: --start must be YYYY-MM-DD."
+    if not _BACKTEST_DATE_RE.match(str(flags["--end"])):
+        return False, "fetch-candles: --end must be YYYY-MM-DD."
+    if "--use-rth" in flags and "--no-use-rth" in flags:
+        return False, "fetch-candles: --use-rth and --no-use-rth are mutually exclusive."
+    return True, ""
+
+
+_BACKTEST_SINGLE_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--symbol", "--start", "--end", "--mode", "--direction"}
+)
+_BACKTEST_SINGLE_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--chart", "--rth-only", "--no-rth-only"}
+)
+
+
+def validate_backtest_intraday_smc_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``backtest-intraday-smc`` (single symbol)."""
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _BACKTEST_SINGLE_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _BACKTEST_SINGLE_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, f"backtest-intraday-smc: flag {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"backtest-intraday-smc: unexpected token {token!r}; only "
+            f"{sorted(_BACKTEST_SINGLE_FLAGS_BOOL | _BACKTEST_SINGLE_FLAGS_VALUE)} are allowed."
+        )
+    for required in ("--symbol", "--start", "--end"):
+        if required not in flags:
+            return False, f"backtest-intraday-smc: {required} is required."
+    if not _SINGLE_TICKER_RE.match(str(flags["--symbol"])):
+        return False, (
+            f"backtest-intraday-smc: --symbol {flags['--symbol']!r} must match "
+            f"{_SINGLE_TICKER_RE.pattern}."
+        )
+    if not _BACKTEST_DATE_RE.match(str(flags["--start"])):
+        return False, "backtest-intraday-smc: --start must be YYYY-MM-DD."
+    if not _BACKTEST_DATE_RE.match(str(flags["--end"])):
+        return False, "backtest-intraday-smc: --end must be YYYY-MM-DD."
+    if "--mode" in flags and str(flags["--mode"]) not in _BACKTEST_MODE_VALUES:
+        return False, (
+            "backtest-intraday-smc: --mode must be one of "
+            f"{sorted(_BACKTEST_MODE_VALUES)}."
+        )
+    if "--direction" in flags and str(flags["--direction"]) not in _BACKTEST_DIRECTION_VALUES:
+        return False, (
+            "backtest-intraday-smc: --direction must be one of "
+            f"{sorted(_BACKTEST_DIRECTION_VALUES)}."
+        )
+    if "--rth-only" in flags and "--no-rth-only" in flags:
+        return False, "backtest-intraday-smc: --rth-only and --no-rth-only are mutually exclusive."
+    return True, ""
+
+
+_BACKTEST_WL_FLAGS_VALUE: frozenset[str] = frozenset(
+    {"--symbols", "--source", "--start", "--end", "--mode", "--direction", "--limit"}
+)
+_BACKTEST_WL_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--chart", "--rth-only", "--no-rth-only"}
+)
+_BACKTEST_WL_SOURCES: frozenset[str] = frozenset({"static", "dynamic", "manual"})
+_BACKTEST_WL_LIMIT_MIN = 1
+_BACKTEST_WL_LIMIT_MAX = 100
+
+
+def validate_backtest_intraday_smc_watchlist_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``backtest-intraday-smc-watchlist``."""
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _BACKTEST_WL_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _BACKTEST_WL_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, (
+                    f"backtest-intraday-smc-watchlist: flag {token!r} requires a value."
+                )
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"backtest-intraday-smc-watchlist: unexpected token {token!r}; only "
+            f"{sorted(_BACKTEST_WL_FLAGS_BOOL | _BACKTEST_WL_FLAGS_VALUE)} are allowed."
+        )
+    for required in ("--start", "--end"):
+        if required not in flags:
+            return False, f"backtest-intraday-smc-watchlist: {required} is required."
+    if "--symbols" not in flags and "--source" not in flags:
+        return False, (
+            "backtest-intraday-smc-watchlist: provide either --symbols or --source."
+        )
+    if "--symbols" in flags and not _TICKER_LIST_RE.match(str(flags["--symbols"])):
+        return False, (
+            "backtest-intraday-smc-watchlist: --symbols must match "
+            f"{_TICKER_LIST_RE.pattern} (uppercase, comma-separated)."
+        )
+    if "--source" in flags and str(flags["--source"]).lower() not in _BACKTEST_WL_SOURCES:
+        return False, (
+            "backtest-intraday-smc-watchlist: --source must be one of "
+            f"{sorted(_BACKTEST_WL_SOURCES)}."
+        )
+    if not _BACKTEST_DATE_RE.match(str(flags["--start"])):
+        return False, "backtest-intraday-smc-watchlist: --start must be YYYY-MM-DD."
+    if not _BACKTEST_DATE_RE.match(str(flags["--end"])):
+        return False, "backtest-intraday-smc-watchlist: --end must be YYYY-MM-DD."
+    if "--mode" in flags and str(flags["--mode"]) not in _BACKTEST_MODE_VALUES:
+        return False, (
+            "backtest-intraday-smc-watchlist: --mode must be one of "
+            f"{sorted(_BACKTEST_MODE_VALUES)}."
+        )
+    if "--direction" in flags and str(flags["--direction"]) not in _BACKTEST_DIRECTION_VALUES:
+        return False, (
+            "backtest-intraday-smc-watchlist: --direction must be one of "
+            f"{sorted(_BACKTEST_DIRECTION_VALUES)}."
+        )
+    if "--limit" in flags:
+        try:
+            n = int(str(flags["--limit"]))
+        except (TypeError, ValueError):
+            return False, "backtest-intraday-smc-watchlist: --limit must be an integer."
+        if not (_BACKTEST_WL_LIMIT_MIN <= n <= _BACKTEST_WL_LIMIT_MAX):
+            return False, (
+                "backtest-intraday-smc-watchlist: --limit must be in "
+                f"[{_BACKTEST_WL_LIMIT_MIN}, {_BACKTEST_WL_LIMIT_MAX}]."
+            )
+    if "--rth-only" in flags and "--no-rth-only" in flags:
+        return False, (
+            "backtest-intraday-smc-watchlist: --rth-only and --no-rth-only are mutually exclusive."
+        )
+    return True, ""
+
+
+_BACKTEST_REPORT_FLAGS_VALUE: frozenset[str] = frozenset({"--path"})
+_BACKTEST_REPORT_FLAGS_BOOL: frozenset[str] = frozenset({"--latest"})
+
+
+def validate_backtest_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validator for ``backtest-report`` — read-only print of latest summary."""
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _BACKTEST_REPORT_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _BACKTEST_REPORT_FLAGS_VALUE:
+            if i + 1 >= len(args):
+                return False, f"backtest-report: flag {token!r} requires a value."
+            value = args[i + 1]
+            # Reject anything that looks like a shell metachar / abs URL etc.
+            if any(ch in value for ch in (";", "|", "&", "`", "$", "<", ">")):
+                return False, "backtest-report: --path contains forbidden characters."
+            flags[token] = value
+            i += 2
+            continue
+        return False, (
+            f"backtest-report: unexpected token {token!r}; only "
+            f"{sorted(_BACKTEST_REPORT_FLAGS_BOOL | _BACKTEST_REPORT_FLAGS_VALUE)} are allowed."
+        )
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -467,4 +708,12 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_scan_intraday_smc_args(args)
     if command == "scan-intraday-smc-watchlist":
         return validate_scan_intraday_smc_watchlist_args(args)
+    if command == "fetch-candles":
+        return validate_fetch_candles_args(args)
+    if command == "backtest-intraday-smc":
+        return validate_backtest_intraday_smc_args(args)
+    if command == "backtest-intraday-smc-watchlist":
+        return validate_backtest_intraday_smc_watchlist_args(args)
+    if command == "backtest-report":
+        return validate_backtest_report_args(args)
     return True, ""

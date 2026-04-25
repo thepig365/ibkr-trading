@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}Backtest{% endblock %}
+{% block subtitle %}<div class="page-sub">RESEARCH-ONLY VIEW. This page reads files written by <code>python -m bot.cli backtest-intraday-smc</code> /
+<code>backtest-intraday-smc-watchlist</code>. It never connects to TWS or imports the IBKR client. Buttons run safe, allowlisted CLI commands only — no orders are placed, no live trading.</div>{% endblock %}
+
+{% block content %}
+  {% set bt = backtest %}
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Latest backtest</div>
+      {% if bt.is_empty %}
+        <div class="card-value text-dim">—</div>
+        <div class="card-sub">No backtest run yet. Use <code>Run Backtest</code> below (cache-only) or run <code>backtest-intraday-smc</code> from the CLI.</div>
+      {% else %}
+        <div class="card-value">
+          {{ bt.start or '—' }} → {{ bt.end or '—' }}
+          <span class="pill good">paper-only</span>
+          <span class="pill {{ 'good' if not bt.execution_allowed else 'bad' }}">execution {{ 'off' if not bt.execution_allowed else 'on' }}</span>
+        </div>
+        <div class="card-sub text-small">
+          finished: {{ bt.finished_at_utc or '—' }}<br/>
+          mode: <code>{{ bt.mode }}</code> · direction: <code>{{ bt.direction }}</code> · RTH only: {{ 'yes' if bt.rth_only else 'no' }}<br/>
+          summary: <code>{{ bt.summary_path }}</code>
+          {% if bt.trades_csv_path %}<br/>trades CSV: <code>{{ bt.trades_csv_path }}</code>{% endif %}
+          {% if bt.equity_csv_path %}<br/>equity CSV: <code>{{ bt.equity_csv_path }}</code>{% endif %}
+          {% if bt.report_md_path %}<br/>report MD: <code>{{ bt.report_md_path }}</code>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Trades</div>
+      <div class="card-value">{{ bt.total_filled_trades }}<span class="text-dim text-small"> / {{ bt.total_signals }} signals</span></div>
+      <div class="card-sub text-small">
+        not filled: {{ bt.total_not_filled }}<br/>
+        avg bars held: {{ "%.1f"|format(bt.average_bars_held or 0) }}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Performance (R-multiples)</div>
+      <div class="card-value">
+        {% if bt.win_rate is not none %}{{ "%.1f%%"|format(bt.win_rate * 100) }}{% else %}—{% endif %}
+        <span class="text-dim text-small">win rate</span>
+      </div>
+      <div class="card-sub text-small">
+        avg R: {{ "%.2f"|format(bt.average_r or 0) }} ·
+        median R: {{ "%.2f"|format(bt.median_r or 0) }} ·
+        total R: {{ "%.2f"|format(bt.total_r or 0) }}<br/>
+        max DD R: {{ "%.2f"|format(bt.max_drawdown_r or 0) }} ·
+        profit factor: {% if bt.profit_factor is not none %}{{ "%.2f"|format(bt.profit_factor) }}{% else %}—{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Strict vs Aggressive</div>
+      <div class="card-value">
+        <span class="pill neutral">strict {{ bt.strict_count }}</span>
+        <span class="pill neutral">aggressive {{ bt.aggressive_count }}</span>
+      </div>
+      <div class="card-sub text-small">
+        strict win rate: {% if bt.strict_win_rate is not none %}{{ "%.1f%%"|format(bt.strict_win_rate * 100) }}{% else %}—{% endif %}<br/>
+        aggressive win rate: {% if bt.aggressive_win_rate is not none %}{{ "%.1f%%"|format(bt.aggressive_win_rate * 100) }}{% else %}—{% endif %}<br/>
+        long: {% if bt.long_win_rate is not none %}{{ "%.1f%%"|format(bt.long_win_rate * 100) }}{% else %}—{% endif %} ·
+        short: {% if bt.short_win_rate is not none %}{{ "%.1f%%"|format(bt.short_win_rate * 100) }}{% else %}—{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Run a backtest (cache-only)</h2>
+    <p class="text-dim text-small">
+      Symbols are validated against <code>^[A-Z]{1,5}(,[A-Z]{1,5})*$</code>. Dates must be <code>YYYY-MM-DD</code>.
+      The backtest reads only from <code>data/candles/</code> — if data is missing, run <code>Fetch Candles</code> first.
+      The <code>--ibkr</code> flag is allowed only for <code>fetch-candles</code>; backtests never connect to the broker.
+    </p>
+    <form action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 8px 12px; max-width: 720px;">
+      <input type="hidden" name="command" value="backtest-intraday-smc-watchlist" />
+      <input type="hidden" name="return_to" value="/backtest" />
+      <input type="hidden" id="bt-args" name="args" value="" />
+
+      <label>Symbols (comma-separated UPPER)
+        <input type="text" id="bt-symbols" placeholder="CRM,AMZN,AAPL,NVDA,TSLA" pattern="^[A-Z]{1,5}(,[A-Z]{1,5})*$" required />
+      </label>
+      <label>Mode
+        <select id="bt-mode">
+          <option value="strict_and_aggressive" selected>strict_and_aggressive</option>
+          <option value="strict_only">strict_only</option>
+          <option value="aggressive_only">aggressive_only</option>
+        </select>
+      </label>
+      <label>Start (YYYY-MM-DD)
+        <input type="text" id="bt-start" placeholder="2026-04-01" pattern="^\d{4}-\d{2}-\d{2}$" required />
+      </label>
+      <label>End (YYYY-MM-DD)
+        <input type="text" id="bt-end" placeholder="2026-04-24" pattern="^\d{4}-\d{2}-\d{2}$" required />
+      </label>
+      <label>Direction
+        <select id="bt-direction">
+          <option value="both" selected>both</option>
+          <option value="long_only">long_only</option>
+          <option value="short_only">short_only</option>
+        </select>
+      </label>
+      <label>Options
+        <span style="display:block;">
+          <label style="display:inline; font-weight:normal;"><input type="checkbox" id="bt-rth" checked /> RTH only</label>
+          &nbsp;<label style="display:inline; font-weight:normal;"><input type="checkbox" id="bt-chart" /> Generate charts</label>
+        </span>
+      </label>
+      <div style="grid-column: 1 / -1;">
+        <button type="submit" class="btn">Run Backtest</button>
+        <span class="text-dim text-small">Reads cached candles only — never connects to IBKR.</span>
+      </div>
+    </form>
+
+    <script>
+      (function () {
+        var form = document.querySelector('form[action$="/api/commands/run"][method="post"]');
+        if (!form) return;
+        var argsEl = document.getElementById('bt-args');
+        if (!argsEl) return;
+        form.addEventListener('submit', function () {
+          var parts = [];
+          var s = (document.getElementById('bt-symbols').value || '').trim();
+          if (s) parts.push('--symbols', s);
+          parts.push('--start', (document.getElementById('bt-start').value || '').trim());
+          parts.push('--end', (document.getElementById('bt-end').value || '').trim());
+          parts.push('--mode', document.getElementById('bt-mode').value);
+          parts.push('--direction', document.getElementById('bt-direction').value);
+          if (document.getElementById('bt-rth').checked) parts.push('--rth-only'); else parts.push('--no-rth-only');
+          if (document.getElementById('bt-chart').checked) parts.push('--chart');
+          argsEl.value = parts.join(' ');
+        });
+      })();
+    </script>
+  </div>
+
+  <div class="section">
+    <h2>Fetch candles from IBKR (explicit, read-only connect)</h2>
+    <p class="text-dim text-small">
+      The <code>fetch-candles</code> command is the ONLY backtest-related command that opens an IBKR connection,
+      and it never places orders. Use it once before backtesting a symbol if its 1-minute cache under
+      <code>data/candles/{SYMBOL}/{TIMEFRAME}/</code> is missing or out of date.
+    </p>
+    <form action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 8px 12px; max-width: 720px;">
+      <input type="hidden" name="command" value="fetch-candles" />
+      <input type="hidden" name="return_to" value="/backtest" />
+      <input type="hidden" id="fc-args" name="args" value="" />
+
+      <label>Symbol
+        <input type="text" id="fc-symbol" placeholder="CRM" pattern="^[A-Z]{1,5}$" required />
+      </label>
+      <label>Timeframe
+        <select id="fc-timeframe">
+          <option value="1min" selected>1min</option>
+          <option value="5min">5min</option>
+          <option value="30min">30min</option>
+          <option value="4h">4h</option>
+          <option value="daily">daily</option>
+        </select>
+      </label>
+      <label>Start (YYYY-MM-DD)
+        <input type="text" id="fc-start" placeholder="2026-04-01" pattern="^\d{4}-\d{2}-\d{2}$" required />
+      </label>
+      <label>End (YYYY-MM-DD)
+        <input type="text" id="fc-end" placeholder="2026-04-24" pattern="^\d{4}-\d{2}-\d{2}$" required />
+      </label>
+      <label>Options
+        <span style="display:block;">
+          <label style="display:inline; font-weight:normal;"><input type="checkbox" id="fc-rth" checked /> Use RTH</label>
+          &nbsp;<label style="display:inline; font-weight:normal;"><input type="checkbox" id="fc-force" /> Force re-fetch</label>
+        </span>
+      </label>
+      <div style="grid-column: 1 / -1;">
+        <button type="submit" class="btn ghost">Fetch Candles (IBKR)</button>
+        <span class="text-dim text-small">Requires TWS/IB Gateway running locally. Read-only connect.</span>
+      </div>
+    </form>
+
+    <script>
+      (function () {
+        var forms = document.querySelectorAll('form[action$="/api/commands/run"][method="post"]');
+        if (forms.length < 2) return;
+        var form = forms[1];
+        var argsEl = document.getElementById('fc-args');
+        if (!argsEl) return;
+        form.addEventListener('submit', function () {
+          var parts = ['--symbol', (document.getElementById('fc-symbol').value || '').trim().toUpperCase(),
+                       '--timeframe', document.getElementById('fc-timeframe').value,
+                       '--start', (document.getElementById('fc-start').value || '').trim(),
+                       '--end', (document.getElementById('fc-end').value || '').trim(),
+                       '--ibkr'];
+          if (!document.getElementById('fc-rth').checked) parts.push('--no-use-rth');
+          if (document.getElementById('fc-force').checked) parts.push('--force');
+          argsEl.value = parts.join(' ');
+        });
+      })();
+    </script>
+  </div>
+
+  <div class="section">
+    <h2>Quick actions</h2>
+    <div>
+      {% with command='backtest-report', args='--latest', label='Show Latest Report', return_to='/backtest', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='strategy-status', args='--json', label='Strategy Status', return_to='/backtest', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  {% if bt.by_symbol %}
+  <div class="section">
+    <h2>By symbol</h2>
+    <table class="table">
+      <thead><tr><th>Symbol</th><th class="num">Trades</th><th class="num">Wins</th><th class="num">Losses</th><th class="num">Win rate</th><th class="num">Avg R</th><th class="num">Total R</th></tr></thead>
+      <tbody>
+        {% for row in bt.by_symbol %}
+        <tr>
+          <td><strong>{{ row.symbol }}</strong></td>
+          <td class="num">{{ row.trades }}</td>
+          <td class="num">{{ row.wins }}</td>
+          <td class="num">{{ row.losses }}</td>
+          <td class="num">{% if row.win_rate is not none %}{{ "%.1f%%"|format(row.win_rate * 100) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if row.average_r is not none %}{{ "%.2f"|format(row.average_r) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if row.total_r is not none %}{{ "%.2f"|format(row.total_r) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if bt.by_hour %}
+  <div class="section">
+    <h2>By hour (entry hour, ET)</h2>
+    <table class="table">
+      <thead><tr><th>Hour</th><th class="num">Trades</th><th class="num">Wins</th><th class="num">Win rate</th><th class="num">Avg R</th><th class="num">Total R</th></tr></thead>
+      <tbody>
+        {% for row in bt.by_hour %}
+        <tr>
+          <td>{{ row.hour }}</td>
+          <td class="num">{{ row.trades }}</td>
+          <td class="num">{{ row.wins }}</td>
+          <td class="num">{% if row.win_rate is not none %}{{ "%.1f%%"|format(row.win_rate * 100) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if row.average_r is not none %}{{ "%.2f"|format(row.average_r) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if row.total_r is not none %}{{ "%.2f"|format(row.total_r) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if bt.by_weekday %}
+  <div class="section">
+    <h2>By weekday</h2>
+    <table class="table">
+      <thead><tr><th>Weekday</th><th class="num">Trades</th><th class="num">Wins</th><th class="num">Win rate</th><th class="num">Avg R</th><th class="num">Total R</th></tr></thead>
+      <tbody>
+        {% for row in bt.by_weekday %}
+        <tr>
+          <td>{{ row.hour }}</td>
+          <td class="num">{{ row.trades }}</td>
+          <td class="num">{{ row.wins }}</td>
+          <td class="num">{% if row.win_rate is not none %}{{ "%.1f%%"|format(row.win_rate * 100) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if row.average_r is not none %}{{ "%.2f"|format(row.average_r) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if row.total_r is not none %}{{ "%.2f"|format(row.total_r) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if bt.trades %}
+  <div class="section">
+    <h2>Trades (latest {{ bt.trades|length }})</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Symbol</th><th>Date</th><th>Dir</th><th>Cat</th><th>Setup</th>
+          <th>Entry</th><th class="num">Entry $</th><th class="num">Stop</th><th class="num">Target</th>
+          <th>Exit</th><th class="num">Exit $</th><th>Outcome</th><th class="num">R</th><th class="num">Bars</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in bt.trades %}
+        <tr>
+          <td class="text-mono text-small">{{ t.trade_id }}</td>
+          <td><strong>{{ t.symbol }}</strong></td>
+          <td>{{ t.date }}</td>
+          <td>{{ t.direction }}</td>
+          <td>{{ t.signal_category }}</td>
+          <td class="text-small">{{ t.setup_type }}</td>
+          <td class="text-small">{{ t.entry_time }}</td>
+          <td class="num">{% if t.entry_price is not none %}{{ "%.2f"|format(t.entry_price) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if t.stop_price is not none %}{{ "%.2f"|format(t.stop_price) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if t.target_price is not none %}{{ "%.2f"|format(t.target_price) }}{% else %}—{% endif %}</td>
+          <td class="text-small">{{ t.exit_time }}</td>
+          <td class="num">{% if t.exit_price is not none %}{{ "%.2f"|format(t.exit_price) }}{% else %}—{% endif %}</td>
+          <td>
+            {% if t.outcome == 'target' %}<span class="pill good">target</span>
+            {% elif t.outcome == 'stop' %}<span class="pill bad">stop</span>
+            {% elif t.outcome == 'eod' %}<span class="pill neutral">eod</span>
+            {% else %}<span class="pill warn">{{ t.outcome }}</span>{% endif %}
+          </td>
+          <td class="num">{% if t.pnl_r is not none %}{{ "%.2f"|format(t.pnl_r) }}{% else %}—{% endif %}</td>
+          <td class="num">{{ t.bars_held if t.bars_held is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if bt.chart_paths %}
+  <div class="section">
+    <h2>Charts</h2>
+    <ul>
+      {% for c in bt.chart_paths %}
+        <li><code>{{ c }}</code></li>
+      {% endfor %}
+    </ul>
+    <p class="text-dim text-small">PNG files live under <code>data/backtests/intraday/charts/</code> and are runtime artifacts (not committed).</p>
+  </div>
+  {% endif %}
+
+  {% if bt.report_md_excerpt %}
+  <div class="section">
+    <h2>Report (excerpt)</h2>
+    <pre class="codeblock" style="max-height: 480px; overflow:auto; white-space:pre-wrap;">{{ bt.report_md_excerpt }}</pre>
+  </div>
+  {% endif %}
+
+  {% include "_recent_results.html" %}
+{% endblock %}

@@ -90,6 +90,26 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "strategy-scan": ("--strategy", "mtf_smc"),
     "scan-intraday-smc": ("--symbol", "AAPL", "--ibkr"),
     "scan-intraday-smc-watchlist": ("--ibkr",),
+    "fetch-candles": (
+        "--symbol", "CRM",
+        "--timeframe", "1min",
+        "--start", "2026-04-01",
+        "--end", "2026-04-24",
+        "--ibkr",
+    ),
+    "backtest-intraday-smc": (
+        "--symbol", "CRM",
+        "--start", "2026-04-01",
+        "--end", "2026-04-24",
+        "--mode", "strict_and_aggressive",
+    ),
+    "backtest-intraday-smc-watchlist": (
+        "--symbols", "CRM,AMZN",
+        "--start", "2026-04-01",
+        "--end", "2026-04-24",
+        "--mode", "strict_and_aggressive",
+    ),
+    "backtest-report": ("--latest",),
 }
 
 

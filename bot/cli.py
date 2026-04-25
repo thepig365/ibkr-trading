@@ -2719,6 +2719,545 @@ def scan_intraday_smc_watchlist_cmd(
     raise typer.Exit(0)
 
 
+# ---------------------------------------------------------------------------
+# Prompt 13E — backtest engine commands
+#
+# These are RESEARCH-ONLY. They never connect to IBKR (except
+# ``fetch-candles`` which explicitly fetches read-only history) and
+# never place orders. Every output payload carries
+# ``execution_allowed=False`` and ``paper_only=True``.
+# ---------------------------------------------------------------------------
+_BACKTEST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_BACKTEST_SYMBOL_RE = re.compile(r"^[A-Z]{1,5}$")
+_BACKTEST_SYMBOLS_RE = re.compile(r"^[A-Z]{1,5}(?:,[A-Z]{1,5})*$")
+_BACKTEST_MODES = ("strict_only", "aggressive_only", "strict_and_aggressive")
+_BACKTEST_DIRECTIONS = ("long_only", "short_only", "both")
+
+
+def _parse_backtest_symbols(raw: Optional[str]) -> list[str]:
+    if not raw:
+        return []
+    s = raw.strip().upper()
+    if not _BACKTEST_SYMBOLS_RE.match(s):
+        raise typer.BadParameter(
+            f"--symbols must match {_BACKTEST_SYMBOLS_RE.pattern} "
+            "(uppercase, comma-separated, 1–5 chars each)."
+        )
+    return s.split(",")
+
+
+def _validate_backtest_date(label: str, value: str) -> str:
+    if not _BACKTEST_DATE_RE.match(value or ""):
+        raise typer.BadParameter(f"{label} must be YYYY-MM-DD; got {value!r}.")
+    return value
+
+
+@app.command("fetch-candles")
+def fetch_candles_cmd(
+    symbol: str = typer.Option(..., "--symbol", "-s", help="Ticker, e.g. CRM."),
+    timeframe: str = typer.Option(
+        "1min", "--timeframe", "-t",
+        help="One of: 1min, 5min, 30min, 4h, daily.",
+    ),
+    start: str = typer.Option(..., "--start", help="YYYY-MM-DD inclusive."),
+    end: str = typer.Option(..., "--end", help="YYYY-MM-DD inclusive."),
+    use_ibkr: bool = typer.Option(
+        False, "--ibkr",
+        help="Required: enables IBKR read-only historical fetch.",
+    ),
+    force: bool = typer.Option(
+        False, "--force",
+        help="Overwrite existing day files instead of merging.",
+    ),
+    use_rth: bool = typer.Option(
+        True, "--use-rth/--no-use-rth",
+        help="Restrict to Regular Trading Hours (default true).",
+    ),
+) -> None:
+    """Fetch candles from IBKR and save to data/candles/{SYMBOL}/{TF}/{DATE}.csv.
+
+    READ-ONLY. No orders. Trading is never touched. The cache is the
+    sole input for ``backtest-intraday-smc[_watchlist]``.
+
+    Notes
+    -----
+    * IBKR's ``reqHistoricalData`` returns the most recent ``duration``
+      window, not an arbitrary date range. We request a window large
+      enough to cover [start, end] and then slice into per-day CSVs.
+    * Days for which IBKR returned zero rows are reported as gaps in
+      the CLI output; we never invent fake candles.
+    """
+    from .backtests.candle_cache import (
+        CandleCacheError,
+        save_candles_csv,
+    )
+    from .smc_timeframes import resolve_timeframe_spec
+
+    if not use_ibkr:
+        console.print("[red]--ibkr is required for fetch-candles.[/red]")
+        raise typer.Exit(2)
+
+    try:
+        sym = symbol.strip().upper()
+        if not _BACKTEST_SYMBOL_RE.match(sym):
+            raise typer.BadParameter(
+                f"--symbol {symbol!r} must match {_BACKTEST_SYMBOL_RE.pattern}."
+            )
+        _validate_backtest_date("--start", start)
+        _validate_backtest_date("--end", end)
+        if start > end:
+            raise typer.BadParameter("--start must be <= --end.")
+    except typer.BadParameter as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)
+
+    cfg = load_config()
+    spec = resolve_timeframe_spec(timeframe, cfg)
+    # Compute a duration that covers the requested window. We always
+    # add a small buffer so IBKR returns the full inclusive range.
+    try:
+        d0 = datetime.strptime(start, "%Y-%m-%d")
+        d1 = datetime.strptime(end, "%Y-%m-%d")
+    except ValueError:
+        console.print("[red]Invalid date.[/red]")
+        raise typer.Exit(2)
+    days = max((d1 - d0).days + 2, 2)
+    duration = f"{days} D"
+    bar_size = str(spec.bar_size)
+    use_rth_flag = bool(use_rth) if use_rth is not None else bool(spec.use_rth)
+
+    console.print(
+        f"[cyan]fetch-candles[/cyan] {sym} {timeframe} "
+        f"{start}..{end} duration='{duration}' bar_size='{bar_size}' "
+        f"use_rth={use_rth_flag}  [yellow]READ-ONLY · NO ORDERS[/yellow]"
+    )
+
+    journal = Journal(cfg)
+    bars: list[dict] = []
+    client = None
+    try:
+        client = _connect(cfg, readonly=True)
+        try:
+            bars = client.get_intraday_bars(
+                sym,
+                duration=duration,
+                bar_size=bar_size,
+                what_to_show=str(spec.what_to_show or "TRADES"),
+                use_rth=use_rth_flag,
+            ) or []
+        except Exception as exc:  # noqa: BLE001
+            console.print(f"[yellow]IBKR fetch error: {exc}[/yellow]")
+            bars = []
+    finally:
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+
+    try:
+        stats = save_candles_csv(
+            project_root=Path(cfg.absolute("")),
+            symbol=sym,
+            timeframe=timeframe,
+            bars=bars,
+            start=start,
+            end=end,
+            force=force,
+        )
+    except CandleCacheError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)
+
+    payload = stats.to_dict()
+    payload["paper_only"] = True
+    payload["execution_allowed"] = False
+    console.print(
+        Panel.fit(
+            json.dumps(payload, indent=2, ensure_ascii=False),
+            title=f"fetch-candles — {sym} {timeframe}",
+            style="cyan",
+        )
+    )
+    if stats.gaps:
+        console.print(
+            f"[yellow]Warning:[/yellow] {len(stats.gaps)} day(s) had no bars "
+            "(weekend / holiday / no IBKR data)."
+        )
+
+    journal.record_event(
+        category="backtest",
+        level="INFO",
+        message="fetch-candles",
+        payload={
+            "symbol": sym,
+            "timeframe": timeframe,
+            "start": start,
+            "end": end,
+            "days_written": stats.days_written,
+            "rows_written": stats.rows_written,
+            "rows_deduped": stats.rows_deduped,
+            "execution_allowed": False,
+            "paper_only": True,
+        },
+    )
+    raise typer.Exit(0)
+
+
+def _run_backtest_intraday_smc(
+    cfg: AppConfig,
+    journal: Journal,
+    *,
+    symbols: list[str],
+    start: str,
+    end: str,
+    mode: str,
+    direction: str,
+    rth_only: bool,
+    chart: bool,
+    source: str | None = None,
+) -> dict:
+    """Shared driver for ``backtest-intraday-smc`` and the watchlist variant."""
+    from .backtests import (
+        BacktestConfig,
+        backtest_intraday_smc,
+        save_backtest_artifacts,
+    )
+    from .strategies.ict_smc_intraday import IntradayRiskConfig
+
+    if not symbols:
+        console.print("[red]No symbols supplied for backtest.[/red]")
+        raise typer.Exit(2)
+
+    bcfg = BacktestConfig(
+        symbols=tuple(symbols),
+        start=start,
+        end=end,
+        mode=mode,
+        direction=direction,
+        rth_only=rth_only,
+        risk_cfg=IntradayRiskConfig(),
+    )
+    run = backtest_intraday_smc(Path(cfg.absolute("")), bcfg)
+    paths = save_backtest_artifacts(Path(cfg.absolute("")), run, chart=chart)
+
+    summary = {
+        "strategy_id": "ict_smc_intraday_v1",
+        "paper_only": True,
+        "execution_allowed": False,
+        "symbols": symbols,
+        "start": start,
+        "end": end,
+        "mode": mode,
+        "direction": direction,
+        "rth_only": rth_only,
+        "source": source,
+        "metrics": run.metrics.to_dict(),
+        "trade_count": len(run.trades),
+        "notes": list(run.notes),
+        "artifacts": paths,
+    }
+
+    tbl = Table(
+        title=f"Backtest summary — {start}..{end} (symbols={','.join(symbols)})"
+    )
+    tbl.add_column("metric")
+    tbl.add_column("value", justify="right")
+    m = run.metrics
+    tbl.add_row("total_signals", str(m.total_signals))
+    tbl.add_row("total_filled_trades", str(m.total_filled_trades))
+    tbl.add_row("total_not_filled", str(m.total_not_filled))
+    tbl.add_row(
+        "win_rate", f"{m.win_rate*100:.1f}%" if m.win_rate is not None else "-"
+    )
+    tbl.add_row("average_r", f"{m.average_r:.3f}" if m.average_r is not None else "-")
+    tbl.add_row("total_r", f"{m.total_r:.3f}")
+    tbl.add_row("max_drawdown_r", f"{m.max_drawdown_r:.3f}")
+    tbl.add_row(
+        "profit_factor",
+        f"{m.profit_factor:.3f}" if (m.profit_factor not in (None, float('inf'))) else "-",
+    )
+    console.print(tbl)
+    console.print(f"[green]Saved summary:[/green] {paths.get('summary_json')}")
+    if run.notes:
+        for n in run.notes:
+            console.print(f"[yellow]note:[/yellow] {n}")
+
+    journal.record_event(
+        category="backtest",
+        level="INFO",
+        message="backtest-intraday-smc",
+        payload={
+            "symbols": symbols,
+            "start": start,
+            "end": end,
+            "mode": mode,
+            "direction": direction,
+            "filled_trades": m.total_filled_trades,
+            "not_filled": m.total_not_filled,
+            "win_rate": m.win_rate,
+            "total_r": m.total_r,
+            "execution_allowed": False,
+            "paper_only": True,
+        },
+    )
+    return summary
+
+
+@app.command("backtest-intraday-smc")
+def backtest_intraday_smc_cmd(
+    symbol: str = typer.Option(..., "--symbol", "-s", help="Single ticker, e.g. CRM."),
+    start: str = typer.Option(..., "--start", help="YYYY-MM-DD inclusive."),
+    end: str = typer.Option(..., "--end", help="YYYY-MM-DD inclusive."),
+    mode: str = typer.Option(
+        "strict_and_aggressive",
+        "--mode",
+        help="strict_only | aggressive_only | strict_and_aggressive.",
+    ),
+    direction: str = typer.Option(
+        "both", "--direction",
+        help="long_only | short_only | both.",
+    ),
+    rth_only: bool = typer.Option(
+        True, "--rth-only/--no-rth-only",
+        help="Restrict simulation to RTH bars (default true).",
+    ),
+    chart: bool = typer.Option(
+        False, "--chart",
+        help="Render equity / R-distribution / by-hour PNGs.",
+    ),
+) -> None:
+    """Run the no-lookahead backtest for ``ict_smc_intraday_v1`` on one symbol."""
+    sym = symbol.strip().upper()
+    if not _BACKTEST_SYMBOL_RE.match(sym):
+        console.print(
+            f"[red]--symbol {symbol!r} must match {_BACKTEST_SYMBOL_RE.pattern}.[/red]"
+        )
+        raise typer.Exit(2)
+    try:
+        _validate_backtest_date("--start", start)
+        _validate_backtest_date("--end", end)
+    except typer.BadParameter as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)
+    if mode not in _BACKTEST_MODES:
+        console.print(f"[red]--mode must be one of {_BACKTEST_MODES}.[/red]")
+        raise typer.Exit(2)
+    if direction not in _BACKTEST_DIRECTIONS:
+        console.print(f"[red]--direction must be one of {_BACKTEST_DIRECTIONS}.[/red]")
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    _run_backtest_intraday_smc(
+        cfg,
+        journal,
+        symbols=[sym],
+        start=start,
+        end=end,
+        mode=mode,
+        direction=direction,
+        rth_only=rth_only,
+        chart=chart,
+        source="single",
+    )
+    raise typer.Exit(0)
+
+
+@app.command("backtest-intraday-smc-watchlist")
+def backtest_intraday_smc_watchlist_cmd(
+    symbols: Optional[str] = typer.Option(
+        None, "--symbols",
+        help="Comma-separated tickers, e.g. CRM,AMZN,AAPL.",
+    ),
+    source: Optional[str] = typer.Option(
+        None, "--source",
+        help="static | dynamic | manual (alias of static). Mutually exclusive with --symbols.",
+    ),
+    start: str = typer.Option(..., "--start"),
+    end: str = typer.Option(..., "--end"),
+    mode: str = typer.Option("strict_and_aggressive", "--mode"),
+    direction: str = typer.Option("both", "--direction"),
+    rth_only: bool = typer.Option(True, "--rth-only/--no-rth-only"),
+    chart: bool = typer.Option(False, "--chart"),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", min=1, help="Cap total symbols (default no cap).",
+    ),
+) -> None:
+    """Backtest ``ict_smc_intraday_v1`` over a list of symbols (no IBKR call).
+
+    Symbol selection precedence:
+
+    1. ``--symbols CRM,AMZN`` (explicit list).
+    2. ``--source dynamic`` reads the latest dynamic watchlist.
+    3. ``--source static`` (or ``manual``) reads the static config.
+    """
+    cfg, journal = _bootstrap()
+
+    chosen: list[str] = []
+    src_label = ""
+    if symbols:
+        chosen = _parse_backtest_symbols(symbols)
+        src_label = "manual_list"
+    elif source:
+        s = source.strip().lower()
+        if s in {"manual"}:
+            s = "static"
+        if s not in {"static", "dynamic"}:
+            console.print("[red]--source must be static, dynamic, or manual.[/red]")
+            raise typer.Exit(2)
+        src_label = s
+        if s == "dynamic":
+            from .watchlist_builder import load_dynamic_watchlist
+            dw = load_dynamic_watchlist(cfg)
+            if dw is None:
+                console.print(
+                    "[red]Dynamic watchlist not built; run "
+                    "'python -m bot.cli build-watchlist' first.[/red]"
+                )
+                raise typer.Exit(3)
+            chosen = [r.symbol for r in dw.symbols if not getattr(r, "blocked", False)]
+        else:
+            eqs = (getattr(cfg, "watchlist", {}) or {}).get("equities") or []
+            for e in eqs:
+                if isinstance(e, dict) and e.get("symbol"):
+                    chosen.append(str(e["symbol"]).upper())
+                elif isinstance(e, str):
+                    chosen.append(e.upper())
+            if not chosen:
+                chosen = list((getattr(cfg, "watchlist", {}) or {}).get("static_core") or [])
+            chosen = [s.upper() for s in chosen]
+    else:
+        console.print("[red]Provide either --symbols or --source.[/red]")
+        raise typer.Exit(2)
+
+    if not chosen:
+        console.print("[red]Watchlist is empty; nothing to backtest.[/red]")
+        raise typer.Exit(2)
+
+    if limit is not None and limit > 0:
+        chosen = chosen[: int(limit)]
+
+    try:
+        _validate_backtest_date("--start", start)
+        _validate_backtest_date("--end", end)
+    except typer.BadParameter as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)
+    if mode not in _BACKTEST_MODES:
+        console.print(f"[red]--mode must be one of {_BACKTEST_MODES}.[/red]")
+        raise typer.Exit(2)
+    if direction not in _BACKTEST_DIRECTIONS:
+        console.print(f"[red]--direction must be one of {_BACKTEST_DIRECTIONS}.[/red]")
+        raise typer.Exit(2)
+
+    _run_backtest_intraday_smc(
+        cfg,
+        journal,
+        symbols=chosen,
+        start=start,
+        end=end,
+        mode=mode,
+        direction=direction,
+        rth_only=rth_only,
+        chart=chart,
+        source=src_label,
+    )
+    raise typer.Exit(0)
+
+
+@app.command("backtest-report")
+def backtest_report_cmd(
+    latest: bool = typer.Option(
+        False, "--latest",
+        help="Print the latest backtest summary written under data/backtests/intraday/.",
+    ),
+    summary_path: Optional[str] = typer.Option(
+        None, "--path",
+        help="Print a specific summary JSON path instead of the latest.",
+    ),
+) -> None:
+    """Print a saved backtest summary (read-only, never connects to IBKR)."""
+    from .backtests import REPORT_DIRNAME
+
+    cfg = load_config()
+    out_dir = Path(cfg.absolute(REPORT_DIRNAME))
+
+    target: Path | None = None
+    if summary_path:
+        target = Path(summary_path)
+    elif latest or True:  # default behaviour: latest
+        if not out_dir.exists():
+            console.print(
+                "[yellow]No backtest reports yet — run "
+                "'backtest-intraday-smc' first.[/yellow]"
+            )
+            raise typer.Exit(0)
+        candidates = sorted(out_dir.glob("*-backtest-summary.json"))
+        if not candidates:
+            console.print(
+                "[yellow]No backtest reports yet — run "
+                "'backtest-intraday-smc' first.[/yellow]"
+            )
+            raise typer.Exit(0)
+        target = candidates[-1]
+
+    if not target or not target.exists():
+        console.print(f"[red]Backtest summary not found: {target}[/red]")
+        raise typer.Exit(2)
+
+    try:
+        data = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        console.print(f"[red]Could not read {target}: {exc}[/red]")
+        raise typer.Exit(2)
+
+    metrics = data.get("metrics") or {}
+    cfg_block = data.get("config") or {}
+    tbl = Table(title=f"Backtest report — {target.name}")
+    tbl.add_column("metric")
+    tbl.add_column("value", justify="right")
+    for k in (
+        "total_signals", "total_filled_trades", "total_not_filled",
+        "win_rate", "average_r", "median_r", "total_r", "max_drawdown_r",
+        "profit_factor", "average_bars_held", "strict_count",
+        "aggressive_count", "strict_win_rate", "aggressive_win_rate",
+        "long_win_rate", "short_win_rate",
+    ):
+        v = metrics.get(k)
+        if isinstance(v, float) and "rate" in k:
+            tbl.add_row(k, f"{v*100:.1f}%")
+        else:
+            tbl.add_row(k, "-" if v is None else str(v))
+    console.print(tbl)
+    console.print(
+        f"[cyan]symbols=[/cyan] {','.join(cfg_block.get('symbols') or [])} "
+        f"[cyan]range=[/cyan] {cfg_block.get('start')}..{cfg_block.get('end')} "
+        f"[cyan]mode=[/cyan] {cfg_block.get('mode')} "
+        f"[cyan]direction=[/cyan] {cfg_block.get('direction')}"
+    )
+    by_sym = metrics.get("by_symbol") or []
+    if by_sym:
+        st = Table(title="By symbol")
+        for col in ("symbol", "trades", "wins", "losses", "win_rate", "average_r", "total_r"):
+            st.add_column(col, justify="right" if col != "symbol" else "left")
+        for row in by_sym:
+            wr = row.get("win_rate")
+            wr_s = "-" if wr is None else f"{wr*100:.1f}%"
+            st.add_row(
+                str(row.get("symbol")),
+                str(row.get("trades", 0)),
+                str(row.get("wins", 0)),
+                str(row.get("losses", 0)),
+                wr_s,
+                "-" if row.get("average_r") is None else f"{row['average_r']:.3f}",
+                "-" if row.get("total_r") is None else f"{row['total_r']:.3f}",
+            )
+        console.print(st)
+
+    console.print(f"[green]Source:[/green] {target}")
+    raise typer.Exit(0)
+
+
 @app.command("mtf-diagnostic-report")
 def mtf_diagnostic_report(
     use_latest: bool = typer.Option(
@@ -4175,6 +4714,55 @@ def strategy_status_cmd(
             "status": meta.status,
         }
 
+    # Surface the latest intraday backtest summary alongside scan
+    # freshness — so ``strategy-status`` is the one place to see
+    # whether the strategy has both a recent scan AND a recent backtest.
+    from .backtests import REPORT_DIRNAME  # noqa: PLC0415
+
+    backtest_dir = Path(cfg.absolute(REPORT_DIRNAME))
+    latest_bt: Path | None = None
+    if backtest_dir.exists():
+        candidates = sorted(backtest_dir.glob("*-backtest-summary.json"))
+        latest_bt = candidates[-1] if candidates else None
+    bt_payload: dict[str, object] | None = None
+    if latest_bt is not None:
+        try:
+            bt_data = json.loads(latest_bt.read_text(encoding="utf-8"))
+            cfg_block = bt_data.get("config") or {}
+            metrics_block = bt_data.get("metrics") or {}
+            bt_payload = {
+                "summary_path": str(latest_bt),
+                "strategy_id": bt_data.get("strategy_id") or "ict_smc_intraday_v1",
+                "start": cfg_block.get("start"),
+                "end": cfg_block.get("end"),
+                "mode": cfg_block.get("mode"),
+                "direction": cfg_block.get("direction"),
+                "symbols": cfg_block.get("symbols") or [],
+                "total_filled_trades": metrics_block.get("total_filled_trades"),
+                "total_signals": metrics_block.get("total_signals"),
+                "win_rate": metrics_block.get("win_rate"),
+                "average_r": metrics_block.get("average_r"),
+                "total_r": metrics_block.get("total_r"),
+                "max_drawdown_r": metrics_block.get("max_drawdown_r"),
+                "profit_factor": metrics_block.get("profit_factor"),
+                "finished_at_utc": bt_data.get("finished_at_utc"),
+                "paper_only": bt_data.get("paper_only", True),
+                "execution_allowed": bt_data.get("execution_allowed", False),
+            }
+        except (OSError, ValueError, json.JSONDecodeError):
+            bt_payload = {"summary_path": str(latest_bt), "error": "failed_to_parse"}
+
+    if "ict_smc_intraday_v1" in per_strategy:
+        per_strategy["ict_smc_intraday_v1"]["backtest"] = bt_payload or {
+            "summary_path": None,
+            "note": "no backtest run yet (use 'backtest-intraday-smc' or '/backtest' UI).",
+        }
+        per_strategy["ict_smc_intraday_v1"]["modes"] = {
+            "research": "active",
+            "backtest": "active" if bt_payload else "ready",
+            "paper": "planned_disabled",
+        }
+
     payload = {
         "today_utc": today,
         "data_dir": str(out_dir),
@@ -4182,6 +4770,7 @@ def strategy_status_cmd(
         "multi_strategy_scan_stale": (multi_path is None)
         or (multi_path.name.split("-multi-strategy-scan.json")[0] != today),
         "per_strategy": per_strategy,
+        "latest_backtest": bt_payload,
         "paper_only": True,
         "execution_allowed": False,
     }

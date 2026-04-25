@@ -48,6 +48,7 @@ _ALLOWED_RETURNS = {
     "/paper",
     "/strategies",
     "/research",
+    "/backtest",
     "/logs",
     "/settings",
 }

@@ -136,6 +136,105 @@ class IntradaySignalsView:
 
 
 @dataclass(frozen=True)
+class BacktestTradeRow:
+    """One row of the trades table shown on the backtest page (Prompt 13E)."""
+
+    trade_id: str = ""
+    symbol: str = ""
+    date: str = ""
+    direction: str = ""
+    signal_category: str = ""
+    setup_type: str = ""
+    trigger_type: str = ""
+    entry_time: str = ""
+    entry_price: float | None = None
+    stop_price: float | None = None
+    target_price: float | None = None
+    exit_time: str = ""
+    exit_price: float | None = None
+    outcome: str = ""
+    pnl_r: float | None = None
+    planned_rr: float | None = None
+    bars_held: int | None = None
+
+
+@dataclass(frozen=True)
+class BacktestSymbolRow:
+    symbol: str = ""
+    trades: int = 0
+    wins: int = 0
+    losses: int = 0
+    win_rate: float | None = None
+    average_r: float | None = None
+    total_r: float | None = None
+
+
+@dataclass(frozen=True)
+class BacktestHourRow:
+    hour: str = ""
+    trades: int = 0
+    wins: int = 0
+    win_rate: float | None = None
+    average_r: float | None = None
+    total_r: float | None = None
+
+
+@dataclass(frozen=True)
+class BacktestSummaryView:
+    """UI-ready snapshot of the latest ICT/SMC intraday backtest run.
+
+    Read from ``data/backtests/intraday/*-backtest-summary.json``.
+    Optional companion files (``*-backtest-trades.csv``,
+    ``*-backtest-report.md``) are loaded best-effort. NEVER imports
+    the broker / IBKR client.
+    """
+
+    paper_only: bool = True
+    execution_allowed: bool = False
+    strategy_id: str = "ict_smc_intraday_v1"
+    symbols: list[str] = field(default_factory=list)
+    start: str = ""
+    end: str = ""
+    mode: str = ""
+    direction: str = ""
+    rth_only: bool = True
+    started_at_utc: str = ""
+    finished_at_utc: str = ""
+    total_signals: int = 0
+    total_filled_trades: int = 0
+    total_not_filled: int = 0
+    win_rate: float | None = None
+    average_r: float | None = None
+    median_r: float | None = None
+    total_r: float | None = None
+    max_drawdown_r: float | None = None
+    profit_factor: float | None = None
+    average_bars_held: float | None = None
+    strict_count: int = 0
+    aggressive_count: int = 0
+    strict_win_rate: float | None = None
+    aggressive_win_rate: float | None = None
+    long_win_rate: float | None = None
+    short_win_rate: float | None = None
+    by_symbol: list[BacktestSymbolRow] = field(default_factory=list)
+    by_hour: list[BacktestHourRow] = field(default_factory=list)
+    by_weekday: list[BacktestHourRow] = field(default_factory=list)
+    trades: list[BacktestTradeRow] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    summary_path: str | None = None
+    trades_csv_path: str | None = None
+    equity_csv_path: str | None = None
+    report_md_path: str | None = None
+    chart_paths: list[str] = field(default_factory=list)
+    report_md_excerpt: str = ""
+    is_stale: bool = True
+
+    @property
+    def is_empty(self) -> bool:
+        return self.summary_path is None
+
+
+@dataclass(frozen=True)
 class LoopStatus:
     last_cycle_utc: str = ""
     last_status: str = ""
@@ -279,6 +378,7 @@ class StateStore(Protocol):
     def safety_view(self) -> SafetyView: ...
     def get_research_summary(self) -> ResearchSummary: ...
     def get_strategy_registry_summary(self) -> StrategyRegistrySummary: ...
+    def get_backtest_summary(self) -> BacktestSummaryView: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
 
@@ -386,6 +486,7 @@ class LocalFileStateStore:
         self.watchlists_dir = self.data_dir / "watchlists"
         self.mtf_smc_dir = self.data_dir / "mtf_smc"
         self.intraday_smc_dir = self.data_dir / "intraday_smc"
+        self.backtests_intraday_dir = self.data_dir / "backtests" / "intraday"
         self.auto_paper_loop_dir = self.data_dir / "auto_paper_loop"
         self.account_snapshots_jsonl = self.data_dir / "account_snapshots.jsonl"
         self.sqlite_path = self.data_dir / "trading_bot.sqlite"
@@ -702,6 +803,157 @@ class LocalFileStateStore:
             return None
         candidates = sorted(
             self.intraday_smc_dir.glob("*-watchlist-intraday-smc-summary.json")
+        )
+        if not candidates:
+            return None
+        return candidates[-1]
+
+    # ------------------------------------------------------------------
+    # Backtests (Prompt 13E)
+    # ------------------------------------------------------------------
+    def get_backtest_summary(self) -> BacktestSummaryView:
+        """Read the latest ICT/SMC intraday backtest summary from disk.
+
+        Reads only ``data/backtests/intraday/*-backtest-summary.json``
+        and the matching trades CSV / report MD if present. NEVER
+        imports ``bot.ibkr_client`` or ``bot.broker``.
+        """
+        path = self._latest_backtest_summary_path()
+        if path is None:
+            return BacktestSummaryView()
+        data = _safe_read_json(path)
+        if not data:
+            return BacktestSummaryView(summary_path=str(path))
+
+        cfg = data.get("config") or {}
+        metrics = data.get("metrics") or {}
+        symbols = [str(s).upper() for s in (cfg.get("symbols") or []) if s]
+
+        by_symbol_rows: list[BacktestSymbolRow] = []
+        for row in (metrics.get("by_symbol") or []):
+            if not isinstance(row, dict):
+                continue
+            by_symbol_rows.append(
+                BacktestSymbolRow(
+                    symbol=str(row.get("symbol") or ""),
+                    trades=int(row.get("trades") or 0),
+                    wins=int(row.get("wins") or 0),
+                    losses=int(row.get("losses") or 0),
+                    win_rate=_to_float(row.get("win_rate")),
+                    average_r=_to_float(row.get("average_r")),
+                    total_r=_to_float(row.get("total_r")),
+                )
+            )
+
+        def _to_hour_rows(d: Any) -> list[BacktestHourRow]:
+            out: list[BacktestHourRow] = []
+            if not isinstance(d, dict):
+                return out
+            for k, v in d.items():
+                if not isinstance(v, dict):
+                    continue
+                out.append(
+                    BacktestHourRow(
+                        hour=str(k),
+                        trades=int(v.get("trades") or 0),
+                        wins=int(v.get("wins") or 0),
+                        win_rate=_to_float(v.get("win_rate")),
+                        average_r=_to_float(v.get("average_r")),
+                        total_r=_to_float(v.get("total_r")),
+                    )
+                )
+            return out
+
+        trades_rows: list[BacktestTradeRow] = []
+        for t in (data.get("trades") or [])[:200]:
+            if not isinstance(t, dict):
+                continue
+            trades_rows.append(
+                BacktestTradeRow(
+                    trade_id=str(t.get("trade_id") or ""),
+                    symbol=str(t.get("symbol") or ""),
+                    date=str(t.get("date") or ""),
+                    direction=str(t.get("direction") or ""),
+                    signal_category=str(t.get("signal_category") or ""),
+                    setup_type=str(t.get("setup_type") or ""),
+                    trigger_type=str(t.get("trigger_type") or ""),
+                    entry_time=str(t.get("entry_time") or ""),
+                    entry_price=_to_float(t.get("entry_price")),
+                    stop_price=_to_float(t.get("stop_price")),
+                    target_price=_to_float(t.get("target_price")),
+                    exit_time=str(t.get("exit_time") or ""),
+                    exit_price=_to_float(t.get("exit_price")),
+                    outcome=str(t.get("outcome") or ""),
+                    pnl_r=_to_float(t.get("pnl_r")),
+                    planned_rr=_to_float(t.get("planned_rr")),
+                    bars_held=int(t.get("bars_held"))
+                    if isinstance(t.get("bars_held"), (int, float)) else None,
+                )
+            )
+
+        stem = path.name.removesuffix("-backtest-summary.json")
+        trades_csv = self.backtests_intraday_dir / f"{stem}-backtest-trades.csv"
+        equity_csv = self.backtests_intraday_dir / f"{stem}-backtest-equity.csv"
+        report_md = self.backtests_intraday_dir / f"{stem}-backtest-report.md"
+
+        chart_paths: list[str] = []
+        charts_dir = self.backtests_intraday_dir / "charts"
+        if charts_dir.exists():
+            for chart_path in sorted(charts_dir.glob(f"{stem}-*.png")):
+                chart_paths.append(str(chart_path))
+
+        excerpt = ""
+        md_text = _safe_read_text(report_md, max_bytes=8000)
+        if md_text:
+            excerpt = md_text[:6000]
+
+        return BacktestSummaryView(
+            paper_only=bool(data.get("paper_only", True)),
+            execution_allowed=bool(data.get("execution_allowed", False)),
+            strategy_id=str(data.get("strategy_id") or "ict_smc_intraday_v1"),
+            symbols=symbols,
+            start=str(cfg.get("start") or ""),
+            end=str(cfg.get("end") or ""),
+            mode=str(cfg.get("mode") or ""),
+            direction=str(cfg.get("direction") or ""),
+            rth_only=bool(cfg.get("rth_only", True)),
+            started_at_utc=str(data.get("started_at_utc") or ""),
+            finished_at_utc=str(data.get("finished_at_utc") or ""),
+            total_signals=int(metrics.get("total_signals") or 0),
+            total_filled_trades=int(metrics.get("total_filled_trades") or 0),
+            total_not_filled=int(metrics.get("total_not_filled") or 0),
+            win_rate=_to_float(metrics.get("win_rate")),
+            average_r=_to_float(metrics.get("average_r")),
+            median_r=_to_float(metrics.get("median_r")),
+            total_r=_to_float(metrics.get("total_r")),
+            max_drawdown_r=_to_float(metrics.get("max_drawdown_r")),
+            profit_factor=_to_float(metrics.get("profit_factor")),
+            average_bars_held=_to_float(metrics.get("average_bars_held")),
+            strict_count=int(metrics.get("strict_count") or 0),
+            aggressive_count=int(metrics.get("aggressive_count") or 0),
+            strict_win_rate=_to_float(metrics.get("strict_win_rate")),
+            aggressive_win_rate=_to_float(metrics.get("aggressive_win_rate")),
+            long_win_rate=_to_float(metrics.get("long_win_rate")),
+            short_win_rate=_to_float(metrics.get("short_win_rate")),
+            by_symbol=by_symbol_rows,
+            by_hour=_to_hour_rows(metrics.get("by_hour")),
+            by_weekday=_to_hour_rows(metrics.get("by_weekday")),
+            trades=trades_rows,
+            notes=[str(n) for n in (data.get("notes") or [])],
+            summary_path=str(path),
+            trades_csv_path=str(trades_csv) if trades_csv.exists() else None,
+            equity_csv_path=str(equity_csv) if equity_csv.exists() else None,
+            report_md_path=str(report_md) if report_md.exists() else None,
+            chart_paths=chart_paths,
+            report_md_excerpt=excerpt,
+            is_stale=False,
+        )
+
+    def _latest_backtest_summary_path(self) -> Path | None:
+        if not self.backtests_intraday_dir.exists():
+            return None
+        candidates = sorted(
+            self.backtests_intraday_dir.glob("*-backtest-summary.json")
         )
         if not candidates:
             return None
@@ -1146,6 +1398,9 @@ class DatabaseStateStore:
     def get_strategy_registry_summary(self) -> StrategyRegistrySummary:  # pragma: no cover - stub
         raise self._not_yet()
 
+    def get_backtest_summary(self) -> BacktestSummaryView:  # pragma: no cover - stub
+        raise self._not_yet()
+
     def list_log_files(self) -> list[Path]:  # pragma: no cover - stub
         raise self._not_yet()
 
@@ -1167,6 +1422,10 @@ def get_state_store(project_root: Path) -> StateStore:
 
 __all__ = [
     "AccountSummary",
+    "BacktestHourRow",
+    "BacktestSummaryView",
+    "BacktestSymbolRow",
+    "BacktestTradeRow",
     "PositionRow",
     "WatchlistEntry",
     "WatchlistView",

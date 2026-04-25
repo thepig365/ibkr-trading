@@ -72,11 +72,18 @@ data/scheduler/
 data/telegram_commands/
 data/account_snapshots*
 data/paper_orders/
-data/backtests/
+# Prompt 13E: backtest engine reports — runtime artifacts; never commit.
+data/backtests/*
+!data/backtests/.gitkeep
 # Prompt 13D: ICT/SMC Intraday research scan outputs (per-symbol JSON +
 # watchlist summary). Generated on demand by ``scan-intraday-smc[_watchlist]``.
 data/intraday_smc/*
 !data/intraday_smc/.gitkeep
+# Prompt 13E: candle cache used by the backtest engine. Populated on
+# demand by ``python -m bot.cli fetch-candles`` (read-only IBKR fetch).
+# Never committed; contains historical broker data.
+data/candles/*
+!data/candles/.gitkeep
 
 # UI server scratch (sessions, sqlite caches, etc.)
 bot_ui/.cache/

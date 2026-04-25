@@ -75,6 +75,7 @@ def create_app(
 
     # Lazy import routers to keep top-level imports tiny and to avoid
     # any chance of circular imports across the routes/services layers.
+    from .routes import backtest as backtest_routes  # noqa: PLC0415
     from .routes import dashboard as dashboard_routes  # noqa: PLC0415
     from .routes import logs as logs_routes  # noqa: PLC0415
     from .routes import paper as paper_routes  # noqa: PLC0415
@@ -91,6 +92,7 @@ def create_app(
     app.include_router(paper_routes.router)
     app.include_router(strategies_routes.router)
     app.include_router(research_routes.router)
+    app.include_router(backtest_routes.router)
     app.include_router(logs_routes.router)
     app.include_router(settings_routes.router)
     app.include_router(build_api_router())
