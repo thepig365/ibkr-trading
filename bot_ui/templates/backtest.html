@@ -136,6 +136,128 @@
       });
     })();
     </script>
+
+    <h3 class="text-small" style="margin:20px 0 8px 0;">One-click: coverage + optional IBKR fetch + backtest</h3>
+    <p class="text-dim text-small" style="margin-top:0;">
+      <strong>Fetch Missing Data &amp; Run Backtest</strong> will first read local 1m files (same as Check Data Coverage). If a symbol is <strong>Partial</strong> or <strong>Missing</strong> for the range, it will <strong>fetch 1m history from IBKR</strong> (read-only, no orders), then run the intraday backtest. It <strong>never</strong> places orders or starts paper/loop. Only click when TWS/IB Gateway is up if you need a fetch. If you prefer manual steps, use the three separate buttons above.
+    </p>
+    {% if last_backtest_oneclick %}
+    <div class="text-small" style="margin:8px 0; padding:8px; border:1px solid var(--border); border-radius:4px; max-width:48rem;">
+      <strong>Last one-click run</strong> (from <code>data/runtime/last_backtest_oneclick.json</code>):
+      <ul style="margin:6px 0 0 1rem; padding:0;">
+        <li>Fetched: {{ (last_backtest_oneclick.symbols_fetched or [])|join(", ") or "—" }}</li>
+        <li>Failed fetch: {{ (last_backtest_oneclick.symbols_failed_fetch or [])|join(", ") or "—" }}</li>
+        <li>Backtest ran on: {{ (last_backtest_oneclick.backtest_symbols_run or [])|join(", ") or "—" }}</li>
+        <li>Skipped (no cache): {{ (last_backtest_oneclick.backtest_symbols_skipped or [])|join(", ") or "—" }}</li>
+        <li>Complete: {% if last_backtest_oneclick.complete_result %}<span class="pill good">yes</span>{% else %}<span class="pill warn">no</span>{% endif %}</li>
+        {% if last_backtest_oneclick.backtest_summary_path %}
+        <li>Summary: <code class="text-small">{{ last_backtest_oneclick.backtest_summary_path }}</code></li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+    <form id="form-backtest-oneclick" action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 8px 12px; max-width: 760px;">
+      <input type="hidden" name="command" value="backtest-oneclick" />
+      <input type="hidden" name="return_to" value="/backtest" />
+      <input type="hidden" id="oc-args" name="args" value="" />
+      <label>Symbol source
+        <select id="oc-src">
+          <option value="core">Core basket (15 names)</option>
+          <option value="watchlist">Latest watchlist</option>
+          <option value="single">Single ticker</option>
+          <option value="custom" selected>Custom comma list</option>
+        </select>
+      </label>
+      <label>Custom / single (UPPER, comma, 1–5 letters)
+        <input type="text" id="oc-symbols" placeholder="CRM,AAPL" pattern="^[A-Z]{1,5}(,[A-Z]{1,5})*$" />
+      </label>
+      <label>Date preset
+        <select id="oc-preset">
+          <option value="1w" selected>Last 1 week</option>
+          <option value="2w">Last 2 weeks</option>
+          <option value="1m">Last ~1 month (30d)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <label>Start
+        <input type="text" id="oc-start" pattern="^\d{4}-\d{2}-\d{2}$" />
+      </label>
+      <label>End
+        <input type="text" id="oc-end" pattern="^\d{4}-\d{2}-\d{2}$" />
+      </label>
+      <label>Mode
+        <select id="oc-mode">
+          <option value="strict_and_aggressive" selected>strict_and_aggressive</option>
+          <option value="strict_only">strict_only</option>
+          <option value="aggressive_only">aggressive_only</option>
+        </select>
+      </label>
+      <label>Direction
+        <select id="oc-direction">
+          <option value="both" selected>both</option>
+          <option value="long_only">long_only</option>
+          <option value="short_only">short_only</option>
+        </select>
+      </label>
+      <label>Options
+        <span style="display:block;">
+          <label style="display:inline; font-weight:normal;"><input type="checkbox" id="oc-rth" checked /> RTH only (backtest)</label>
+          &nbsp;<label style="display:inline; font-weight:normal;"><input type="checkbox" id="oc-chart" /> Charts</label>
+          &nbsp;<label style="display:inline; font-weight:normal;" title="If fetch fails, still run on cached symbols only"><input type="checkbox" id="oc-allow-partial" /> Allow partial</label>
+        </span>
+      </label>
+      <div style="grid-column:1/-1;">
+        <button type="submit" class="btn" style="font-weight:600;">Fetch Missing Data &amp; Run Backtest</button>
+        <span class="text-dim text-small">May connect to IBKR for history only; never places orders.</span>
+      </div>
+    </form>
+    <script>
+    (function () {
+      var form = document.getElementById("form-backtest-oneclick");
+      if (!form) return;
+      function ymd(d) {
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      }
+      function syncRange() {
+        var end = new Date();
+        var start = new Date();
+        var pr = document.getElementById("oc-preset").value;
+        if (pr === "1w") start.setDate(end.getDate() - 7);
+        else if (pr === "2w") start.setDate(end.getDate() - 14);
+        else if (pr === "1m") start.setDate(end.getDate() - 30);
+        if (pr !== "custom") {
+          document.getElementById("oc-end").value = ymd(end);
+          document.getElementById("oc-start").value = ymd(start);
+        }
+      }
+      document.getElementById("oc-preset").addEventListener("change", syncRange);
+      syncRange();
+      form.addEventListener("submit", function (e) {
+        var st = (document.getElementById("oc-start").value || "").trim();
+        var en = (document.getElementById("oc-end").value || "").trim();
+        var src = document.getElementById("oc-src").value;
+        var parts = ["--timeframe", "1min", "--strategy", "ict_smc_intraday_v1", "--start", st, "--end", en,
+          "--mode", document.getElementById("oc-mode").value,
+          "--direction", document.getElementById("oc-direction").value];
+        if (document.getElementById("oc-rth").checked) parts.push("--rth-only"); else parts.push("--no-rth-only");
+        if (document.getElementById("oc-chart").checked) parts.push("--chart");
+        if (document.getElementById("oc-allow-partial").checked) parts.push("--allow-partial");
+        if (src === "core") parts.splice(0, 0, "--core-basket");
+        else if (src === "watchlist") { parts.splice(0, 0, "--watchlist", "latest"); }
+        else {
+          var raw = (document.getElementById("oc-symbols").value || "").trim().toUpperCase();
+          var sym = (src === "single") ? (raw.split(",")[0] || raw).trim() : raw;
+          if (src === "single") {
+            if (!/^[A-Z]{1,5}$/.test(sym)) { e.preventDefault(); alert("Single ticker: one UPPER symbol, 1–5 letters."); return; }
+          } else if (!/^[A-Z]{1,5}(,[A-Z]{1,5})*$/.test(sym)) {
+            e.preventDefault(); alert("Enter valid UPPER symbols (1–5 letters each, comma-separated)."); return;
+          }
+          parts = ["--symbols", sym].concat(parts);
+        }
+        document.getElementById("oc-args").value = parts.join(" ");
+      });
+    })();
+    </script>
   </div>
 
   <div class="grid">

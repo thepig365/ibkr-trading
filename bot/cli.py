@@ -3226,6 +3226,195 @@ def candle_coverage_cmd(
     raise typer.Exit(0)
 
 
+@app.command("backtest-oneclick")
+def backtest_oneclick_cmd(
+    start: str = typer.Option(..., "--start", help="YYYY-MM-DD inclusive."),
+    end: str = typer.Option(..., "--end", help="YYYY-MM-DD inclusive."),
+    symbols: Optional[str] = typer.Option(
+        None, "--symbols", help="Comma-separated UPPER tickers (1–5 letters).",
+    ),
+    core_basket: bool = typer.Option(
+        False, "--core-basket", help="15-name core symbol basket.",
+    ),
+    watchlist: Optional[str] = typer.Option(
+        None, "--watchlist", help="Only `latest` (newest *-dynamic-watchlist.json).",
+    ),
+    timeframe: str = typer.Option("1min", "--timeframe", help="Only 1min."),
+    strategy: str = typer.Option(
+        "ict_smc_intraday_v1", "--strategy", help="Must be ict_smc_intraday_v1 and backtest_enabled.",
+    ),
+    mode: str = typer.Option(
+        "strict_and_aggressive",
+        "--mode",
+        help="strict_only | aggressive_only | strict_and_aggressive.",
+    ),
+    direction: str = typer.Option("both", "--direction", help="long_only | short_only | both."),
+    rth_only: bool = typer.Option(True, "--rth-only/--no-rth-only", help="RTH for backtest (default on)."),
+    chart: bool = typer.Option(False, "--chart", help="Equity / R / hour PNGs."),
+    allow_partial: bool = typer.Option(
+        False, "--allow-partial",
+        help="If set, backtest on available cache when fetch cannot complete coverage.",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="JSON only to stdout (no Rich)."),
+) -> None:
+    """Check 1m coverage, fetch gaps from IBKR if needed, then run intraday backtest.
+
+    READ-ONLY market data for fetch; no orders. Stops before backtest if coverage
+    is incomplete and ``--allow-partial`` is not set (e.g. TWS offline)."""
+    from .backtests.candle_coverage import (  # noqa: PLC0415
+        CORE_BASKET,
+        load_latest_watchlist_symbols,
+    )
+    from .backtests.oneclick_workflow import run_backtest_oneclick  # noqa: PLC0415
+
+    cfg, _ = _bootstrap()
+    if as_json:
+        import logging as _log_mod  # noqa: PLC0415
+
+        for _name in (
+            "bot",
+            "bot.ibkr_client",
+        ) + _NOISY_LOGGERS:
+            _log_mod.getLogger(_name).setLevel(_log_mod.CRITICAL)
+    root = Path(cfg.absolute(""))
+    n_sources = int(bool(symbols and symbols.strip())) + int(core_basket) + int(
+        bool((watchlist or "").strip())
+    )
+    if n_sources != 1:
+        if as_json:
+            print(  # noqa: T201
+                json.dumps(
+                    {"error": "specify exactly one of --symbols, --core-basket, or --watchlist"},
+                    ensure_ascii=False,
+                )
+            )
+        else:
+            console.print(
+                "[red]backtest-oneclick: exactly one of --symbols, --core-basket, --watchlist.[/red]"
+            )
+        raise typer.Exit(1)
+
+    tf = (timeframe or "1min").strip().lower()
+    if tf not in ("1min", "1m"):
+        if as_json:
+            print(json.dumps({"error": "only --timeframe 1min is supported"}))  # noqa: T201
+        else:
+            console.print("[red]backtest-oneclick: only 1min.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        _validate_backtest_date("--start", start)
+        _validate_backtest_date("--end", end)
+    except typer.BadParameter as exc:
+        if as_json:
+            print(json.dumps({"error": str(exc)}))  # noqa: T201
+        else:
+            console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2) from exc
+    if start > end:
+        if as_json:
+            print(json.dumps({"error": "--start must be on or before --end"}))  # noqa: T201
+        else:
+            console.print("[red]--start must be <= --end.[/red]")
+        raise typer.Exit(2)
+
+    if mode not in _BACKTEST_MODES:
+        if as_json:
+            print(
+                json.dumps(  # noqa: T201
+                    {"error": f"--mode must be one of {_BACKTEST_MODES}"},
+                )
+            )
+        else:
+            console.print(f"[red]--mode must be one of {_BACKTEST_MODES}[/red]")
+        raise typer.Exit(2)
+    if direction not in _BACKTEST_DIRECTIONS:
+        if as_json:
+            print(
+                json.dumps(  # noqa: T201
+                    {"error": f"--direction must be one of {_BACKTEST_DIRECTIONS}"},
+                )
+            )
+        else:
+            console.print(f"[red]--direction must be one of {_BACKTEST_DIRECTIONS}[/red]")
+        raise typer.Exit(2)
+
+    sym_list: list[str] = []
+    source_tag = "symbols"
+    if core_basket:
+        sym_list = list(CORE_BASKET)
+        source_tag = "core_basket"
+    elif (watchlist or "").strip():
+        w = (watchlist or "").strip().lower()
+        if w != "latest":
+            if as_json:
+                print(
+                    json.dumps(  # noqa: T201
+                        {"error": "only --watchlist latest is supported", "value": w},
+                    )
+                )
+            else:
+                console.print("[red]backtest-oneclick: only --watchlist latest.[/red]")
+            raise typer.Exit(1)
+        sym_list, pth, err = load_latest_watchlist_symbols(root)
+        source_tag = "watchlist"
+        if err is not None:
+            rep = {
+                "error": "watchlist_not_loaded",
+                "watchlist_path": pth,
+                "watchlist_error": err,
+                "complete_result": False,
+            }
+            if as_json:
+                print(json.dumps(rep, indent=2, ensure_ascii=False, default=str))  # noqa: T201
+            else:
+                console.print(Panel(json.dumps(rep, indent=2, default=str), style="yellow"))
+            raise typer.Exit(0)
+    else:
+        try:
+            sym_list = _parse_backtest_symbols(symbols or "")
+        except typer.BadParameter as exc:
+            if as_json:
+                print(json.dumps({"error": str(exc)}))  # noqa: T201
+            else:
+                console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(2) from exc
+
+    rep = run_backtest_oneclick(
+        root,
+        cfg,
+        symbols=sym_list,
+        start=start,
+        end=end,
+        source=source_tag,
+        strategy=strategy,
+        mode=mode,
+        direction=direction,
+        rth_only=bool(rth_only),
+        chart=bool(chart),
+        allow_partial=bool(allow_partial),
+        timeframe="1min",
+    )
+    if as_json:
+        print(json.dumps(rep, indent=2, ensure_ascii=False, default=str))  # noqa: T201
+    else:
+        console.print(
+            Panel(
+                json.dumps(rep, indent=2, ensure_ascii=False, default=str),
+                title="backtest-oneclick (coverage → optional fetch → backtest)",
+                style="cyan",
+            )
+        )
+    # Exit 1 only for hard validation / strategy errors (message in rep["error"] from workflow).
+    if rep.get("error") and "strategy" in str(rep["error"]).lower() and not rep.get(
+        "backtest_ran"
+    ):
+        raise typer.Exit(1)
+    if rep.get("error") == "no symbols after normalisation":
+        raise typer.Exit(1)
+    raise typer.Exit(0)
+
+
 @app.command("backtest-intraday-smc")
 def backtest_intraday_smc_cmd(
     symbol: str = typer.Option(..., "--symbol", "-s", help="Single ticker, e.g. CRM."),

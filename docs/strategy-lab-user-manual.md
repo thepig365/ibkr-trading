@@ -83,6 +83,16 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **Ready / Partial / Missing**：在请求区间内的**美东周一日历**上（节假日未剔除，见报告备注），**每天**有非空 1m CSV 为 *Ready*；**部分**日期有文件为 *Partial*；**几乎无数据**为 *Missing*。  
 - **何时点 Fetch missing candles**：仅在你在 **Backtest** 页点击 **Fetch missing candles from IBKR**（`fetch-candles`）**且 TWS/网关已开**时，才会向券商拉**只读**历史；**每提交一次通常填一个标的+区间**；回测**不会**替你自动 fetch。  
 - **推荐流程（周末回测）**：打开 **Backtest** → 选标的来源与日期（或 `candle-coverage`）→ **Check Data Coverage** → 对缺口标的再 **Fetch**（需时）→ 再 **Check** → **Run backtest** → 看 **backtest-report** / 再 **Build edge profile**。
+- **一键流程（新手向）**：**Fetch Missing Data & Run Backtest** 会先做与 `candle-coverage` 相同的**本地**检查；仅有缺口时才用只读历史向 IBKR 补 1m（需 TWS/网关在线），最后跑 `ict_smc_intraday_v1` 回测。可用复选框 **Allow partial**：TWS 未开或仍有缺口时，只在有缓存的标的上回测；不勾选则缺口未补满时**不跑回测**并说明原因。CLI：`python3 -m bot.cli backtest-oneclick --symbols CRM --start YYYY-MM-DD --end YYYY-MM-DD --strategy ict_smc_intraday_v1 --mode strict_and_aggressive --direction both`。该流程**从不下单**。
+
+**周末一键回测（UI）**
+
+1. 打开 **Backtest**。  
+2. 选 **Single ticker / Core basket / Latest watchlist / Custom** 与日期区间。  
+3. 点 **Fetch Missing Data & Run Backtest**（或按上节分步按钮）。  
+4. 看结果里已拉取的标的、失败项、实际参与回测与跳过的标的；是否 **Complete**。  
+5. 阅读 **backtest-report** / 最新 summary。  
+6. 到 **Edge** 做 **Build Edge Profile**。
 
 ---
 

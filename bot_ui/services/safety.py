@@ -45,6 +45,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "scan-intraday-smc-watchlist": "ICT/SMC Intraday V1 — watchlist research scan (paper-only).",
     "fetch-candles": "Fetch historical OHLCV candles from IBKR into the local cache (read-only).",
     "candle-coverage": "Read-only check of local 1m cache coverage for a date range (no IBKR, no backtest).",
+    "backtest-oneclick": (
+        "Check 1m coverage, fetch missing 1m from IBKR if needed, then run intraday backtest (read-only data fetch; no orders)."
+    ),
     "backtest-intraday-smc": "Run the ICT/SMC Intraday backtest engine on a single symbol (cache-only, no broker).",
     "backtest-intraday-smc-watchlist": "Run the ICT/SMC Intraday backtest engine on multiple symbols (cache-only, no broker).",
     "backtest-report": "Print the latest backtest summary written under data/backtests/intraday/.",
@@ -1331,6 +1334,117 @@ def validate_candle_coverage_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return True, ""
 
 
+_BACKTEST_ONECLICK_STRATEGY_OK = frozenset({"ict_smc_intraday_v1"})
+
+
+def validate_backtest_oneclick_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validate ``backtest-oneclick`` (coverage + optional IBKR fetch + backtest)."""
+    ok, err = _check_no_forbidden("backtest-oneclick", args)
+    if not ok:
+        return ok, err
+    has_core = False
+    json_n = 0
+    has_chart = 0
+    has_allow_partial = 0
+    flags: dict[str, str] = {}
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t == "--json":
+            json_n += 1
+            if json_n > 1:
+                return False, "backtest-oneclick: duplicate --json"
+            i += 1
+            continue
+        if t == "--core-basket":
+            has_core = True
+            i += 1
+            continue
+        if t == "--chart":
+            has_chart += 1
+            if has_chart > 1:
+                return False, "backtest-oneclick: duplicate --chart"
+            i += 1
+            continue
+        if t == "--allow-partial":
+            has_allow_partial += 1
+            if has_allow_partial > 1:
+                return False, "backtest-oneclick: duplicate --allow-partial"
+            i += 1
+            continue
+        if t in ("--rth-only", "--no-rth-only"):
+            i += 1
+            continue
+        if t in (
+            "--start",
+            "--end",
+            "--timeframe",
+            "--symbols",
+            "--watchlist",
+            "--strategy",
+            "--mode",
+            "--direction",
+        ):
+            if i + 1 >= len(args):
+                return False, f"backtest-oneclick: {t} needs a value"
+            v = str(args[i + 1]).strip()
+            if t in ("--start", "--end") and not _BACKTEST_DATE_RE.match(v):
+                return False, f"backtest-oneclick: {t} must be YYYY-MM-DD"
+            if t == "--timeframe" and v.lower() not in ("1min", "1m"):
+                return False, "backtest-oneclick: only --timeframe 1min"
+            if t == "--symbols" and not _COVERAGE_TICKER_RE.match(v):
+                return (
+                    False,
+                    "backtest-oneclick: --symbols must match ^[A-Z]{1,5}(,[A-Z]{1,5})*$",
+                )
+            if t == "--watchlist" and v.lower() not in _COVERAGE_WL_OK:
+                return False, "backtest-oneclick: --watchlist only accepts 'latest'."
+            if t == "--strategy" and v not in _BACKTEST_ONECLICK_STRATEGY_OK:
+                return False, "backtest-oneclick: --strategy must be ict_smc_intraday_v1"
+            if t == "--mode" and v not in _BACKTEST_MODE_VALUES:
+                return (
+                    False,
+                    f"backtest-oneclick: --mode must be one of {sorted(_BACKTEST_MODE_VALUES)}",
+                )
+            if t == "--direction" and v not in _BACKTEST_DIRECTION_VALUES:
+                return (
+                    False,
+                    f"backtest-oneclick: --direction must be one of {sorted(_BACKTEST_DIRECTION_VALUES)}",
+                )
+            flags[t] = v
+            i += 2
+            continue
+        return False, f"backtest-oneclick: unexpected token {t!r}"
+    if not flags.get("--start") or not flags.get("--end"):
+        return False, "backtest-oneclick: --start and --end are required"
+    n_spec = int(has_core) + int(bool(flags.get("--watchlist"))) + int(
+        bool(flags.get("--symbols"))
+    )
+    if n_spec != 1:
+        return (
+            False,
+            "backtest-oneclick: require exactly one of --core-basket, --watchlist, or --symbols",
+        )
+    if has_core and (flags.get("--watchlist") or flags.get("--symbols")):
+        return (
+            False,
+            "backtest-oneclick: --core-basket is mutually exclusive with other symbol sources",
+        )
+    if args.count("--rth-only") > 1 or args.count("--no-rth-only") > 1:
+        return False, "backtest-oneclick: duplicate RTH flag"
+    if "--rth-only" in args and "--no-rth-only" in args:
+        return (
+            False,
+            "backtest-oneclick: --rth-only and --no-rth-only are mutually exclusive",
+        )
+    if flags.get("--timeframe") and str(flags["--timeframe"]).lower() not in (
+        "1min",
+        "1m",
+    ):
+        return False, "backtest-oneclick: only 1min"
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -1357,6 +1471,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_fetch_candles_args(args)
     if command == "candle-coverage":
         return validate_candle_coverage_args(args)
+    if command == "backtest-oneclick":
+        return validate_backtest_oneclick_args(args)
     if command == "backtest-intraday-smc":
         return validate_backtest_intraday_smc_args(args)
     if command == "backtest-intraday-smc-watchlist":

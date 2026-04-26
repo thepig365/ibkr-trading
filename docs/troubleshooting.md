@@ -30,6 +30,7 @@
 - **原因**：`backtest-intraday-smc-watchlist` 对每个标的只读**本地** `data/candles/{SYMBOL}/1min/*.csv`；**没有 1m 文件就跳过**该标的，不会自动联网拉取。  
 - **诊断**：`python3 -m bot.cli candle-coverage --core-basket --start YYYY-MM-DD --end YYYY-MM-DD` 或在 **Backtest** 点 **Check Data Coverage**（只读盘，不连 IBKR）。看 **Ready / Partial / Missing**。  
 - **补数据**：在 **Backtest** 用 **Fetch missing candles from IBKR**（每通常一次一个标的+区间），TWS/网关需在线；**不要**以为「点了回测就会下载全市场」。  
+- **一键**：**Fetch Missing Data & Run Backtest** 会先检查本地，再按需拉 1m（需 TWS），最后回测；仍**不下单**。若 TWS 未开且未勾选 **Allow partial**，可能在缺口未补时**不跑回测**并提示。  
 - 详见 `docs/strategy-lab-user-manual.md` **§2.6**。
 
 ## 有信号 / 流程正常，但「没有下单」或 Paper pass 全跳过

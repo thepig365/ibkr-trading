@@ -35,6 +35,54 @@ def _client(tmp: Path) -> TestClient:
 def test_candle_coverage_in_allowlist() -> None:
     assert "candle-coverage" in ALLOWED_COMMANDS
     assert "fetch-candles" in ALLOWED_COMMANDS
+    assert "backtest-oneclick" in ALLOWED_COMMANDS
+
+
+def test_validate_backtest_oneclick_args_accepts() -> None:
+    ok, _ = validate_args_for(
+        "backtest-oneclick",
+        (
+            "--symbols",
+            "CRM",
+            "--start",
+            "2026-04-20",
+            "--end",
+            "2026-04-24",
+            "--timeframe",
+            "1min",
+            "--strategy",
+            "ict_smc_intraday_v1",
+            "--mode",
+            "strict_and_aggressive",
+            "--direction",
+            "both",
+            "--rth-only",
+        ),
+    )
+    assert ok
+
+
+def test_validate_backtest_oneclick_rejects_bad_strategy() -> None:
+    bad, _ = validate_args_for(
+        "backtest-oneclick",
+        (
+            "--symbols",
+            "CRM",
+            "--start",
+            "2026-04-20",
+            "--end",
+            "2026-04-24",
+            "--timeframe",
+            "1min",
+            "--strategy",
+            "other_strategy",
+            "--mode",
+            "strict_and_aggressive",
+            "--direction",
+            "both",
+        ),
+    )
+    assert not bad
 
 
 def test_validate_candle_coverage_args_accepts() -> None:
@@ -149,6 +197,7 @@ def test_backtest_page_has_coverage_strings(tmp_path: Path) -> None:
     t = _client(tmp_path).get("/backtest").text
     assert "Check Data Coverage" in t
     assert "Fetch missing candles" in t or "Fetch Candles" in t
+    assert "Fetch Missing Data" in t
 
 
 def test_backtest_routes_return_200(tmp_path: Path) -> None:

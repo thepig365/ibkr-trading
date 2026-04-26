@@ -142,6 +142,23 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
         "--timeframe",
         "1min",
     ),
+    "backtest-oneclick": (
+        "--symbols",
+        "CRM",
+        "--start",
+        "2026-04-01",
+        "--end",
+        "2026-04-24",
+        "--timeframe",
+        "1min",
+        "--strategy",
+        "ict_smc_intraday_v1",
+        "--mode",
+        "strict_and_aggressive",
+        "--direction",
+        "both",
+        "--rth-only",
+    ),
 }
 
 

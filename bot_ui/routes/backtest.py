@@ -17,6 +17,7 @@ Strict invariants — must remain true forever:
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,17 @@ from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
 
 router = APIRouter()
+
+
+def _load_last_backtest_oneclick(root: object) -> dict[str, Any] | None:
+    """Read ``data/runtime/last_backtest_oneclick.json`` if present. No IBKR."""
+    p = Path(str(root)) / "data" / "runtime" / "last_backtest_oneclick.json"
+    if not p.is_file():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
 
 
 def _backtest_candle_coverage_preview(root: object) -> dict[str, Any] | None:
@@ -93,6 +105,7 @@ def backtest_page(request: Request) -> HTMLResponse:
             in {"ict_smc_intraday_v1"},
             "recent_results": request.app.state.command_queue.list_recent(limit=5),
             "candle_coverage_preview": _backtest_candle_coverage_preview(root),
+            "last_backtest_oneclick": _load_last_backtest_oneclick(root),
         }
     )
     return request.app.state.templates.TemplateResponse(
