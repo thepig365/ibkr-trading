@@ -247,6 +247,35 @@ def _root(
     _STATE["verbose"] = verbose
 
 
+@app.command("ibkr-session-status")
+def ibkr_session_status_cmd() -> None:
+    """Read-only: connect, print session metadata, disconnect. No orders."""
+    cfg, _journal = _bootstrap()
+    client = _connect(cfg)
+    exit_code = 0
+    try:
+        snap = client.session_status_snapshot()
+        console.print(
+            Panel.fit(
+                json.dumps(snap, indent=2, ensure_ascii=False, default=str),
+                title="ibkr-session-status",
+                style="cyan",
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - operator diagnostics
+        exit_code = 2
+        console.print(
+            Panel.fit(
+                f"[red]{type(exc).__name__}:[/red] {exc!s}",
+                title="ibkr-session-status",
+                style="red",
+            )
+        )
+    finally:
+        client.disconnect()
+    raise typer.Exit(exit_code)
+
+
 @app.command()
 def portfolio() -> None:
     """Show account summary and current positions. Read-only."""

@@ -17,6 +17,7 @@ Behaviour notes:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +49,22 @@ except Exception:  # noqa: BLE001
 
 # Ports that IBKR documents as paper-trading endpoints.
 PAPER_PORTS = {7497, 4002}
+
+# ``ib_async.IB.RequestTimeout`` defaults to 0 = wait forever on blocking
+# ``util.run`` calls. A finite cap prevents CLI commands (portfolio, reconcile,
+# scans) from hanging indefinitely when TWS is slow; ``disconnect`` then runs.
+# Not configurable via settings files (Prompt 13K.1) — override via env if needed.
+_DEFAULT_BLOCKING_REQUEST_TIMEOUT = 60.0
+
+
+def _blocking_request_timeout_sec() -> float:
+    raw = (os.environ.get("IBKR_REQUEST_TIMEOUT") or "").strip()
+    if not raw:
+        return _DEFAULT_BLOCKING_REQUEST_TIMEOUT
+    try:
+        return max(5.0, min(600.0, float(raw)))
+    except (TypeError, ValueError):
+        return _DEFAULT_BLOCKING_REQUEST_TIMEOUT
 
 
 @dataclass
@@ -186,6 +203,13 @@ class IBKRClient:
             timeout=timeout,
             readonly=readonly,
         )
+        to = _blocking_request_timeout_sec()
+        if to > 0 and hasattr(ib, "RequestTimeout"):
+            ib.RequestTimeout = float(to)  # type: ignore[misc]
+            logger.info(
+                "ib_async/ib_insync RequestTimeout set to %ss (blocking util.run cap)",
+                to,
+            )
         self._ib = ib
 
     def disconnect(self) -> None:
@@ -202,6 +226,34 @@ class IBKRClient:
     @property
     def backend(self) -> str | None:
         return _IB_BACKEND
+
+    def session_status_snapshot(self) -> dict[str, Any]:
+        """Connection metadata after ``connect`` (read-only, no order traffic)."""
+        self._require_connection()
+        assert self._ib is not None
+        ib = self._ib
+        out: dict[str, Any] = {
+            "connected": self.is_connected,
+            "backend": _IB_BACKEND,
+            "host": self.cfg.ibkr.host,
+            "port": self.cfg.ibkr.port,
+            "client_id": self.cfg.ibkr.client_id,
+            "account_mode": self.cfg.ibkr.account_mode,
+            "blocking_request_timeout_effective_sec": _blocking_request_timeout_sec(),
+        }
+        if hasattr(ib, "RequestTimeout"):
+            out["ib_RequestTimeout"] = getattr(ib, "RequestTimeout", None)
+        cl = getattr(ib, "client", None)
+        if cl is not None:
+            sv = getattr(cl, "serverVersion", None)
+            try:
+                if callable(sv):
+                    out["server_version"] = int(sv())
+                else:
+                    out["server_version"] = sv
+            except (TypeError, ValueError, OSError):
+                out["server_version"] = None
+        return out
 
     # ------------------------------------------------------------------
     # Read-only queries
