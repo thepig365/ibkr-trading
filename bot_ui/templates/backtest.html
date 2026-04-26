@@ -24,6 +24,22 @@
       If a ticker has <strong>no or partial</strong> files for your date range, the engine <strong>skips</strong> that name — a basket result may look like “only one symbol ran”.
       <strong>Check Data Coverage</strong> below only reads files (no IBKR). Use <strong>Fetch missing candles from IBKR</strong> one symbol at a time when you want to fill gaps.
     </p>
+    <div class="text-small" style="margin:12px 0; padding:12px; border:1px solid var(--border); border-radius:6px; max-width:52rem;">
+      <p style="margin:0 0 8px 0;">
+        <strong>Local cache &amp; Git —</strong>
+        Fetched 1-minute candle data is <strong>cached locally</strong> so future backtests can run faster.
+        These files stay on this machine under <code>data/candles/</code> and are <strong>ignored by Git</strong>; they are <strong>not uploaded to GitHub</strong>.
+      </p>
+      <p class="text-dim" style="margin:0 0 8px 0;">
+        拉取的 1 分钟 K 线数据会缓存在本机，用于以后更快回测。文件保存在 <code>data/candles/</code>，已被 Git 忽略，不会上传到 GitHub。
+      </p>
+      <p style="margin:0 0 8px 0;">
+        <strong>Backtest reports and charts</strong> (under <code>data/backtests/</code>, including <code>intraday/charts/</code>) are <strong>temporary review files</strong> — you can clean older runs later. Paper order audit and runtime ledger remain protected.
+      </p>
+      <p class="text-dim" style="margin:0;">
+        Runtime and market-data cache are gitignored. Only <strong>code, tests, and docs</strong> should be committed to the repo.
+      </p>
+    </div>
     <h3 class="text-small" style="margin:12px 0 6px 0;">ICT/SMC Intraday · 1m cache (preview)</h3>
     <p class="text-dim text-small">Preview: <strong>core basket</strong> · last <strong>7 calendar days</strong> to today. Click <em>Check Data Coverage</em> below to use your own range and list.</p>
     {% if candle_coverage_preview and candle_coverage_preview.rows %}

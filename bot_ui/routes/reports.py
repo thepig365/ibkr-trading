@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from bot.config import load_config
-from bot.data_lifecycle import data_status
+from bot.data_lifecycle import data_dir_line, data_status
 from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.report_email_status import load_report_email_status
 
@@ -66,6 +66,7 @@ def reports_page(request: Request) -> HTMLResponse:
         from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
     )
     ctx["data_disk"] = data_status(root)
+    ctx["data_dir_line"] = data_dir_line
     ctx["premarket_brief"] = find_latest_premarket_brief(root)
     cat, ssel = get_catalog_and_selection(root)
     ctx["strategy_ui_catalog"] = cat

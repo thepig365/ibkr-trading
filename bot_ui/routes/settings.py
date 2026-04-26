@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from bot.config import load_config
-from bot.data_lifecycle import data_status
+from bot.data_lifecycle import data_dir_line, data_status
 from bot.reports.report_email_status import load_report_email_status
 
 from ..services.safety import (
@@ -37,6 +37,7 @@ def settings_page(request: Request) -> HTMLResponse:
             "recent_results": request.app.state.command_queue.list_recent(limit=6),
             "reports_config": cfg.settings.reports,
             "data_disk": data_status(root),
+            "data_dir_line": data_dir_line,
             "report_email": load_report_email_status(
                 root,
                 resend_key_present=resend_ok,

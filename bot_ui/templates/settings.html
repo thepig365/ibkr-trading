@@ -83,13 +83,23 @@
     </div>
     <p class="text-small text-dim">Apply cleanup is <strong>CLI only</strong> (<code>python -m bot.cli data-cleanup --apply</code>); the UI will not run destructive cleanup.</p>
     <h3 class="text-small">Disk snapshot (on page load)</h3>
+    <p class="text-dim text-small" style="margin-top:0;">
+      Categories below map to the same root paths the <code>data-status</code> CLI uses.
+      <strong>data/candles</strong> (candle cache) and <strong>data/backtests</strong> (outputs / charts) grow with use and are <strong>gitignored</strong> — not pushed to GitHub. See the <a href="/reports">Reports</a> page for the same breakdown.
+    </p>
     <table class="data-table text-small">
-      <thead><tr><th>Path</th><th>Bytes</th><th>Files</th></tr></thead>
+      <thead><tr><th>Path</th><th>What it is</th><th>Bytes</th><th>Files</th></tr></thead>
       <tbody>
         {% for d in data_disk.dirs %}
-        <tr><td class="text-mono">{{ d.relpath }}</td><td>{{ "{:,}".format(d.bytes) }}</td><td>{{ d.file_count }}</td></tr>
+        {% set cap = data_dir_line(d.relpath) %}
+        <tr>
+          <td class="text-mono">{{ d.relpath }}</td>
+          <td><strong>{{ cap[0] }}</strong><br/><span class="text-dim">{{ cap[1] }}</span></td>
+          <td>{{ "{:,}".format(d.bytes) }}</td>
+          <td>{{ d.file_count }}</td>
+        </tr>
         {% endfor %}
-        <tr><th>Total</th><th colspan="2">{{ "{:,}".format(data_disk.total_bytes) }}</th></tr>
+        <tr><th>Total</th><th></th><th colspan="2">{{ "{:,}".format(data_disk.total_bytes) }}</th></tr>
       </tbody>
     </table>
   </div>

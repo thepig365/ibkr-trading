@@ -95,9 +95,17 @@
     </div>
     <div class="card">
       <div class="card-title">Data on disk (bytes)</div>
-      <div class="card-sub text-small text-mono">
+      <p class="text-dim" style="margin:0 0 8px 0; font-size:0.88rem;">
+        Candle cache and backtest outputs are local only and gitignored. Paper audit &amp; runtime are protected. Same table as <a href="/settings">Settings → Data &amp; email</a>.
+      </p>
+      <div class="card-sub text-small" style="font-family: var(--font-mono, ui-monospace, monospace);">
         {% for d in data_disk.dirs %}
-          <div>{{ d.relpath }}: {{ "{:,}".format(d.bytes) }} B ({{ d.file_count }} files)</div>
+          {% set cap = data_dir_line(d.relpath) %}
+          <div style="margin-bottom:6px;">
+            <span class="text-mono">{{ d.relpath }}</span>
+            <span class="text-dim" style="font-size:0.8rem; display:block;">{{ cap[0] }}</span>
+            {{ "{:,}".format(d.bytes) }} B · {{ d.file_count }} files
+          </div>
         {% else %}
         <span class="text-dim">—</span>
         {% endfor %}

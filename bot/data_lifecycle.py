@@ -25,6 +25,75 @@ class DataStatusReport:
     project_root: str = ""
 
 
+# Human labels for UI (Settings / Reports disk tables). relpath keys match :func:`data_status`.
+_DATA_DIR_LINE: dict[str, tuple[str, str]] = {
+    "data/candles": (
+        "Candle cache (1m)",
+        "Local market-data cache for backtests; accumulates with fetches. Git-ignored, not on GitHub.",
+    ),
+    "data/backtests": (
+        "Backtest outputs (incl. charts)",
+        "Summaries, trades/equity CSV, MD, and optional PNGs under data/backtests/intraday/charts/. Safe to clean old runs later.",
+    ),
+    "data/reports": (
+        "Reports",
+        "Generated paper / strategy reports. Ephemeral; git-ignored under data/reports/.",
+    ),
+    "data/paper_orders": (
+        "Protected: paper order audit",
+        "Do not delete — audit / integrity trail.",
+    ),
+    "data/runtime": (
+        "Runtime state",
+        "Local UI/loop flags; do not delete manually.",
+    ),
+    "data/premarket_briefs": (
+        "Pre-market briefs",
+        "Cached research brief outputs.",
+    ),
+    "data/news_cache": (
+        "News cache",
+        "Cached news bodies for Research.",
+    ),
+    "data/debug_charts": (
+        "Debug charts",
+        "MTF/scan images for debugging; safe to clean.",
+    ),
+    "data/research": (
+        "Research outputs",
+        "Generated research reports and artifacts.",
+    ),
+    "data/intraday_smc": (
+        "Intraday scan outputs",
+        "Per-symbol JSON from ICT/SMC scans.",
+    ),
+    "data/watchlists": (
+        "Watchlists",
+        "Dynamic / saved watchlist JSON.",
+    ),
+    "data/edge_profiles": (
+        "Edge profiles",
+        "Ticker edge JSON from backtest-derived batch.",
+    ),
+    "data/mtf_smc": (
+        "MTF SMC cache",
+        "Multi-timeframe scan cache.",
+    ),
+    "logs": (
+        "Logs",
+        "App / UI log files; safe to trim outside audit paths.",
+    ),
+}
+
+
+def data_dir_line(relpath: str) -> tuple[str, str]:
+    """Return (short title, hint) for a ``data_status`` relpath (UI only)."""
+    return _DATA_DIR_LINE.get(
+        relpath,
+        (relpath, "Local data under the project; see .gitignore for what is versioned."),
+    )
+
+
 def _dir_size(root: Path, rel: str) -> DirStat:
     base = (root / rel).resolve()
     if not base.is_dir():

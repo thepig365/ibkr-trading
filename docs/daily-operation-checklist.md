@@ -18,7 +18,7 @@
 - [ ] 8. **Paper** — Readiness / Activation；**不**在无意向时点 First Paper Pass  
 - [ ] 9. 仅当准备好：`First Paper Pass` 一次受控试单（不启 loop）  
 - [ ] 10. **Journal** — 括号/帽/错码  
-- [ ] 11. **Reports** — Daily / Weekly 生成与路径  
+- [ ] 11. **Reports** — Daily / Weekly 生成与路径；可选在 **Settings** / **Reports** 看各 **data/** 子目录占用的空间（`data/candles`、**`data/backtests`** 为本地回测用，git 忽略、不上传 GitHub；纸单审计/运行时目录勿手删）  
 - [ ] 12. 收工：**Intraday Paper OFF**（如曾打开）、Stop UI  
 
 **周回测**：**Backtest** 页用 core basket 快捷或自填多周窗口；**不下单**。

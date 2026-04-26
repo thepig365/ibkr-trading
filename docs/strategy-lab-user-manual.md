@@ -78,6 +78,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 ### 2.6 回测与 1 分钟 K 线缓存（周末/多标的必读）
 
+- **会占磁盘、会积少成多吗**：会。`fetch-candles` / 一键回测里拉取的历史会写在 **`data/candles/`** 下，重复回测同一区间时**不必**反复拉。该目录在 **`.gitignore`** 中，**不会**随 `git push` 上传到 GitHub。回测产出的 **JSON/CSV/MD/PNG** 在 **`data/backtests/`**（含 `intraday/charts/`）同样是本地回顾文件，可按需清理旧时间戳；**`data/paper_orders/`** 与 **`data/runtime/`** 等为审计/运行态，**勿随意删**。在 **Backtest** 页有简要说明；**Settings** 与 **Reports** 的「Data on disk」表（页面加载时快照）和 **`python3 -m bot.cli data-status`** 可查看各类目录占用的字节数。  
 - **为什么需要缓存**：`backtest-intraday-smc` / `backtest-intraday-smc-watchlist` 只读 **`data/candles/{标的}/1min/{YYYY-MM-DD}.csv`**（与 `fetch-candles` 写入布局一致），**不**在回测时自动向 IBKR 拉线。某标的在区间内**无文件**时引擎**跳过**该标的，多标的回测会看起来像「只跑了一两只」。  
 - **如何先看缺口**：在 **Backtest** 页用 **Check Data Coverage**（白名单命令 `candle-coverage`），或终端 `python3 -m bot.cli candle-coverage --core-basket --start YYYY-MM-DD --end YYYY-MM-DD` / `--symbols AAPL,CRM` / `--watchlist latest`。该检查**只读本地文件**，不连 TWS。  
 - **Ready / Partial / Missing**：在请求区间内的**美东周一日历**上（节假日未剔除，见报告备注），**每天**有非空 1m CSV 为 *Ready*；**部分**日期有文件为 *Partial*；**几乎无数据**为 *Missing*。  
