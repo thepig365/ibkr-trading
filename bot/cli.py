@@ -3793,6 +3793,8 @@ def auto_paper_intraday_smc_cmd(
         console.print("[red]--source must be static|dynamic|manual[/red]")
         raise typer.Exit(2)
 
+    from .execution.intraday_paper_sizing import ledger_snapshot_for_status  # noqa: PLC0415
+
     cfg, journal = _bootstrap()
     result = run_intraday_paper_pass(
         cfg,
@@ -3802,8 +3804,15 @@ def auto_paper_intraday_smc_cmd(
         telegram=telegram,
         chart=chart,
     )
+    ip = cfg.settings.trading.intraday_paper
     payload = asdict(result)
     payload["submissions"] = [serialize_paper_submission(s) for s in result.submissions]
+    payload["paper_sizing_ledger"] = ledger_snapshot_for_status(cfg, ip)
+    payload["tif"] = str(ip.tif)
+    payload["max_notional_per_order_usd"] = float(ip.max_notional_per_order_usd)
+    payload["max_daily_notional_usd"] = float(ip.max_daily_notional_usd)
+    payload["max_equity_per_position_pct"] = float(ip.max_equity_per_position_pct)
+    payload["max_quantity_per_order"] = int(ip.max_quantity_per_order)
     console.print(
         Panel.fit(
             json.dumps(payload, indent=2, default=str, ensure_ascii=False),
@@ -3901,6 +3910,7 @@ def intraday_paper_status_cmd(
         is_intraday_paper_runtime_enabled,
         is_kill_switch_active,
     )
+    from .execution.intraday_paper_sizing import ledger_snapshot_for_status  # noqa: PLC0415
 
     cfg, _journal = _bootstrap()
     ip = cfg.settings.trading.intraday_paper
@@ -3938,6 +3948,11 @@ def intraday_paper_status_cmd(
         "target_required": True,
         "dry_run": bool(ip.dry_run),
         "min_rr": float(ip.min_rr),
+        "tif": str(ip.tif),
+        "max_notional_per_order_usd": float(ip.max_notional_per_order_usd),
+        "max_daily_notional_usd": float(ip.max_daily_notional_usd),
+        "max_equity_per_position_pct": float(ip.max_equity_per_position_pct),
+        "max_quantity_per_order": int(ip.max_quantity_per_order),
         "kill_switch": kill,
         "runtime_intraday_on": runtime_on,
         "runtime_intraday_off_explicit": runtime_explicit_off,
@@ -3951,6 +3966,7 @@ def intraday_paper_status_cmd(
         "last_bracket_incomplete": bool(
             state_payload.get("last_bracket_incomplete", False)
         ),
+        "paper_sizing_ledger": ledger_snapshot_for_status(cfg, ip),
     }
     if as_json:
         console.print_json(data=payload)

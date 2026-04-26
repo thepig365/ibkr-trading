@@ -24,6 +24,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from bot.config import load_config
+from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
     FIRST_PAPER_PASS_LAST_RELPATH,
     PAPER_READINESS_STATE_RELPATH,
@@ -71,6 +72,8 @@ def paper_page(request: Request) -> HTMLResponse:
     # I/O — the UI render must NEVER connect to IBKR / TWS.
     ctx["intraday_paper_config"] = state.get_intraday_paper_config()
     ctx["intraday_paper_loop"] = state.get_intraday_paper_loop_status()
+    ip = cfg.settings.trading.intraday_paper
+    ctx["paper_sizing_ledger"] = ledger_snapshot_for_status(cfg, ip)
     ctx["recent_results"] = request.app.state.command_queue.list_recent(limit=8)
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 

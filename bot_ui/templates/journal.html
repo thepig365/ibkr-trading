@@ -54,8 +54,11 @@
               <th>Target</th>
               <th>Orig (E/SL/TP)</th>
               <th>minTick</th>
+              <th>TIF</th>
+              <th>Est. notional</th>
               <th>R/R</th>
               <th>Qty</th>
+              <th>Sizing</th>
               <th>Integrity</th>
               <th>Status</th>
               <th>Order IDs</th>
@@ -86,8 +89,11 @@
                   {% else %}—{% endif %}
                 </td>
                 <td class="text-small">{% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} <span class="text-dim">({{ r.min_tick_source }})</span>{% endif %}{% else %}—{% endif %}</td>
+                <td class="text-small">{% if r.order_tif %}<code>{{ r.order_tif }}</code>{% else %}—{% endif %}</td>
+                <td class="text-small">{% if r.estimated_notional is not none %}${{ "{:,.0f}".format(r.estimated_notional) }}{% else %}—{% endif %}</td>
                 <td>{% if r.planned_rr is not none %}{{ "%.2f"|format(r.planned_rr) }}{% else %}—{% endif %}</td>
                 <td>{% if r.quantity is not none %}{{ r.quantity|int }}{% else %}—{% endif %}</td>
+                <td class="text-small">{% if r.sizing_summary %}{{ r.sizing_summary }}{% else %}—{% endif %}</td>
                 <td>
                   {% if r.bracket_integrity == 'complete' %}<span class="pill good">complete</span>
                   {% elif r.bracket_integrity == 'incomplete' %}<span class="pill warn">incomplete</span>

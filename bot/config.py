@@ -78,8 +78,43 @@ class IntradayPaperConfig(BaseModel):
     # the broker validates the bracket but does not call placeOrder.
     dry_run: bool = True
     min_rr: float = 1.2
+    # Prompt 13K.3: explicit TIF for all bracket legs; paper notional / qty caps.
+    tif: str = "DAY"
+    max_notional_per_order_usd: float = 10_000.0
+    max_daily_notional_usd: float = 100_000.0
+    max_equity_per_position_pct: float = 10.0
+    max_quantity_per_order: int = 100
 
     model_config = {"extra": "ignore"}
+
+    @field_validator("tif")
+    @classmethod
+    def _tif_paper_bracket_only(cls, v: str) -> str:
+        s = (v or "DAY").strip().upper()
+        if s not in {"DAY"}:
+            raise ValueError("trading.intraday_paper.tif must be 'DAY' (Prompt 13K.3).")
+        return s
+
+    @field_validator("max_notional_per_order_usd", "max_daily_notional_usd")
+    @classmethod
+    def _paper_usd_cap_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("paper USD notional caps must be > 0")
+        return v
+
+    @field_validator("max_equity_per_position_pct")
+    @classmethod
+    def _paper_eq_pct_sane(cls, v: float) -> float:
+        if v <= 0 or v > 100.0:
+            raise ValueError("trading.intraday_paper.max_equity_per_position_pct must be in (0, 100].")
+        return v
+
+    @field_validator("max_quantity_per_order")
+    @classmethod
+    def _max_q_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("trading.intraday_paper.max_quantity_per_order must be >= 1")
+        return v
 
     @field_validator("paper_only")
     @classmethod

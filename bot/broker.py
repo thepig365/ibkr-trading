@@ -374,9 +374,15 @@ class Broker:
             )
         c = qualified[0]
         qty = max(1, int(intent.quantity))
+        from bot.execution.intraday_paper_sizing import normalize_intraday_paper_tif  # noqa: PLC0415
+
+        tif = normalize_intraday_paper_tif(getattr(ip, "tif", None))
         # ib_async bracketOrder(action, qty, limitPrice, takeProfitPrice, stopLossPrice)
         # automatically inverts the action for the child (TP/SL) orders.
-        br = ib.bracketOrder(side, float(qty), e_f, t_f, s_f)
+        # Explicit TIF on all legs avoids TWS order-preset interference (Prompt 13K.3).
+        br = ib.bracketOrder(side, float(qty), e_f, t_f, s_f, tif=tif)
+        for o in br:
+            o.tif = tif
         order_ids: list[int | None] = []
         for o in br:
             ib.placeOrder(c, o)
@@ -396,6 +402,10 @@ class Broker:
             "take_profit": t_f,
             "stop_loss": s_f,
             "order_ids": order_ids,
+            "tif": tif,
+            "parent_tif": tif,
+            "target_tif": tif,
+            "stop_tif": tif,
         }
         ticket.intraday_paper = detail
         if self.journal is not None:

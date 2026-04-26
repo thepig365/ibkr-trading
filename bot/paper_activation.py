@@ -433,10 +433,19 @@ def run_first_paper_pass(
     """One pass: activation snapshot, readiness, then run_intraday_paper_pass."""
     from dataclasses import asdict
 
+    from .execution.intraday_paper_sizing import ledger_snapshot_for_status  # noqa: PLC0415
+
     out: dict[str, Any] = {
         "paper_only": True,
         "live_trading_allowed": False,
     }
+    ip0 = cfg.settings.trading.intraday_paper
+    out["paper_sizing_ledger"] = ledger_snapshot_for_status(cfg, ip0)
+    out["tif"] = str(ip0.tif)
+    out["max_notional_per_order_usd"] = float(ip0.max_notional_per_order_usd)
+    out["max_daily_notional_usd"] = float(ip0.max_daily_notional_usd)
+    out["max_equity_per_position_pct"] = float(ip0.max_equity_per_position_pct)
+    out["max_quantity_per_order"] = int(ip0.max_quantity_per_order)
     act = build_paper_activation_status(cfg, probe_ibkr=False)
     out["paper_activation_status"] = act
     if act.get("final_readiness") != "READY_FOR_PAPER_TEST":

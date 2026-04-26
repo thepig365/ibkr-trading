@@ -77,6 +77,10 @@ def test_paper_page_renders_intraday_section(project: Path) -> None:
     text = r.text
     assert "ICT/SMC Intraday Paper Trading" in text
     assert "Intraday auto" in text
+    # Prompt 13K.3: per-trade and daily notional caps + paper sizing card.
+    assert "10,000" in text or "10000" in text
+    assert "100,000" in text or "100000" in text
+    assert "Paper sizing" in text
     # canonical path label appears so operators can see exactly which file
     # the worker process polls.
     assert INTRADAY_AUTO_PAPER_ENABLED_RELPATH in text

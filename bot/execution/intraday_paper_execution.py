@@ -94,6 +94,8 @@ class IntradayPaperIntent:
     paper_only: bool = True
     execution_allowed: bool = True
     live_trading_allowed: bool = False
+    tif: str = "DAY"
+    sizing_audit: Any | None = None
 
     def to_trade_intent(self) -> TradeIntent:
         side = "BUY" if self.direction == DIRECTION_LONG else "SELL"
@@ -129,6 +131,8 @@ class IntradayPaperIntent:
             "paper_only": True,
             "execution_allowed": True,
             "live_trading_allowed": False,
+            "tif": self.tif,
+            "sizing_audit": self.sizing_audit,
         }
 
 
@@ -336,20 +340,30 @@ def build_intraday_paper_intent(
     if risk_pct <= 0:
         return None, ["risk_per_trade_pct must be > 0"]
     risk_dollars = equity * (risk_pct / 100.0)
-    qty = int(math.floor(risk_dollars / per_share_risk))
-    if qty < 1:
+    risk_q = int(math.floor(risk_dollars / per_share_risk))
+    if risk_q < 1:
         return None, [
             f"position size rounds to 0 "
             f"(equity={equity:.0f}, risk%={risk_pct}, per_share={per_share_risk:.4f})"
         ]
-    notional = qty * entry
-    cap_pct = float(cfg.settings.risk.max_equity_per_position_pct)
-    cap = equity * (cap_pct / 100.0) if cap_pct > 0 else 0.0
-    if cap > 0 and notional > cap:
-        q2 = int(math.floor(cap / entry))
-        if q2 < 1:
-            return None, ["max_equity_per_position caps size below 1 share"]
-        qty = q2
+
+    from .intraday_paper_sizing import (  # noqa: PLC0415
+        apply_paper_sizing_caps,
+        normalize_intraday_paper_tif,
+    )
+
+    tif = normalize_intraday_paper_tif(getattr(ip, "tif", None) or "DAY")
+    final_q, sizing_audit, cap_skip = apply_paper_sizing_caps(
+        cfg,
+        entry=float(entry),
+        risk_based_quantity=risk_q,
+        equity=float(equity),
+        per_share_risk=float(per_share_risk),
+        ip=ip,
+    )
+    if cap_skip:
+        return None, cap_skip
+    qty = int(final_q)
 
     raw_charts = item.get("chart_paths") or []
     charts = tuple(str(p) for p in raw_charts if p) if isinstance(raw_charts, list) else ()
@@ -372,6 +386,8 @@ def build_intraday_paper_intent(
         source_scan_path=source_scan_path,
         chart_paths=charts,
         research_flags=flags,
+        tif=tif,
+        sizing_audit=sizing_audit,
     )
     return intent, []
 
@@ -512,21 +528,28 @@ def _rebuild_intent_after_tick_normalization(
     if rr < float(ip.min_rr):
         return None, [f"R/R {rr:.4f} below min_rr after tick normalization"]
     risk_dollars = equity * (float(base.risk_per_trade_pct) / 100.0)
-    qty = int(math.floor(risk_dollars / per_share_risk))
-    if qty < 1:
+    risk_q = int(math.floor(risk_dollars / per_share_risk))
+    if risk_q < 1:
         return None, [
             f"position size rounds to 0 after tick normalization (per_share_risk={per_share_risk:.4f})"
         ]
-    notional = qty * entry
-    cap_pct = float(cfg.settings.risk.max_equity_per_position_pct)
-    cap = equity * (cap_pct / 100.0) if cap_pct > 0 else 0.0
-    if cap > 0 and notional > cap:
-        q2 = int(math.floor(cap / entry))
-        if q2 < 1:
-            return None, [
-                "max_equity_per_position caps size below 1 after tick normalization"
-            ]
-        qty = q2
+    from .intraday_paper_sizing import (  # noqa: PLC0415
+        apply_paper_sizing_caps,
+        normalize_intraday_paper_tif,
+    )
+
+    tif = normalize_intraday_paper_tif(getattr(ip, "tif", None) or "DAY")
+    final_q, sizing_audit, cap_skip = apply_paper_sizing_caps(
+        cfg,
+        entry=float(entry),
+        risk_based_quantity=risk_q,
+        equity=float(equity),
+        per_share_risk=float(per_share_risk),
+        ip=ip,
+    )
+    if cap_skip:
+        return None, cap_skip
+    qty = int(final_q)
     rebuilt = IntradayPaperIntent(
         strategy_id=base.strategy_id,
         symbol=base.symbol,
@@ -543,6 +566,8 @@ def _rebuild_intent_after_tick_normalization(
         source_scan_path=base.source_scan_path,
         chart_paths=base.chart_paths,
         research_flags=base.research_flags,
+        tif=tif,
+        sizing_audit=sizing_audit,
     )
     return rebuilt, []
 
@@ -658,14 +683,18 @@ def verify_intraday_paper_bracket_trades(
     if 110 in all_codes and "stop" not in cancelled:
         cancelled.append("stop")
 
-    incomplete = any(
-        _is_bad(st) for st in (pstat, tstat, sstat)
-    ) or (110 in all_codes)
+    incomplete = (
+        any(_is_bad(st) for st in (pstat, tstat, sstat))
+        or (110 in all_codes)
+        or (10349 in all_codes)
+    )
     if incomplete:
         msg = "Submitted to broker, but bracket protection is incomplete."
         rej = [x for x in cancelled if x in {"stop", "parent", "target"}]
         if 110 in all_codes and "stop" not in rej:
             rej.append("stop")
+        if 10349 in all_codes and not rej:
+            rej.extend(["parent", "target", "stop"])
         return {
             "bracket_integrity": "incomplete",
             "bracket_protected": False,
@@ -680,7 +709,7 @@ def verify_intraday_paper_bracket_trades(
             "broker_errors": [msg] + all_errs,
             "broker_error_codes": sorted(set(all_codes)),
             "verified_at_utc": ver_ts,
-            "verify_in_tws_required": bool(110 in all_codes),
+            "verify_in_tws_required": bool(110 in all_codes or 10349 in all_codes),
         }
     if (
         pstat in good
@@ -841,6 +870,20 @@ def submit_intraday_paper_bracket(
     rebuilt, rsz = _rebuild_intent_after_tick_normalization(
         intent, norm, float(equity), cfg
     )
+    if rebuilt is not None:
+        tif_s = getattr(rebuilt, "tif", None) or "DAY"
+        if rebuilt.sizing_audit:
+            tick_meta["sizing_audit"] = dict(rebuilt.sizing_audit)
+        tick_meta["tif"] = tif_s
+        tick_meta["parent_tif"] = tif_s
+        tick_meta["stop_tif"] = tif_s
+        tick_meta["target_tif"] = tif_s
+        est_n = None
+        if isinstance(rebuilt.sizing_audit, dict):
+            est_n = rebuilt.sizing_audit.get("estimated_notional")
+        if est_n is None:
+            est_n = float(rebuilt.quantity) * float(rebuilt.entry_price)
+        tick_meta["estimated_notional"] = float(est_n)
     if rebuilt is None:
         rsn2 = list(rsz) or ["rebuild after tick failed"]
         if "rr_below_min" not in " ".join(rsn2) and "below min" in " ".join(rsn2):
@@ -1083,6 +1126,18 @@ def _record_submission_audit(
         "planned_rr_before": tm.get("planned_rr_before"),
         "planned_rr_after": tm.get("planned_rr_after"),
         "tick_rounding_applied": tm.get("tick_rounding_applied"),
+        "tif": tm.get("tif") or intent.tif,
+        "parent_tif": tm.get("parent_tif") or intent.tif,
+        "stop_tif": tm.get("stop_tif") or intent.tif,
+        "target_tif": tm.get("target_tif") or intent.tif,
+        "estimated_notional": tm.get("estimated_notional")
+        or (
+            float(intent.entry_price) * float(intent.quantity)
+            if intent.entry_price
+            else None
+        ),
+        "sizing_audit": intent.sizing_audit
+        or tm.get("sizing_audit"),
         "bracket_integrity": sub.bracket_integrity,
         "bracket_protected": sub.bracket_protected,
         "broker_errors": list(sub.broker_errors),

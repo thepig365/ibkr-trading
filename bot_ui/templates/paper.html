@@ -221,8 +221,32 @@
           risk: {{ "{:.2f}".format(intraday_paper_config.risk_per_trade_pct) }}% ·
           max positions: {{ intraday_paper_config.max_concurrent_positions }} ·
           min R/R: {{ intraday_paper_config.min_rr }}<br />
-          window: {{ intraday_paper_config.no_new_entries_before }}–{{ intraday_paper_config.no_new_entries_after }} (NY)
+          window: {{ intraday_paper_config.no_new_entries_before }}–{{ intraday_paper_config.no_new_entries_after }} (NY)<br />
+          TIF: <code>{{ intraday_paper_config.tif or 'DAY' }}</code> ·
+          per-trade cap ${{ "{:,.0f}".format(intraday_paper_config.max_notional_per_order_usd) }} ·
+          daily cap ${{ "{:,.0f}".format(intraday_paper_config.max_daily_notional_usd) }} ·
+          max q {{ intraday_paper_config.max_quantity_per_order }} ·
+          acct % cap {{ "{:.1f}".format(intraday_paper_config.max_equity_per_position_pct) }}%
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Paper sizing (today)</div>
+        {% if paper_sizing_ledger %}
+          <div class="card-value text-small">
+            used <strong>${{ "{:,.0f}".format(paper_sizing_ledger.today_submitted_notional_usd) }}</strong>
+            · remaining <strong>${{ "{:,.0f}".format(paper_sizing_ledger.daily_remaining_notional_usd) }}</strong>
+          </div>
+          <div class="card-sub text-small">
+            {% if paper_sizing_ledger.daily_notional_ledger_warning %}
+              <span class="pill warn">ledger: {{ paper_sizing_ledger.daily_notional_ledger_warning }}</span>
+            {% else %}
+              Ledger read OK (UTC day, <code>submitted_to_broker</code> rows).
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="card-value text-dim">—</div>
+        {% endif %}
       </div>
 
       <div class="card">

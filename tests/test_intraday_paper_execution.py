@@ -172,6 +172,9 @@ def test_build_intent_long_strict_ok(tmp_project: Path, write_yaml) -> None:
     assert intent.order_type == "LIMIT_BRACKET"
     assert intent.paper_only is True
     assert intent.live_trading_allowed is False
+    assert intent.tif == "DAY"
+    assert isinstance(intent.sizing_audit, dict)
+    assert intent.sizing_audit.get("final_quantity") == intent.quantity
 
 
 def test_build_intent_short_requires_correct_geometry(
@@ -526,13 +529,18 @@ def test_submit_places_bracket_when_dry_run_false(
     assert sub.bracket_integrity == "complete"
     assert sub.order_ids == [1, 2, 3]
     assert fake_ib.bracketOrder.call_count == 1
-    args, _ = fake_ib.bracketOrder.call_args
+    args, kwargs = fake_ib.bracketOrder.call_args
     side, qty, entry, target, stop = args
+    assert kwargs.get("tif") == "DAY"
     assert side == "BUY"
     # Quantity is recomputed from equity + risk% after tick normalization.
     assert qty == 100.0
     assert entry == 100.0 and target == 102.0 and stop == 99.0
     assert fake_ib.placeOrder.call_count == 3
+    fo, so, to = fake_ib.bracketOrder.return_value
+    assert getattr(fo, "tif", None) == "DAY"
+    assert getattr(so, "tif", None) == "DAY"
+    assert getattr(to, "tif", None) == "DAY"
 
 
 def test_submit_skipped_returns_validation_reasons_without_calling_broker(
@@ -632,7 +640,21 @@ def test_audit_log_path_constructed_under_paper_orders_dir(
 
     _enable_intraday_paper(tmp_project, write_yaml)
     cfg = load_config(project_root=tmp_project)
-    intent = _intent_long()
+    intent = IntradayPaperIntent(
+        strategy_id="ict_smc_intraday_v1",
+        symbol="AAPL",
+        direction="long",
+        signal_category=READY_STRICT,
+        entry_price=100.0,
+        stop_price=99.0,
+        target_price=102.0,
+        planned_rr=2.0,
+        quantity=10,
+        risk_amount=10.0,
+        risk_per_trade_pct=0.10,
+        tif="DAY",
+        sizing_audit={"final_quantity": 10, "estimated_notional": 1000.0},
+    )
     sub = IntradayPaperSubmissionResult(
         symbol=intent.symbol,
         submitted=True,
@@ -644,6 +666,11 @@ def test_audit_log_path_constructed_under_paper_orders_dir(
             "min_tick": "0.01",
             "min_tick_source": "contract_details",
             "original_entry": 100.0,
+            "tif": "DAY",
+            "parent_tif": "DAY",
+            "stop_tif": "DAY",
+            "target_tif": "DAY",
+            "estimated_notional": 1000.0,
         },
     )
     p = _record_submission_audit(cfg, sub)
@@ -657,6 +684,12 @@ def test_audit_log_path_constructed_under_paper_orders_dir(
     assert row["submitted"] is True
     assert row.get("min_tick") == "0.01"
     assert row.get("bracket_integrity") == "complete"
+    assert row.get("tif") == "DAY"
+    assert row.get("parent_tif") == "DAY"
+    assert row.get("stop_tif") == "DAY"
+    assert row.get("target_tif") == "DAY"
+    assert row.get("estimated_notional") == 1000.0
+    assert isinstance(row.get("sizing_audit"), dict)
 
 
 # ---------------------------------------------------------------------------
@@ -752,6 +785,33 @@ def test_format_intraday_paper_digest_zh_contains_chinese_keywords() -> None:
     ]:
         assert needle in text, f"digest missing {needle!r}"
     assert "实盘" not in text or "不会触发实盘" in text
+
+
+def test_verify_intraday_error_10349_marks_incomplete() -> None:
+    fake_ib = MagicMock()
+
+    def _mk(oid: int, status: str, log: list | None = None) -> MagicMock:
+        tr = MagicMock()
+        tr.order.orderId = oid
+        tr.orderStatus.status = status
+        tr.log = log or []
+        return tr
+
+    le = MagicMock()
+    le.errorCode = 10349
+    le.message = "order preset TIF"
+    fake_ib.trades = MagicMock(
+        return_value=[
+            _mk(1, "Submitted"),
+            _mk(2, "Submitted"),
+            _mk(3, "Submitted", [le]),
+        ]
+    )
+    fake_ib.sleep = MagicMock()
+    r = verify_intraday_paper_bracket_trades(fake_ib, [1, 2, 3], timeout=0.5)
+    assert r["bracket_integrity"] == "incomplete"
+    assert r["bracket_protected"] is False
+    assert 10349 in r["broker_error_codes"]
 
 
 def test_verify_intraday_error_110_marks_incomplete() -> None:

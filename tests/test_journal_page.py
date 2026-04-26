@@ -102,6 +102,45 @@ def test_journal_link_present_in_navigation(project: Path) -> None:
     assert "/journal" in r.text
 
 
+def test_journal_page_shows_tif_and_sizing_columns(project: Path) -> None:
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = project / "data" / "paper_orders" / f"{day}-intraday-paper-orders.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "strategy_id": "ict_smc_intraday_v1",
+        "symbol": "TIF1",
+        "direction": "long",
+        "signal_category": "DAY_TRADE_READY_STRICT",
+        "submitted": True,
+        "submitted_to_broker": True,
+        "skipped_reasons": [],
+        "entry": 100.0,
+        "stop": 99.0,
+        "target": 102.0,
+        "planned_rr": 2.0,
+        "quantity": 5,
+        "order_ids": [1, 2, 3],
+        "paper_only": True,
+        "live_trading_allowed": False,
+        "tif": "DAY",
+        "estimated_notional": 500.0,
+        "bracket_integrity": "complete",
+        "sizing_audit": {
+            "final_quantity": 5,
+            "estimated_notional": 500.0,
+            "per_trade_cap_applied": True,
+        },
+    }
+    out.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    r = _client(project).get("/journal")
+    assert r.status_code == 200, r.text
+    text = r.text
+    assert "TIF1" in text
+    assert "DAY" in text
+    assert "500" in text
+
+
 def test_journal_page_renders_paper_order_row(project: Path) -> None:
     _write_paper_order(project, submitted=True, symbol="NVDA")
     r = _client(project).get("/journal")

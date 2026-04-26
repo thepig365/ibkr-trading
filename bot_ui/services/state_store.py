@@ -300,6 +300,11 @@ class IntradayPaperConfigView:
     target_required: bool = True
     dry_run: bool = True
     min_rr: float = 1.2
+    tif: str = "DAY"
+    max_notional_per_order_usd: float = 10_000.0
+    max_daily_notional_usd: float = 100_000.0
+    max_equity_per_position_pct: float = 10.0
+    max_quantity_per_order: int = 100
     config_path: str | None = None
 
 
@@ -364,6 +369,9 @@ class IntradayPaperOrderRow:
     broker_errors: list[str] = field(default_factory=list)
     broker_error_codes: list[int] = field(default_factory=list)
     verify_in_tws_required: bool = False
+    order_tif: str = ""
+    estimated_notional: float | None = None
+    sizing_summary: str = ""
 
 
 @dataclass(frozen=True)
@@ -1219,6 +1227,15 @@ class LocalFileStateStore:
             target_required=bool(merged.get("target_required", True)),
             dry_run=bool(merged.get("dry_run", True)),
             min_rr=float(merged.get("min_rr", 1.2)),
+            tif=str(merged.get("tif", "DAY") or "DAY"),
+            max_notional_per_order_usd=float(
+                merged.get("max_notional_per_order_usd", 10_000.0)
+            ),
+            max_daily_notional_usd=float(merged.get("max_daily_notional_usd", 100_000.0)),
+            max_equity_per_position_pct=float(
+                merged.get("max_equity_per_position_pct", 10.0)
+            ),
+            max_quantity_per_order=int(merged.get("max_quantity_per_order", 100)),
             config_path=str(cfg_path) if cfg_path.exists() else None,
         )
 
@@ -1718,7 +1735,31 @@ def _row_from_paper_order(
         broker_errors=berr_l,
         broker_error_codes=be_codes,
         verify_in_tws_required=bool(obj.get("verify_in_tws_required", False)),
+        order_tif=str(obj.get("tif") or obj.get("order_tif") or ""),
+        estimated_notional=_to_float(obj.get("estimated_notional")),
+        sizing_summary=_sizing_audit_brief(obj.get("sizing_audit")),
     )
+
+
+def _sizing_audit_brief(sizing: object) -> str:
+    if not isinstance(sizing, dict):
+        return ""
+    parts: list[str] = []
+    for k in (
+        "risk_based_quantity",
+        "per_trade_notional_cap_quantity",
+        "daily_remaining_quantity",
+        "account_cap_quantity",
+        "final_quantity",
+        "estimated_notional",
+        "per_trade_cap_applied",
+        "daily_cap_applied",
+        "account_cap_applied",
+        "quantity_cap_applied",
+    ):
+        if k in sizing:
+            parts.append(f"{k}={sizing.get(k)}")
+    return " · ".join(parts) if parts else ""
 
 
 def _as_list_of_dict(value: Any) -> list[dict[str, Any]]:
