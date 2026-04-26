@@ -75,6 +75,20 @@ def _utc_today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def _higher_timeframe_context_ok_for_paper(ctx: IntradayContext | None) -> bool:
+    """True when 4H and 30m bars were available (ICT context chain).
+
+    Used in watchlist summary rows for paper execution invariants; not a
+    scanner strategy filter on its own (see ``classify_intraday_signal``).
+    """
+    if ctx is None:
+        return False
+    md = {str(x).lower() for x in (ctx.missing_data or [])}
+    if "4h" in md or "30min" in md:
+        return False
+    return True
+
+
 def build_intraday_trade_plan(
     trigger: OneMinuteTrigger,
     context: IntradayContext,
@@ -693,6 +707,9 @@ def _compact_summary_row(eval_obj: IntradayEvaluation) -> dict[str, Any]:
         "score": eval_obj.score,
         "five_min_setup_found": bool(eval_obj.five_min_setup and eval_obj.five_min_setup.found),
         "one_min_trigger_found": bool(eval_obj.one_min_trigger and eval_obj.one_min_trigger.found),
+        "higher_timeframe_context_ok": _higher_timeframe_context_ok_for_paper(
+            eval_obj.context
+        ),
         "entry": plan.entry if plan else None,
         "stop": plan.stop if plan else None,
         "target": plan.target if plan else None,

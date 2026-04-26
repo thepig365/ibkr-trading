@@ -67,7 +67,14 @@ def evaluate_edge_for_paper(
     base_risk_pct: float,
     strategy_id: str = "ict_smc_intraday_v1",
 ) -> EdgePaperDecision:
-    """Gate paper submission using the latest edge profile and config."""
+    """Gate **risk and mode** using the latest edge profile.
+
+    This never substitutes for the ICT/SMC scan: callers must only invoke
+    this for symbols that already have ``DAY_TRADE_READY_*`` and pass
+    :func:`bot.execution.ict_paper_invariants.validate_ict_chain_flags_for_paper`
+    (5m / 1m / HTF flags). News, watchlist, or edge score alone must never
+    open a paper order.
+    """
     sym = (symbol or "").strip().upper()
     ip = cfg.settings.trading.intraday_paper
     enabled = bool(getattr(ip, "edge_profile_enabled", True))

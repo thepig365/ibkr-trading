@@ -22,6 +22,15 @@ Hard-block conditions (the broker may also re-block):
 * missing stop / target, invalid bracket geometry, R/R below ``min_rr``
 * duplicate same-symbol position OR duplicate same-symbol open order
 * unknown broker / account state
+
+ICT/SMC intraday (v1) order path:
+
+* Paper orders require a **current** scan row with
+  ``DAY_TRADE_READY_STRICT`` / ``DAY_TRADE_READY_AGGRESSIVE`` and a valid
+  **5m + 1m + higher-TF** chain
+  (see :func:`bot.execution.ict_paper_invariants.validate_ict_chain_flags_for_paper`).
+* Edge profiling, news, watchlist score, and relative volume **must not**
+  replace this chain; they only rank / size / gate *after* it passes.
 """
 
 from __future__ import annotations
@@ -37,6 +46,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..config import AppConfig
+from .ict_paper_invariants import validate_ict_chain_flags_for_paper
 from ..journal import Journal
 from ..risk_engine import TradeIntent
 from ..strategies.ict_smc_intraday.model import (
@@ -302,6 +312,10 @@ def build_intraday_paper_intent(
         return None, ["allow_strict_entries=false"]
     if category == READY_AGGRESSIVE and not ip.allow_aggressive_entries:
         return None, ["allow_aggressive_entries=false"]
+
+    chain_ok, chain_err = validate_ict_chain_flags_for_paper(item)
+    if not chain_ok:
+        return None, list(chain_err)
 
     entry = _f(item.get("entry"))
     stop = _f(item.get("stop"))
@@ -1457,6 +1471,23 @@ def run_intraday_paper_pass(
                 "mode": cfg.settings.account.mode,
                 "block_live_trading": cfg.settings.account.block_live_trading,
             }
+            chain_ok, chain_err = validate_ict_chain_flags_for_paper(it)
+            if not chain_ok:
+                submissions.append(
+                    IntradayPaperSubmissionResult(
+                        symbol=sym,
+                        submitted=False,
+                        submitted_to_broker=False,
+                        bracket_integrity="not_submitted",
+                        skipped_reasons=list(chain_err),
+                        tick_meta={
+                            "ict_chain_invariant_failed": True,
+                            "reasons": list(chain_err),
+                        },
+                    )
+                )
+                skipped.extend(chain_err)
+                continue
             from ..edge.eligibility import evaluate_edge_for_paper  # noqa: PLC0415
 
             ip_cfg = cfg.settings.trading.intraday_paper

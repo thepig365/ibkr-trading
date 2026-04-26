@@ -162,6 +162,17 @@ python3 -m bot.cli build-edge-profiles --symbols AAPL,NVDA,CRM --start 2026-04-0
 
 **为何无画像时仍可小额 STRICT 纸试**：在可控名义与纪律下，对**新标的**做最小暴露验证；**aggress** 默认需要画像支撑，避免在未知统计特性上放大噪声。
 
+### 6.2.2 ICT 执行链不变量（4H / 30m / 5m / 1m）
+
+纸面下单**只**能来自 **ICT/SMC intraday** 扫描行的
+`DAY_TRADE_READY_STRICT` / `DAY_TRADE_READY_AGGRESSIVE`，且摘要中须为真：
+
+- `five_min_setup_found`（5m 结构）  
+- `one_min_trigger_found`（1m 最终触发）  
+- `higher_timeframe_context_ok`（新扫描：4H+30m 数据完整；旧 JSON 可能无此键，则仅强校验 5m+1m）
+
+Edge、新闻、表内分数、相对成交量**不能**单独触发下单。缺失 1m 触发时跳过原因示例：`waiting_for_1m_trigger`；缺 5m/HTF 上下文：`structure_context_missing`。
+
 ### 6.3 本地 Paper Forward Test（`settings.local` + runtime, 13I）
 
 1. **如何安全开启**  
