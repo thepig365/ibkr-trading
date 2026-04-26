@@ -65,6 +65,9 @@ def _client(project_root: Path) -> TestClient:
         "/paper",
         "/strategies",
         "/research",
+        "/backtest",
+        "/reports",
+        "/journal",
         "/logs",
         "/settings",
     ],
@@ -236,21 +239,33 @@ def test_dashboard_renders_account_and_signals(project: Path) -> None:
         ),
         encoding="utf-8",
     )
-    sig = project / "data" / "mtf_smc" / "2026-04-24-watchlist-mtf-smc-summary.json"
-    sig.parent.mkdir(parents=True, exist_ok=True)
-    sig.write_text(
+    # Dashboard "Signals" card reads ICT/SMC intraday summary (not MTF file).
+    intr = (
+        project
+        / "data"
+        / "intraday_smc"
+        / "2026-04-24-watchlist-intraday-smc-summary.json"
+    )
+    intr.parent.mkdir(parents=True, exist_ok=True)
+    intr.write_text(
         json.dumps(
             {
                 "date": "2026-04-24",
                 "source": "dynamic",
                 "symbols_scanned": 1,
-                "counts": {"FULL_ALIGNMENT": 1},
-                "top_by_alignment_score": [
-                    {"symbol": "NVDA", "mtf_alignment_score": 80,
-                     "alignment_category": "FULL_ALIGNMENT",
-                     "eligible_for_future_paper_trade": True}
+                "counts": {
+                    "DAY_TRADE_READY_STRICT": 1,
+                    "WATCH_ONLY": 0,
+                },
+                "ready_strict_symbols": ["NVDA"],
+                "ready_aggressive_symbols": [],
+                "items": [
+                    {
+                        "symbol": "NVDA",
+                        "signal_category": "DAY_TRADE_READY_STRICT",
+                        "score": 0.8,
+                    }
                 ],
-                "eligible_for_future_paper_trade": ["NVDA"],
             }
         ),
         encoding="utf-8",
@@ -260,5 +275,5 @@ def test_dashboard_renders_account_and_signals(project: Path) -> None:
     assert "DUTEST" in r.text
     assert "1,234.56" in r.text
     assert "NVDA" in r.text
-    assert "FULL_ALIGNMENT" in r.text
+    assert "DAY_TRADE_READY_STRICT" in r.text
     assert "PAPER ONLY" in r.text

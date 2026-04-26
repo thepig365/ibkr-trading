@@ -101,6 +101,7 @@ class IntradaySignalRow:
     score: float | None = None
     five_min_setup_found: bool = False
     one_min_trigger_found: bool = False
+    higher_timeframe_context_ok: bool = False
     entry: float | None = None
     stop: float | None = None
     target: float | None = None
@@ -527,6 +528,8 @@ class StateStore(Protocol):
     def get_intraday_paper_config(self) -> IntradayPaperConfigView: ...
     def get_edge_profiles_view(self) -> list["EdgeProfileRow"]: ...
     def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus: ...
+    def get_first_paper_pass_snapshot(self) -> dict[str, Any]: ...
+    def latest_paper_report_links(self) -> dict[str, str | None]: ...
     def get_journal_view(self, *, limit: int = 200) -> JournalView: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
@@ -698,6 +701,14 @@ class LocalFileStateStore:
             "weekly_json": _rel(wj[-1] if wj else None),
             "weekly_md": _rel(wm[-1] if wm else None),
         }
+
+    def get_first_paper_pass_snapshot(self) -> dict[str, Any]:
+        """Read ``data/runtime/first_paper_pass_last.json`` (no TWS/IBKR)."""
+        p = self.runtime_dir / "first_paper_pass_last.json"
+        if not p.is_file():
+            return {}
+        data = _safe_read_json(p)
+        return data if isinstance(data, dict) else {}
 
     # ------------------------------------------------------------------
     # Account / positions
@@ -951,6 +962,9 @@ class LocalFileStateStore:
                 score=_to_float(item.get("score")),
                 five_min_setup_found=bool(item.get("five_min_setup_found")),
                 one_min_trigger_found=bool(item.get("one_min_trigger_found")),
+                higher_timeframe_context_ok=bool(
+                    item.get("higher_timeframe_context_ok", False)
+                ),
                 entry=_to_float(item.get("entry")),
                 stop=_to_float(item.get("stop")),
                 target=_to_float(item.get("target")),
@@ -1976,6 +1990,12 @@ class DatabaseStateStore:
         raise self._not_yet()
 
     def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus:  # pragma: no cover - stub
+        raise self._not_yet()
+
+    def get_first_paper_pass_snapshot(self) -> dict[str, Any]:  # pragma: no cover - stub
+        raise self._not_yet()
+
+    def latest_paper_report_links(self) -> dict[str, str | None]:  # pragma: no cover - stub
         raise self._not_yet()
 
     def get_journal_view(self, *, limit: int = 200) -> JournalView:  # pragma: no cover - stub

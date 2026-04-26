@@ -29,22 +29,47 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |
 | Backtest | `/backtest` | ICT/SMC 日内回测配置与运行（引擎在 CLI/Worker） |
 | Edge | `/edge` | 标的级 edge 画像、排名与纸面门控（只读 + 白名单构建命令） |
-| Logs | `/logs` | 近期命令与事件（只读） |
-| Settings | `/settings` | 安全说明、白名单命令、运行时标志；**本手册链接** |
+| Reports | `/reports` | 日/周/研究/回测/edge/扫描报告路径汇总与生成按钮（只通过白名单） |
+| Logs | `/logs` | 近期命令与事件（只读、脱敏） |
+| Settings / Doctor | `/settings` | 安全说明、白名单命令、运行时标志、诊断类按钮；**本手册链接** |
 
 ---
 
 ## 3. 每天如何使用（摘要）
 
 1. （可选）启动 **TWS / IB Gateway** 纸面账户。  
-2. 需要与券商对账时运行：`python3 -m bot.cli paper-reconcile`（见每日清单）。  
-3. 启动 **UI**：`python3 -m bot_ui` 或 `./scripts/start_strategy_lab_ui.sh`。  
+2. 需要与券商对账时：在 **Dashboard / Settings** 点 **Paper Reconcile**，或终端运行 `python3 -m bot.cli paper-reconcile`（见每日清单）。  
+3. 启动 **UI**：`python3 -m bot_ui` 或 `./scripts/start_strategy_lab_ui.sh`；macOS 可双击 `Start Strategy Lab.command`。  
 4. 浏览器打开 `http://127.0.0.1:8765/`。  
 5. 按当日计划跑 **Research / Watchlist / 扫描 / 回测**，再在 **Paper** 区用**白名单按钮**触发 Worker。  
-6. 在 **Journal** 核对纸单与回测记录。  
+6. 在 **Journal** 核对纸单与回测记录；在 **Reports** 生成/查看日周报告。  
 7. 收工可 **停止 UI**：`./scripts/stop_strategy_lab_ui.sh`（不影响 TWS）。
 
 更细步骤见 **`docs/daily-operation-checklist.md`**。
+
+### 3.1 完全通过 UI 的日流程（不记 CLI）
+
+**引擎只在满足 ICT/SMC ready + 1 分钟触发 + 全部纸面门控时才会发纸单**；Edge 与回测**不会**自动触发交易。若一整天无成交，多为门控/信号/对账/时段原因，见 `docs/troubleshooting.md`。
+
+建议顺序（均为浏览器内**显式按钮**，页面加载**不会**连 IBKR）：
+
+1. 双击或用脚本**启动** Strategy Lab UI。  
+2. **Dashboard**：看 Engine health、TWS/IBKR 可稍后用按钮刷新；**不要** expect 页面一打开就已有券商状态。  
+3. **Research**：**Run Research Report** / Status / Macro 等。  
+4. **Watchlist**：**Build Watchlist**（需 IBKR 时选带 IBKR 的按钮）。  
+5. **Signals（ICT 标签）**：**Run Intraday Scan**；审阅 `DAY_TRADE_READY_*` / `WATCH_ONLY` 等。  
+6. 若**休市**想做验证：**Backtest** 页跑 1 周/2 周/1 月 或自填区间；**不要**打开「fetch」类选项，除非你明确要拉取缓存。  
+7. **Edge**：**Build Edge Profile(s)** 作候选排序；**仍须** 日内信号 + 1m 触发。  
+8. **Paper**：**Paper Readiness**、**Paper Activation Status**；确认 Kill Switch 未误开、预算行可读。  
+9. 仅当你**明确愿意发纸单**时，再点 **First Paper Pass**（一次受控 pass，不启动长期 loop）。  
+10. **Journal**：核对 `bracket_integrity`、sizing、broker 错码。  
+11. **Reports** 或 Dashboard：**Generate Daily / Weekly Report**。  
+12. 收工：**Intraday Paper OFF**（若你曾打开）、需要时 **Stop** UI。
+
+**周回测**：在 **Backtest** 页用「core basket」快捷或自填 5–20 日区间 + `strict` / `aggressive` / 双向等；引擎只用本地 K 线缓存，**不下单**。
+
+**哪些按钮可能触达 IBKR**（只读或纸面，仍非实盘）：`ibkr-session-status`、`open-orders`、`portfolio`、**Paper Reconcile**、带 `build-watchlist` 且需行情的变体、**Intraday Scan** 上若勾选需行情的选项等。以页面说明为准。  
+**可能产生纸面委托**的：`first-paper-pass`、`auto-paper-intraday-smc` 等**仅**在 Paper/受控 flow 中、且你显式点击后出现。
 
 ---
 
@@ -228,8 +253,9 @@ Edge、新闻、表内分数、相对成交量**不能**单独触发下单。缺
 
 ## 9. Signals 怎么看
 
-- **Signals (MTF)** 展示多周期信号汇总；数据来自本地已生成的扫描结果。  
-- 新扫描在终端使用 `python3 -m bot.cli scan-mtf-smc-watchlist` 等（需 IBKR 与配置允许），不在 UI 渲染线程连 TWS。
+- **Signals** 有 **MTF** 与 **ICT/SMC Intraday** 两个页签。MTF 展示多周期汇总；**Intraday** 展示 `data/intraday_smc/` 下最新文件，并列出 HTF/5m/1m 等列。  
+- **发纸面委托**在引擎侧要求：ICT/SMC 就绪类别 + **1 分钟触发** + 对账 / Kill / 预算等门控。Edge 画像**单独不能**触发下单。  
+- 新扫描在 **UI 用白名单按钮** 或终端 `scan-mtf-smc-watchlist` / `scan-intraday-smc-watchlist`；**不在** UI 打开页面时连 TWS。
 
 ---
 

@@ -17,13 +17,15 @@ router = APIRouter()
 
 @router.get("/settings", response_class=HTMLResponse, name="settings_page")
 def settings_page(request: Request) -> HTMLResponse:
+    st = request.app.state.state_store
     ctx = base_context(request, active="settings")
     ctx.update(
         {
             "allowed_commands": ALLOWED_COMMANDS,
             "forbidden_command_tokens": sorted(FORBIDDEN_COMMAND_TOKENS),
             "forbidden_arg_tokens": sorted(FORBIDDEN_ARG_TOKENS),
-            "runtime": request.app.state.state_store.runtime_flags(),
+            "runtime": st.runtime_flags(),
+            "recent_results": request.app.state.command_queue.list_recent(limit=6),
         }
     )
     return request.app.state.templates.TemplateResponse(request, "settings.html", ctx)

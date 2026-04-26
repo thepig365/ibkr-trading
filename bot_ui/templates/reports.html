@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block subtitle %}
+<div class="page-sub">Index of latest generated JSON/MD and safe buttons to regenerate. Read-only; no TWS/IBKR on page load. Commands run only when you click a button.</div>
+{% endblock %}
+
+{% block content %}
+  <div class="section">
+    <h2>Safe actions</h2>
+    <div class="form-row flex-wrap" style="gap:6px;">
+      {% with command='paper-daily-report', args='--latest', label='Generate daily report', return_to='/reports', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='paper-weekly-report', args='--latest', label='Generate weekly report', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='edge-profile-report', args='--latest', label='Edge report (path)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='backtest-report', args='--latest', label='Backtest report (latest)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+    <div class="card">
+      <div class="card-title">Paper daily / weekly (13M)</div>
+      <div class="card-sub text-small text-mono">
+        {% if paper_reports and paper_reports.daily_json %}<div>JSON: {{ paper_reports.daily_json }}</div>{% else %}<div class="text-dim">No daily JSON yet</div>{% endif %}
+        {% if paper_reports and paper_reports.daily_md %}<div>MD: {{ paper_reports.daily_md }}</div>{% endif %}
+        {% if paper_reports and paper_reports.weekly_json %}<div>Weekly JSON: {{ paper_reports.weekly_json }}</div>{% else %}<div class="text-dim">No weekly JSON yet</div>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Research</div>
+      <div class="card-sub text-small">
+        {% if research and not research.is_empty %}
+          date: {{ research.date or '—' }}<br/>path: <code>{{ research.report_path or '—' }}</code>
+        {% else %}
+          <span class="text-dim">No research report on disk</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Intraday scan summary</div>
+      <div class="card-sub text-small text-mono">
+        {% if intraday and intraday.file_path %}<code>{{ intraday.file_path }}</code><br/>date: {{ intraday.date }}{% else %}<span class="text-dim">—</span>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Backtest</div>
+      <div class="card-sub text-small text-mono">
+        {% if backtest and not backtest.is_empty and backtest.summary_path %}
+          <code>{{ backtest.summary_path }}</code>
+        {% else %}
+          <span class="text-dim">—</span>
+        {% endif %}
+        {% if backtest_json_path %}<br/>latest: <code>{{ backtest_json_path }}</code>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Edge profiles</div>
+      <div class="card-sub text-small text-mono">
+        {% if edge_json_path %}<code>{{ edge_json_path }}</code>{% else %}<span class="text-dim">—</span>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Paper orders audit</div>
+      <div class="card-sub text-small text-mono">
+        {% if paper_audit_hint %}<code>{{ paper_audit_hint }}</code>{% else %}<span class="text-dim">—</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if recent_results %}
+  <div class="section">
+    <h2>Last commands</h2>
+    <pre class="code text-small" style="max-height: 240px; overflow: auto;">{% for r in recent_results %}{{ r.request.display() }} → {{ r.status_label }}
+{% endfor %}</pre>
+  </div>
+  {% endif %}
+{% endblock %}

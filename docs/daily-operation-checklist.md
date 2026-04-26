@@ -5,6 +5,23 @@
 
 **macOS 推荐首选：** 在仓库根目录**双击** `Start Strategy Lab.command` 启动并打开浏览器；收工可双击 `Stop Strategy Lab.command`。说明见 `docs/mac-launchers.md`。（终端下仍可用 `./scripts/start_strategy_lab_ui.sh` 等。）
 
+### 纯 UI 日流程（与 `docs/strategy-lab-user-manual.md` §3.1 一致）
+
+- [ ] 1. `Start Strategy Lab.command`（或 `start_strategy_lab_ui.sh`）  
+- [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算卡片  
+- [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
+- [ ] 4. **Watchlist** — 构建表  
+- [ ] 5. **Signals（ICT）** — 日内扫描  
+- [ ] 6. 若休市：**Backtest** — 1 周/2 周/1 月 或自填区间；**默认勿开 fetch**  
+- [ ] 7. **Edge** — 建立画像（默认缓存）  
+- [ ] 8. **Paper** — Readiness / Activation；**不**在无意向时点 First Paper Pass  
+- [ ] 9. 仅当准备好：`First Paper Pass` 一次受控试单（不启 loop）  
+- [ ] 10. **Journal** — 括号/帽/错码  
+- [ ] 11. **Reports** — Daily / Weekly 生成与路径  
+- [ ] 12. 收工：**Intraday Paper OFF**（如曾打开）、Stop UI  
+
+**周回测**：**Backtest** 页用 core basket 快捷或自填多周窗口；**不下单**。
+
 ## 第一次端到端纸面验证（E2E）
 
 > 与 `docs/strategy-lab-user-manual.md` 中 **§6.1** 同序；这里作清单勾选用。

@@ -59,7 +59,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
     # Although the names contain "paper", we still apply tight per-flag
     # validators below so the UI cannot smuggle ``--live`` etc.
     "auto-paper-intraday-smc": "Run one ICT/SMC Intraday paper bracket pass (paper account only).",
-    "run-auto-paper-intraday-loop": "Run the ICT/SMC Intraday paper bracket loop (paper account only).",
+    "ibkr-session-status": "Read IBKR session summary (TWS/IB; explicit button only).",
+    "open-orders": "List open orders at IBKR (read-only; explicit button).",
+    "portfolio": "List positions + account snapshot at IBKR (read-only; explicit button).",
     "intraday-paper-status": "Print intraday paper config + runtime + loop state (read-only).",
     "strategy-lab-engine-status": (
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
@@ -71,6 +73,8 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "intraday-paper-off": "Set data/runtime/intraday_auto_paper_enabled = 0 (no orders).",
     "paper-readiness-check": "Intraday paper pre-flight (optional --probe-ibkr / --scan).",
     "first-paper-pass": "One controlled pass: readiness then auto-paper-intraday-smc (no loop).",
+    "paper-daily-report": "Generate data/reports/paper daily JSON+MD (file-based; no IBKR).",
+    "paper-weekly-report": "Generate data/reports/paper weekly JSON+MD (file-based; no IBKR).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -84,6 +88,7 @@ FORBIDDEN_COMMAND_TOKENS: frozenset[str] = frozenset(
         "live",
         "auto-paper-mtf",
         "run-auto-paper-mtf-loop",
+        "run-auto-paper-intraday-loop",
         "telegram-listen",
         "run-scheduler",
     }
@@ -926,18 +931,6 @@ _AUTO_PAPER_INTRADAY_FLAGS_BOOL: frozenset[str] = frozenset(
     {"--telegram", "--no-telegram"}
 )
 
-_RUN_INTRADAY_LOOP_FLAGS_VALUE: frozenset[str] = frozenset(
-    {"--source", "--limit", "--interval-seconds", "--heartbeat-minutes"}
-)
-_RUN_INTRADAY_LOOP_FLAGS_BOOL: frozenset[str] = frozenset(
-    {
-        "--telegram",
-        "--no-telegram",
-        "--market-hours-only",
-        "--ignore-market-hours",
-    }
-)
-
 _INTRADAY_PAPER_STATUS_FLAGS_BOOL: frozenset[str] = frozenset(
     {"--json"}
 )
@@ -1002,83 +995,124 @@ def validate_auto_paper_intraday_smc_args(args: tuple[str, ...]) -> tuple[bool, 
     return True, ""
 
 
-def validate_run_auto_paper_intraday_loop_args(
-    args: tuple[str, ...],
+def validate_readonly_broker_view_args(
+    name: str, args: tuple[str, ...]
 ) -> tuple[bool, str]:
-    """Validator for ``run-auto-paper-intraday-loop``."""
-    ok, err = _check_no_forbidden("run-auto-paper-intraday-loop", args)
+    """``ibkr-session-status``, ``open-orders``, ``portfolio`` take no args."""
+    ok, err = _check_no_forbidden(name, args)
     if not ok:
         return ok, err
-    flags: dict[str, str | bool] = {}
+    if args:
+        return False, f"{name} does not accept arguments."
+    return True, ""
+
+
+_PAPER_REPORT_OUTPUT_DIR_RE = re.compile(
+    r"^data/reports(/paper)?$|^data/reports/paper/?$"
+)
+
+
+def validate_paper_daily_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Tight allowlist: --latest / --today / --date, optional output dir under data/reports."""
+    ok, err = _check_no_forbidden("paper-daily-report", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
     i = 0
+    have_mode = 0
     while i < len(args):
-        token = args[i]
-        if token in _RUN_INTRADAY_LOOP_FLAGS_BOOL:
-            flags[token] = True
+        a = args[i]
+        if a in {"--latest", "--today", "--no-markdown", "--no-save"}:
+            if a in {"--latest", "--today"}:
+                have_mode += 1
             i += 1
             continue
-        if token in _RUN_INTRADAY_LOOP_FLAGS_VALUE:
+        if a == "--date":
             if i + 1 >= len(args):
-                return False, (
-                    f"run-auto-paper-intraday-loop: flag {token!r} requires a value."
-                )
-            flags[token] = args[i + 1]
+                return False, "paper-daily-report: --date requires a value."
+            d = str(args[i + 1])
+            if not _DATE_RE.match(d):
+                return False, "paper-daily-report: --date must be YYYY-MM-DD."
+            have_mode += 1
             i += 2
             continue
-        return False, (
-            f"run-auto-paper-intraday-loop: unexpected token {token!r}; only "
-            f"{sorted(_RUN_INTRADAY_LOOP_FLAGS_BOOL | _RUN_INTRADAY_LOOP_FLAGS_VALUE)} are allowed."
+        if a == "--output-dir":
+            if i + 1 >= len(args):
+                return False, "paper-daily-report: --output-dir requires a value."
+            raw = str(args[i + 1]).strip()
+            if ".." in raw or raw.startswith(("/", "~")):
+                return False, "paper-daily-report: invalid --output-dir."
+            if not _PAPER_REPORT_OUTPUT_DIR_RE.match(raw):
+                return (
+                    False,
+                    "paper-daily-report: --output-dir must be data/reports or data/reports/paper.",
+                )
+            i += 2
+            continue
+        if a == "--markdown" or a == "--telegram":
+            i += 1
+            continue
+        return False, f"paper-daily-report: unexpected token {a!r}."
+    if have_mode > 1:
+        return (
+            False,
+            "paper-daily-report: use at most one of --latest, --today, or --date.",
         )
-    if "--source" in flags:
-        v = str(flags["--source"]).lower()
-        if v not in _INTRADAY_SOURCE_VALUES:
-            return False, (
-                "run-auto-paper-intraday-loop: --source must be one of "
-                f"{sorted(_INTRADAY_SOURCE_VALUES)}."
-            )
-    if "--limit" in flags:
-        try:
-            n = int(str(flags["--limit"]))
-        except (TypeError, ValueError):
-            return False, "run-auto-paper-intraday-loop: --limit must be an integer."
-        if not (_INTRADAY_PAPER_LIMIT_MIN <= n <= _INTRADAY_PAPER_LIMIT_MAX):
-            return False, (
-                "run-auto-paper-intraday-loop: --limit must be in "
-                f"[{_INTRADAY_PAPER_LIMIT_MIN}, {_INTRADAY_PAPER_LIMIT_MAX}]."
-            )
-    if "--interval-seconds" in flags:
-        try:
-            n = int(str(flags["--interval-seconds"]))
-        except (TypeError, ValueError):
-            return False, (
-                "run-auto-paper-intraday-loop: --interval-seconds must be an integer."
-            )
-        if not (_INTRADAY_PAPER_INTERVAL_MIN <= n <= _INTRADAY_PAPER_INTERVAL_MAX):
-            return False, (
-                "run-auto-paper-intraday-loop: --interval-seconds must be in "
-                f"[{_INTRADAY_PAPER_INTERVAL_MIN}, {_INTRADAY_PAPER_INTERVAL_MAX}]."
-            )
-    if "--heartbeat-minutes" in flags:
-        try:
-            n = int(str(flags["--heartbeat-minutes"]))
-        except (TypeError, ValueError):
-            return False, (
-                "run-auto-paper-intraday-loop: --heartbeat-minutes must be an integer."
-            )
-        if not (_INTRADAY_PAPER_HEARTBEAT_MIN <= n <= _INTRADAY_PAPER_HEARTBEAT_MAX):
-            return False, (
-                "run-auto-paper-intraday-loop: --heartbeat-minutes must be in "
-                f"[{_INTRADAY_PAPER_HEARTBEAT_MIN}, {_INTRADAY_PAPER_HEARTBEAT_MAX}]."
-            )
-    if "--telegram" in flags and "--no-telegram" in flags:
-        return False, (
-            "run-auto-paper-intraday-loop: --telegram and --no-telegram are mutually exclusive."
-        )
-    if "--market-hours-only" in flags and "--ignore-market-hours" in flags:
-        return False, (
-            "run-auto-paper-intraday-loop: --market-hours-only and "
-            "--ignore-market-hours are mutually exclusive."
-        )
+    return True, ""
+
+
+def validate_paper_weekly_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("paper-weekly-report", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
+    i = 0
+    seen_start = seen_end = seen_latest = False
+    while i < len(args):
+        a = args[i]
+        if a in {"--no-markdown", "--no-save"}:
+            i += 1
+            continue
+        if a == "--latest":
+            seen_latest = True
+            i += 1
+            continue
+        if a == "--week-start":
+            if i + 1 >= len(args):
+                return False, "paper-weekly-report: --week-start requires a value."
+            if not _DATE_RE.match(str(args[i + 1])):
+                return False, "paper-weekly-report: --week-start must be YYYY-MM-DD."
+            seen_start = True
+            i += 2
+            continue
+        if a == "--week-end":
+            if i + 1 >= len(args):
+                return False, "paper-weekly-report: --week-end requires a value."
+            if not _DATE_RE.match(str(args[i + 1])):
+                return False, "paper-weekly-report: --week-end must be YYYY-MM-DD."
+            seen_end = True
+            i += 2
+            continue
+        if a == "--output-dir":
+            if i + 1 >= len(args):
+                return False, "paper-weekly-report: --output-dir requires a value."
+            raw = str(args[i + 1]).strip()
+            if ".." in raw or raw.startswith(("/", "~")):
+                return False, "paper-weekly-report: invalid --output-dir."
+            if not _PAPER_REPORT_OUTPUT_DIR_RE.match(raw):
+                return (
+                    False,
+                    "paper-weekly-report: --output-dir must be data/reports or data/reports/paper.",
+                )
+            i += 2
+            continue
+        return False, f"paper-weekly-report: unexpected token {a!r}."
+    if seen_latest and (seen_start or seen_end):
+        return False, "paper-weekly-report: do not mix --latest with --week-start/--week-end."
+    if (seen_start) ^ (seen_end):
+        return False, "paper-weekly-report: provide both --week-start and --week-end, or use --latest."
     return True, ""
 
 
@@ -1244,8 +1278,16 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_edge_profile_report_args(args)
     if command == "auto-paper-intraday-smc":
         return validate_auto_paper_intraday_smc_args(args)
-    if command == "run-auto-paper-intraday-loop":
-        return validate_run_auto_paper_intraday_loop_args(args)
+    if command == "ibkr-session-status":
+        return validate_readonly_broker_view_args("ibkr-session-status", args)
+    if command == "open-orders":
+        return validate_readonly_broker_view_args("open-orders", args)
+    if command == "portfolio":
+        return validate_readonly_broker_view_args("portfolio", args)
+    if command == "paper-daily-report":
+        return validate_paper_daily_report_args(args)
+    if command == "paper-weekly-report":
+        return validate_paper_weekly_report_args(args)
     if command == "intraday-paper-status":
         return validate_intraday_paper_status_args(args)
     if command == "strategy-lab-engine-status":

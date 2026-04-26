@@ -15,16 +15,17 @@
       </div>
       <ul class="nav">
         <li><a href="{{ url_for('dashboard') }}" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a></li>
-        <li><a href="{{ url_for('watchlist_page') }}" class="{% if active=='watchlist' %}active{% endif %}">Watchlist</a></li>
-        <li><a href="{{ url_for('edge_page') }}" class="{% if active=='edge' %}active{% endif %}">Edge</a></li>
-        <li><a href="{{ url_for('signals_page') }}" class="{% if active=='signals' %}active{% endif %}">Signals (MTF)</a></li>
-        <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>
-        <li><a href="{{ url_for('journal_page') }}" class="{% if active=='journal' %}active{% endif %}">Journal</a></li>
-        <li><a href="{{ url_for('strategies') }}" class="{% if active=='strategies' %}active{% endif %}">Strategies</a></li>
         <li><a href="{{ url_for('research') }}" class="{% if active=='research' %}active{% endif %}">Research</a></li>
+        <li><a href="{{ url_for('watchlist_page') }}" class="{% if active=='watchlist' %}active{% endif %}">Watchlist</a></li>
+        <li><a href="{{ url_for('signals_page') }}?strategy=ict_smc_intraday_v1" class="{% if active=='signals' %}active{% endif %}">Signals</a></li>
         <li><a href="{{ url_for('backtest_page') }}" class="{% if active=='backtest' %}active{% endif %}">Backtest</a></li>
+        <li><a href="{{ url_for('edge_page') }}" class="{% if active=='edge' %}active{% endif %}">Edge</a></li>
+        <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>
+        <li><a href="{{ url_for('journal_page') }}" class="{% if active == 'journal' %}active{% endif %}">Journal</a></li>
+        <li><a href="{{ url_for('reports_page') }}" class="{% if active=='reports' %}active{% endif %}">Reports</a></li>
         <li><a href="{{ url_for('logs_page') }}" class="{% if active=='logs' %}active{% endif %}">Logs</a></li>
-        <li><a href="{{ url_for('settings_page') }}" class="{% if active=='settings' %}active{% endif %}">Settings</a></li>
+        <li><a href="{{ url_for('strategies') }}" class="{% if active=='strategies' %}active{% endif %}">Strategies</a></li>
+        <li><a href="{{ url_for('settings_page') }}" class="{% if active=='settings' %}active{% endif %}">Settings / Doctor</a></li>
       </ul>
       <div class="nav-help text-small text-dim" style="margin-top:1rem;padding:0 0.5rem;">
         <div class="text-mono" style="font-size:0.8rem;">Help (repo)</div>

@@ -81,6 +81,7 @@ def create_app(
     from .routes import journal as journal_routes  # noqa: PLC0415
     from .routes import logs as logs_routes  # noqa: PLC0415
     from .routes import paper as paper_routes  # noqa: PLC0415
+    from .routes import reports as reports_routes  # noqa: PLC0415
     from .routes import research as research_routes  # noqa: PLC0415
     from .routes import settings as settings_routes  # noqa: PLC0415
     from .routes import signals as signals_routes  # noqa: PLC0415
@@ -96,6 +97,7 @@ def create_app(
     app.include_router(journal_routes.router)
     app.include_router(strategies_routes.router)
     app.include_router(research_routes.router)
+    app.include_router(reports_routes.router)
     app.include_router(backtest_routes.router)
     app.include_router(logs_routes.router)
     app.include_router(settings_routes.router)

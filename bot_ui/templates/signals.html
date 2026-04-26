@@ -96,13 +96,23 @@
        ICT/SMC Intraday V1 tab (Prompt 13D)
        ============================================================ #}
     {% set ids = intraday_signals %}
+    <div class="section flash" style="border-color: var(--border);">
+      <strong>Execution policy:</strong> Paper brackets require an ICT/SMC <em>ready</em> category plus a 1m trigger, plus all safety gates. <strong>Edge profile alone never triggers a trade</strong> — it only ranks and sizes. Scans and this page are research-only; no order buttons.
+    </div>
+
     <div class="section">
       <h2>Actions — ICT/SMC Intraday V1</h2>
       <div class="form-row">
-        {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 20 --ibkr --chart --telegram', label='Run Intraday Scan', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='' %}
+        {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 20 --ibkr --chart --telegram', label='Run Intraday Scan + TG', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
+        {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 20 --ibkr --chart', label='Intraday + Charts', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='ghost' %}
           {% include "_command_form.html" %}
         {% endwith %}
         {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 10 --ibkr', label='Quick scan (10, no chart)', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='ghost' %}
+          {% include "_command_form.html" %}
+        {% endwith %}
+        {% with command='mtf-near-alignment-alert', args='--latest', label='Near-alignment (MTF)', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='ghost' %}
           {% include "_command_form.html" %}
         {% endwith %}
       </div>
@@ -164,6 +174,7 @@
               <th>Category</th>
               <th>Dir</th>
               <th class="num">Score</th>
+              <th>HTF</th>
               <th>5m setup</th>
               <th>1m trigger</th>
               <th class="num">Entry</th>
@@ -194,6 +205,7 @@
                 </td>
                 <td>{{ r.direction or '—' }}</td>
                 <td class="num">{% if r.score is not none %}{{ "%.0f"|format(r.score or 0) }}{% else %}—{% endif %}</td>
+                <td>{% if r.higher_timeframe_context_ok %}<span class="pill good">ok</span>{% else %}<span class="pill neutral">—</span>{% endif %}</td>
                 <td>{% if r.five_min_setup_found %}<span class="pill good">yes</span>{% else %}<span class="pill neutral">—</span>{% endif %}</td>
                 <td>{% if r.one_min_trigger_found %}<span class="pill good">yes</span>{% else %}<span class="pill neutral">—</span>{% endif %}</td>
                 <td class="num">{% if r.entry is not none %}{{ "%.2f"|format(r.entry or 0) }}{% else %}—{% endif %}</td>

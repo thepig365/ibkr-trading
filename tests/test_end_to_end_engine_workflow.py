@@ -210,9 +210,12 @@ def test_dashboard_render_does_not_import_broker_or_ibkr(project: Path) -> None:
 
 
 def test_no_live_trading_or_order_cli_exposed_in_ui_allowlist() -> None:
-    assert "portfolio" not in ALLOWED_COMMANDS
     assert "place-order" not in ALLOWED_COMMANDS
     assert is_forbidden("place_order")
+    assert is_forbidden("run-auto-paper-intraday-loop")
+    # Read-only broker views are allowlisted (explicit button only; no shell).
+    assert "portfolio" in ALLOWED_COMMANDS
+    assert "open-orders" in ALLOWED_COMMANDS
 
 
 def test_strategies_route_no_place_order_wording(project: Path) -> None:

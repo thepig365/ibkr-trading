@@ -72,7 +72,8 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
     assert is_allowed("telegram-listen") is False
     # arbitrary commands
     assert is_allowed("rm") is False
-    assert is_allowed("portfolio") is False
+    assert is_allowed("portfolio") is True
+    assert is_allowed("run-auto-paper-intraday-loop") is False
     assert is_allowed("") is False
 
 
@@ -86,6 +87,11 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
 # requires ``--symbols``.
 _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "ibkr-news-fetch": ("--symbols", "AAPL,TSLA,NVDA", "--limit", "50"),
+    "ibkr-session-status": (),
+    "open-orders": (),
+    "portfolio": (),
+    "paper-daily-report": ("--latest",),
+    "paper-weekly-report": ("--latest",),
     "strategy-info": ("mtf_smc",),
     "strategy-scan": ("--strategy", "mtf_smc"),
     "scan-intraday-smc": ("--symbol", "AAPL", "--ibkr"),
@@ -142,10 +148,10 @@ def test_validate_request_accepts_allowlisted(command: str) -> None:
     [
         "auto-paper-mtf",
         "run-auto-paper-mtf-loop",
+        "run-auto-paper-intraday-loop",
         "telegram-listen",
         "place-order",
         "rm",
-        "portfolio",
         "",
     ],
 )

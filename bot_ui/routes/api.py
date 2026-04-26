@@ -41,21 +41,30 @@ def build_api_router() -> APIRouter:
     return router
 
 
-_ALLOWED_RETURNS = {
-    "/dashboard",
-    "/watchlist",
-    "/signals",
-    "/paper",
-    "/strategies",
-    "/research",
-    "/backtest",
-    "/logs",
-    "/settings",
-}
+_ALLOWED_PATH_PREFIXES: frozenset[str] = frozenset(
+    {
+        "/dashboard",
+        "/watchlist",
+        "/signals",
+        "/paper",
+        "/strategies",
+        "/research",
+        "/backtest",
+        "/reports",
+        "/journal",
+        "/edge",
+        "/logs",
+        "/settings",
+    }
+)
 
 
 def _safe_return(value: str) -> str:
+    """Allow known paths; optional `?query` is preserved (same path prefix)."""
     v = (value or "").strip()
-    if v in _ALLOWED_RETURNS:
+    if not v.startswith("/"):
+        return "/dashboard"
+    path_only = v.split("?", 1)[0]
+    if path_only in _ALLOWED_PATH_PREFIXES:
         return v
     return "/dashboard"

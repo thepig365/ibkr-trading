@@ -39,6 +39,7 @@ env/
 
 # Local settings overlay (enables paper trading on this machine; never commit)
 config/settings.local.yaml
+config/settings.local.yaml.bak.*
 
 # Local data / runtime artifacts (do not commit broker data)
 data/*.sqlite

@@ -60,6 +60,18 @@
   </div>
 
   <div class="section">
+    <h2>Status commands (read-only or snapshots)</h2>
+    <p class="text-dim text-small">Broker-touching items connect only on button click, via allowlisted <code>python -m bot.cli</code>.</p>
+    <div class="form-row flex-wrap" style="gap:6px;">
+      {% with command='engine-status', label='Engine Status', return_to='/settings', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='ibkr-session-status', label='IBKR Session', return_to='/settings', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='open-orders', label='Open Orders', return_to='/settings', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='portfolio', label='Portfolio', return_to='/settings', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='paper-reconcile', label='Paper Reconcile', return_to='/settings', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
     <h2>Operator documentation (local)</h2>
     <p class="text-small">Chinese PDF-style guides — open in your editor (paths relative to project root <span class="text-mono">{{ project_root_short }}</span>):</p>
     <ul class="text-small">

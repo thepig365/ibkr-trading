@@ -174,7 +174,6 @@ def test_kill_switch_remains_canonical_after_intraday_toggle(project: Path) -> N
 def test_intraday_paper_commands_are_on_allowlist() -> None:
     for cmd in (
         "auto-paper-intraday-smc",
-        "run-auto-paper-intraday-loop",
         "intraday-paper-status",
         "paper-activation-status",
         "write-paper-local-config",
@@ -187,6 +186,12 @@ def test_intraday_paper_commands_are_on_allowlist() -> None:
         assert is_allowed(cmd) is True, f"{cmd!r} must pass is_allowed"
 
 
+def test_intraday_auto_paper_loop_not_exposed_in_ui() -> None:
+    assert "run-auto-paper-intraday-loop" not in ALLOWED_COMMANDS
+    assert is_forbidden("run-auto-paper-intraday-loop")
+    assert is_allowed("run-auto-paper-intraday-loop") is False
+
+
 def test_old_mtf_paper_commands_remain_forbidden() -> None:
     for cmd in ("auto-paper-mtf", "run-auto-paper-mtf-loop"):
         assert is_forbidden(cmd) is True
@@ -197,18 +202,6 @@ def test_intraday_paper_commands_validators_accept_safe_args() -> None:
     accepted, reason = validate_args_for(
         "auto-paper-intraday-smc",
         ("--source", "dynamic", "--limit", "20", "--telegram"),
-    )
-    assert accepted, reason
-    accepted, reason = validate_args_for(
-        "run-auto-paper-intraday-loop",
-        (
-            "--source", "dynamic",
-            "--limit", "20",
-            "--interval-seconds", "60",
-            "--heartbeat-minutes", "30",
-            "--market-hours-only",
-            "--telegram",
-        ),
     )
     assert accepted, reason
     accepted, reason = validate_args_for("intraday-paper-status", ())
@@ -268,23 +261,16 @@ def test_auto_paper_intraday_smc_rejects_bad_values(args: tuple[str, ...]) -> No
     assert accepted is False, f"args {args!r} should be rejected: {reason}"
 
 
-@pytest.mark.parametrize(
-    "args",
-    [
-        ("--interval-seconds", "1"),     # below min
-        ("--interval-seconds", "100000"),  # above max
-        ("--heartbeat-minutes", "0"),
-        ("--heartbeat-minutes", "9999"),
-        ("--market-hours-only", "--ignore-market-hours"),
-        ("--source", "live"),  # not in {static,dynamic,manual}
-        ("--limit", "abc"),
-    ],
-)
-def test_run_auto_paper_intraday_loop_rejects_bad_args(args: tuple[str, ...]) -> None:
+def test_run_auto_paper_intraday_loop_command_rejected_even_with_valid_args() -> None:
+    """Prompt 13UI: the loop runner is not on the UI allowlist."""
     accepted, reason = validate_request(
-        CommandRequest(command="run-auto-paper-intraday-loop", args=args),
+        CommandRequest(
+            command="run-auto-paper-intraday-loop",
+            args=("--source", "dynamic", "--limit", "20"),
+        ),
     )
-    assert accepted is False, f"{args!r} should be rejected: {reason}"
+    assert accepted is False
+    assert reason
 
 
 def test_intraday_paper_status_rejects_unknown_flags() -> None:

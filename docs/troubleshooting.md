@@ -5,6 +5,13 @@
 
 ---
 
+## 完全用 UI 时 TWS 连不上
+
+1. 在 **Dashboard** 用 **IBKR Session Status** 看输出（**显式点按钮**后才会走 CLI）。  
+2. 本机 TWS/网关是否登录**纸面**、API 是否启用。  
+3. 端口/Client ID 是否与 `config` 与 `docs/ibkr-setup.md` 一致。  
+4. 仍失败：在终端用 `strategy_lab_doctor.sh` 或同文档排查；**不要**在 UI 里关 TWS 的 Order 保护。
+
 ## 有信号 / 流程正常，但「没有下单」或 Paper pass 全跳过
 
 1. 在 **Paper** 页看 **Intraday** 卡片区 **skipped** 原因（如 `trading.intraday_paper.enabled=false`、未开 runtime、对账、Kill、时段外、无 READY 等）。  
@@ -74,6 +81,17 @@
 - 看 `bot/backtests` 相关错误行（在终端完整输出中）。
 
 ---
+
+## 括号不完整 (bracket_integrity ≠ complete) 或 broker 错码
+
+1. 打开 **Journal** 行内 **Integrity** 与 **Order IDs**；看 `bracket_protected`、错误码。  
+2. 在 TWS 纸面人工核对三腿；不要为「修括号」在 UI 里找**非**白名单命令。  
+3. 阅读该次 `skipped_reasons` 与 `paper-reconcile` 结果。
+
+## 日额度已满 (daily cap)
+
+- **Paper** 与 **Dashboard** 显示 `today_submitted_notional` / `daily_remaining`；**Journal** 的 sizing 列可能含 `daily_cap` 相关说明。  
+- 当日不再应有新单直至 UTC/本地日切或配置调整（勿通过提交受保护 `settings.yaml` 绕过）。
 
 ## 缺少 JSON / 报告文件
 
