@@ -96,6 +96,7 @@ class IntradayPaperIntent:
     live_trading_allowed: bool = False
     tif: str = "DAY"
     sizing_audit: Any | None = None
+    edge_audit: Any | None = None
 
     def to_trade_intent(self) -> TradeIntent:
         side = "BUY" if self.direction == DIRECTION_LONG else "SELL"
@@ -133,6 +134,7 @@ class IntradayPaperIntent:
             "live_trading_allowed": False,
             "tif": self.tif,
             "sizing_audit": self.sizing_audit,
+            "edge_audit": self.edge_audit,
         }
 
 
@@ -266,6 +268,8 @@ def build_intraday_paper_intent(
     cfg: AppConfig,
     *,
     source_scan_path: str | None = None,
+    risk_per_trade_pct_override: float | None = None,
+    edge_audit: Any | None = None,
 ) -> tuple[IntradayPaperIntent | None, list[str]]:
     """Build an ``IntradayPaperIntent`` from a scanner output row.
 
@@ -336,7 +340,11 @@ def build_intraday_paper_intent(
     if equity <= 0:
         return None, ["account equity unknown / non-positive; cannot size"]
 
-    risk_pct = float(ip.risk_per_trade_pct)
+    risk_pct = float(
+        risk_per_trade_pct_override
+        if risk_per_trade_pct_override is not None
+        else ip.risk_per_trade_pct
+    )
     if risk_pct <= 0:
         return None, ["risk_per_trade_pct must be > 0"]
     risk_dollars = equity * (risk_pct / 100.0)
@@ -388,6 +396,7 @@ def build_intraday_paper_intent(
         research_flags=flags,
         tif=tif,
         sizing_audit=sizing_audit,
+        edge_audit=edge_audit,
     )
     return intent, []
 
@@ -568,6 +577,7 @@ def _rebuild_intent_after_tick_normalization(
         research_flags=base.research_flags,
         tif=tif,
         sizing_audit=sizing_audit,
+        edge_audit=getattr(base, "edge_audit", None),
     )
     return rebuilt, []
 
@@ -1138,6 +1148,8 @@ def _record_submission_audit(
         ),
         "sizing_audit": intent.sizing_audit
         or tm.get("sizing_audit"),
+        "edge_audit": intent.edge_audit
+        or tm.get("edge_audit"),
         "bracket_integrity": sub.bracket_integrity,
         "bracket_protected": sub.bracket_protected,
         "broker_errors": list(sub.broker_errors),
@@ -1445,8 +1457,35 @@ def run_intraday_paper_pass(
                 "mode": cfg.settings.account.mode,
                 "block_live_trading": cfg.settings.account.block_live_trading,
             }
+            from ..edge.eligibility import evaluate_edge_for_paper  # noqa: PLC0415
+
+            ip_cfg = cfg.settings.trading.intraday_paper
+            _edge_dec = evaluate_edge_for_paper(
+                cfg,
+                sym,
+                str(it.get("signal_category") or ""),
+                base_risk_pct=float(ip_cfg.risk_per_trade_pct),
+            )
+            if not _edge_dec.allow_submit:
+                submissions.append(
+                    IntradayPaperSubmissionResult(
+                        symbol=sym,
+                        submitted=False,
+                        submitted_to_broker=False,
+                        bracket_integrity="not_submitted",
+                        skipped_reasons=list(_edge_dec.skip_reasons),
+                        tick_meta={"edge_audit": dict(_edge_dec.edge_audit)},
+                    )
+                )
+                skipped.extend(_edge_dec.skip_reasons)
+                continue
             intent, build_err = build_intraday_paper_intent(
-                it, account_snapshot, cfg, source_scan_path=src,
+                it,
+                account_snapshot,
+                cfg,
+                source_scan_path=src,
+                risk_per_trade_pct_override=_edge_dec.effective_risk_pct,
+                edge_audit=_edge_dec.edge_audit,
             )
             if intent is None:
                 sub = IntradayPaperSubmissionResult(

@@ -47,6 +47,13 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "backtest-intraday-smc": "Run the ICT/SMC Intraday backtest engine on a single symbol (cache-only, no broker).",
     "backtest-intraday-smc-watchlist": "Run the ICT/SMC Intraday backtest engine on multiple symbols (cache-only, no broker).",
     "backtest-report": "Print the latest backtest summary written under data/backtests/intraday/.",
+    "build-edge-profile": (
+        "Backtest one symbol, write ticker edge profile JSON/MD (cache; optional --fetch for IBKR candles)."
+    ),
+    "build-edge-profiles": (
+        "Backtest a symbol basket and save ranked edge profiles under data/edge_profiles/ (optional --fetch)."
+    ),
+    "edge-profile-report": "Print the latest data/edge_profiles/*-edge-profiles.json path (read-only, no IBKR).",
     # Prompt 13F: ICT/SMC intraday paper bracket controls. PAPER ONLY —
     # the broker enforces account.mode=paper + every other invariant.
     # Although the names contain "paper", we still apply tight per-flag
@@ -718,6 +725,189 @@ def validate_backtest_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
 
 
 # ---------------------------------------------------------------------------
+# Ticker edge profile CLI (Prompt 13L-alt) — cache + optional --fetch
+# ---------------------------------------------------------------------------
+_STRATEGY_ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,70}$")
+_EDGE_MIN_TRADES_MIN = 1
+_EDGE_MIN_TRADES_MAX = 2000
+_EDGE_TOP_MIN = 1
+_EDGE_TOP_MAX = 500
+_EDGE_BUILD_SINGLE_FLAGS: frozenset[str] = frozenset(
+    {
+        "--symbol",
+        "--start",
+        "--end",
+        "--strategy",
+        "--mode",
+        "--direction",
+        "--min-trades",
+    }
+)
+_EDGE_BUILD_SINGLE_BOOL: frozenset[str] = frozenset({"--fetch"})
+_EDGE_BUILD_MULTI_FLAGS: frozenset[str] = frozenset(
+    {
+        "--symbols",
+        "--start",
+        "--end",
+        "--strategy",
+        "--mode",
+        "--direction",
+        "--min-trades",
+        "--top",
+    }
+)
+_EDGE_BUILD_MULTI_BOOL: frozenset[str] = frozenset({"--fetch"})
+_EDGE_REPORT_FLAGS_BOOL: frozenset[str] = frozenset({"--latest"})
+
+
+def validate_build_edge_profile_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Single-symbol edge profile: same backtest date/symbol/mode as intraday backtest + --fetch/--min-trades/--strategy."""
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _EDGE_BUILD_SINGLE_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _EDGE_BUILD_SINGLE_FLAGS:
+            if i + 1 >= len(args):
+                return False, f"build-edge-profile: flag {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"build-edge-profile: unexpected token {token!r}; only "
+            f"{sorted(_EDGE_BUILD_SINGLE_BOOL | _EDGE_BUILD_SINGLE_FLAGS)} are allowed."
+        )
+    for req in ("--symbol", "--start", "--end"):
+        if req not in flags:
+            return False, f"build-edge-profile: {req} is required."
+    if not _SINGLE_TICKER_RE.match(str(flags["--symbol"])):
+        return False, "build-edge-profile: --symbol must be a single UPPER ticker."
+    for key in ("--start", "--end"):
+        if not _BACKTEST_DATE_RE.match(str(flags[key])):
+            return False, f"build-edge-profile: {key} must be YYYY-MM-DD."
+    if str(flags.get("--start", "")) > str(flags.get("--end", "z")):
+        return False, "build-edge-profile: --start must be <= --end."
+    if "--mode" in flags and str(flags["--mode"]) not in _BACKTEST_MODE_VALUES:
+        return False, (
+            "build-edge-profile: --mode must be one of "
+            f"{sorted(_BACKTEST_MODE_VALUES)}."
+        )
+    if "--direction" in flags and str(
+        flags["--direction"]
+    ) not in _BACKTEST_DIRECTION_VALUES:
+        return False, (
+            "build-edge-profile: --direction must be one of "
+            f"{sorted(_BACKTEST_DIRECTION_VALUES)}."
+        )
+    if "--strategy" in flags and not _STRATEGY_ID_RE.match(
+        str(flags["--strategy"])
+    ):
+        return False, "build-edge-profile: --strategy is invalid."
+    if "--min-trades" in flags:
+        try:
+            mt = int(str(flags["--min-trades"]))
+        except (TypeError, ValueError):
+            return False, "build-edge-profile: --min-trades must be an integer."
+        if not (
+            _EDGE_MIN_TRADES_MIN <= mt <= _EDGE_MIN_TRADES_MAX
+        ):
+            return False, "build-edge-profile: --min-trades out of range."
+    return True, ""
+
+
+def validate_build_edge_profiles_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Basket edge profiles: comma tickers, dates, optional --top, --fetch."""
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _EDGE_BUILD_MULTI_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _EDGE_BUILD_MULTI_FLAGS:
+            if i + 1 >= len(args):
+                return False, f"build-edge-profiles: flag {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, (
+            f"build-edge-profiles: unexpected token {token!r}; only "
+            f"{sorted(_EDGE_BUILD_MULTI_BOOL | _EDGE_BUILD_MULTI_FLAGS)} are allowed."
+        )
+    for req in ("--symbols", "--start", "--end"):
+        if req not in flags:
+            return False, f"build-edge-profiles: {req} is required."
+    if not _TICKER_LIST_RE.match(str(flags["--symbols"])):
+        return False, (
+            "build-edge-profiles: --symbols must match "
+            "^[A-Z]{1,5}(,[A-Z]{1,5})*$."
+        )
+    for key in ("--start", "--end"):
+        if not _BACKTEST_DATE_RE.match(str(flags[key])):
+            return False, f"build-edge-profiles: {key} must be YYYY-MM-DD."
+    if str(flags.get("--start", "")) > str(flags.get("--end", "z")):
+        return False, "build-edge-profiles: --start must be <= --end."
+    if "--mode" in flags and str(flags["--mode"]) not in _BACKTEST_MODE_VALUES:
+        return False, (
+            "build-edge-profiles: --mode must be one of "
+            f"{sorted(_BACKTEST_MODE_VALUES)}."
+        )
+    if "--direction" in flags and str(
+        flags["--direction"]
+    ) not in _BACKTEST_DIRECTION_VALUES:
+        return False, (
+            "build-edge-profiles: --direction must be one of "
+            f"{sorted(_BACKTEST_DIRECTION_VALUES)}."
+        )
+    if "--strategy" in flags and not _STRATEGY_ID_RE.match(
+        str(flags["--strategy"])
+    ):
+        return False, "build-edge-profiles: --strategy is invalid."
+    if "--min-trades" in flags:
+        try:
+            mt = int(str(flags["--min-trades"]))
+        except (TypeError, ValueError):
+            return False, "build-edge-profiles: --min-trades must be an integer."
+        if not (
+            _EDGE_MIN_TRADES_MIN <= mt <= _EDGE_MIN_TRADES_MAX
+        ):
+            return False, "build-edge-profiles: --min-trades out of range."
+    if "--top" in flags:
+        try:
+            top = int(str(flags["--top"]))
+        except (TypeError, ValueError):
+            return False, "build-edge-profiles: --top must be an integer."
+        if not (_EDGE_TOP_MIN <= top <= _EDGE_TOP_MAX):
+            return False, "build-edge-profiles: --top out of range."
+    return True, ""
+
+
+def validate_edge_profile_report_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Read-only report; only ``--latest`` (optional) is allowed."""
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _EDGE_REPORT_FLAGS_BOOL:
+            i += 1
+            continue
+        return False, (
+            f"edge-profile-report: unexpected token {token!r}; only "
+            f"{sorted(_EDGE_REPORT_FLAGS_BOOL)} is allowed (or no args)."
+        )
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
 # Intraday paper bracket validators (Prompt 13F)
 # ---------------------------------------------------------------------------
 # These commands are PAPER-ONLY at the broker layer; the validators below
@@ -1046,6 +1236,12 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_backtest_intraday_smc_watchlist_args(args)
     if command == "backtest-report":
         return validate_backtest_report_args(args)
+    if command == "build-edge-profile":
+        return validate_build_edge_profile_args(args)
+    if command == "build-edge-profiles":
+        return validate_build_edge_profiles_args(args)
+    if command == "edge-profile-report":
+        return validate_edge_profile_report_args(args)
     if command == "auto-paper-intraday-smc":
         return validate_auto_paper_intraday_smc_args(args)
     if command == "run-auto-paper-intraday-loop":

@@ -110,6 +110,19 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
         "--mode", "strict_and_aggressive",
     ),
     "backtest-report": ("--latest",),
+    "build-edge-profile": (
+        "--symbol", "CRM",
+        "--start", "2026-04-01",
+        "--end", "2026-04-24",
+        "--strategy", "ict_smc_intraday_v1",
+    ),
+    "build-edge-profiles": (
+        "--symbols", "AAPL,NVDA",
+        "--start", "2026-04-01",
+        "--end", "2026-04-24",
+        "--strategy", "ict_smc_intraday_v1",
+    ),
+    "edge-profile-report": ("--latest",),
 }
 
 

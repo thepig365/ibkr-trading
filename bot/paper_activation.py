@@ -385,6 +385,31 @@ def run_paper_readiness_check(
         scan_summary=scan_summary,
     )
     r.payload = _readiness_to_dict(r, rep, act)
+    if scan_summary and getattr(
+        cfg.settings.trading.intraday_paper, "edge_profile_enabled", True
+    ):
+        try:
+            from .edge.reports import load_edge_profiles_merged  # noqa: PLC0415
+
+            mprof = load_edge_profiles_merged(cfg.project_root)
+        except Exception:  # noqa: BLE001
+            mprof = {}
+        eprev: dict[str, Any] = {}
+        for s in set(
+            list(scan_summary.get("ready_strict_symbols") or [])
+            + list(scan_summary.get("ready_aggressive_symbols") or [])
+        ):
+            p = mprof.get(str(s).upper())
+            if p is None:
+                eprev[str(s).upper()] = {"profile": "missing"}
+            else:
+                eprev[str(s).upper()] = {
+                    "recommended_mode": p.recommended_mode,
+                    "edge_score": p.edge_score,
+                    "confidence_level": p.confidence_level,
+                    "max_risk_multiplier": p.max_risk_multiplier,
+                }
+        r.payload["edge"] = eprev
     _persist_readiness_state(cfg, r.payload)
     return r
 
@@ -446,6 +471,13 @@ def run_first_paper_pass(
     out["max_daily_notional_usd"] = float(ip0.max_daily_notional_usd)
     out["max_equity_per_position_pct"] = float(ip0.max_equity_per_position_pct)
     out["max_quantity_per_order"] = int(ip0.max_quantity_per_order)
+    out["edge_profile_enabled"] = bool(getattr(ip0, "edge_profile_enabled", True))
+    out["unknown_edge_policy"] = str(
+        getattr(ip0, "unknown_edge_policy", "allow_strict_small_risk")
+    )
+    out["unknown_edge_risk_multiplier"] = float(
+        getattr(ip0, "unknown_edge_risk_multiplier", 0.25)
+    )
     act = build_paper_activation_status(cfg, probe_ibkr=False)
     out["paper_activation_status"] = act
     if act.get("final_readiness") != "READY_FOR_PAPER_TEST":

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Ticker edge profiles{% endblock %}
+{% block subtitle %}<div class="page-sub">Per-ticker backtest edge for <code>ict_smc_intraday_v1</code>. Read from disk; this page does not connect to TWS. Buttons enqueue allowlisted CLIs (no <code>--fetch</code> by default — use your own date range in args).</div>{% endblock %}
+
+{% block content %}
+  <div class="section">
+    <h2>Edge gating (paper config)</h2>
+    <div class="text-small text-dim">
+      <code>edge_profile_enabled</code>: {{ 'true' if edge_config.edge_profile_enabled else 'false' }} ·
+      <code>unknown_edge_policy</code>: <span class="text-mono">{{ edge_config.unknown_edge_policy }}</span> ·
+      <code>unknown_edge_risk_multiplier</code>: {{ edge_config.unknown_edge_risk_multiplier }} ·
+      <code>allow_aggressive_without_edge_profile</code>: {{ 'true' if edge_config.allow_aggressive_without_edge_profile else 'false' }}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Actions</h2>
+    <p class="text-small text-dim">Adjust <em>--start / --end / --symbols</em> to match your cached 1m range. Add <code>--fetch</code> only if you explicitly want a read-only IBKR candle fill (not used below).</p>
+    <div class="form-row" style="flex-wrap:wrap;">
+      {% with command='build-edge-profiles', label='Build Edge Profiles (example basket)', return_to='/edge', btn_class='', args='--symbols AAPL,AMD,NVDA,CRM --start 2026-04-01 --end 2026-04-24 --strategy ict_smc_intraday_v1' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='build-edge-profile', label='Build one (CRM example)', return_to='/edge', btn_class='ghost', args='--symbol CRM --start 2026-04-01 --end 2026-04-24 --strategy ict_smc_intraday_v1' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='edge-profile-report', label='Latest Edge Report', return_to='/edge', btn_class='ghost', args='--latest' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Latest profile batch</h2>
+    {% if edge_profile_date %}
+      <p class="text-small text-dim">Profile date: <strong>{{ edge_profile_date }}</strong>
+        · source: <span class="text-mono">{{ edge_profiles_source or '—' }}</span>
+      </p>
+    {% else %}
+      <div class="empty">No <code>data/edge_profiles/*-edge-profiles.json</code> found yet. Run <em>Build Edge Profiles</em> (with cached candles for the range).</div>
+    {% endif %}
+  </div>
+
+  {% if edge_profiles %}
+    <div class="section">
+      <h2>Ranked profiles</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th class="num">edge</th>
+            <th>confidence</th>
+            <th>mode</th>
+            <th class="num">risk×</th>
+            <th class="num">signals</th>
+            <th class="num">fills</th>
+            <th class="num">fill%</th>
+            <th class="num">win%</th>
+            <th class="num">R̄</th>
+            <th class="num">R̃</th>
+            <th class="num">ΣR</th>
+            <th class="num">PF</th>
+            <th class="num">maxDD R</th>
+            <th>dir</th>
+            <th>best hours</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in edge_profiles %}
+          <tr>
+            <td class="text-mono">{{ e.symbol }}</td>
+            <td class="num">{{ "%.1f"|format(e.edge_score) }}</td>
+            <td><span class="pill neutral">{{ e.confidence_level }}</span></td>
+            <td><span class="text-mono text-small">{{ e.recommended_mode }}</span></td>
+            <td class="num">{{ e.max_risk_multiplier }}</td>
+            <td class="num">{{ e.total_signals }}</td>
+            <td class="num">{{ e.filled_trades }}</td>
+            <td class="num">{{ "%.0f"|format(100.0 * e.fill_rate) }}</td>
+            <td class="num">{% if e.win_rate is not none %}{{ "%.0f"|format(100.0 * e.win_rate) }}{% else %}—{% endif %}</td>
+            <td class="num">{% if e.average_r is not none %}{{ "%.2f"|format(e.average_r) }}{% else %}—{% endif %}</td>
+            <td class="num">{% if e.median_r is not none %}{{ "%.2f"|format(e.median_r) }}{% else %}—{% endif %}</td>
+            <td class="num">{{ "%.1f"|format(e.total_r) }}</td>
+            <td class="num">{% if e.profit_factor is not none %}{{ "%.2f"|format(e.profit_factor) }}{% else %}—{% endif %}</td>
+            <td class="num">{{ "%.1f"|format(e.max_drawdown_r) }}</td>
+            <td>{{ e.best_direction or '—' }}</td>
+            <td class="text-small">{% if e.best_hours %}{{ e.best_hours|join(', ') }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  {% include "_recent_results.html" %}
+{% endblock %}

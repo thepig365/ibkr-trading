@@ -11,7 +11,8 @@
 2. 运行 `python3 -m bot.cli intraday-paper-status --json` 看结构化输出（只读、不连 IBKR）。若在做 **13I 纸前测**，先看 `python3 -m bot.cli paper-activation-status`，确认 `settings.local`、runtime 与 `final_readiness`。  
 3. 读 **`data/runtime/intraday_auto_paper_loop_state.json`** 里 `last_reason` / `skipped_reasons`（**勿**当作文档提交到 git）。  
 4. 确认 `paper-reconcile` 为 **PASS**（若你期望通过券商下纸单）。  
-5. 研究层 **`auto_paper_allowed`** 为否**不一定**表示执行被挡：先查是否有 **per-symbol hard block**；宏观/VIX 多为软提醒（见 `docs/strategy-lab-user-manual.md` §6.2）。
+5. 研究层 **`auto_paper_allowed`** 为否**不一定**表示执行被挡：先查是否有 **per-symbol hard block**；宏观/VIX 多为软提醒（见 `docs/strategy-lab-user-manual.md` §6.2）。  
+6. 若已启用 **edge 门控**（`edge_profile_enabled`），在当次 `auto-paper-intraday` / Journal 的 `edge_audit` 中查看：`edge_profile_missing`、`edge_recommended_mode_watch_only`、`edge_recommended_mode_disabled`、`edge_strict_only_blocks_aggressive`、`edge_risk_multiplier_applied`。无 `data/edge_profiles/` 时 aggressive 可能默认被挡——先跑 `build-edge-profiles` 或只试 STRICT 小风险（见 `unknown_edge_policy`）。  
 
 ---
 

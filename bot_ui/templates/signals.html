@@ -157,6 +157,10 @@
           <thead>
             <tr>
               <th>Symbol</th>
+              <th class="num">Edge</th>
+              <th>Conf</th>
+              <th>Mode</th>
+              <th class="num">Risk×</th>
               <th>Category</th>
               <th>Dir</th>
               <th class="num">Score</th>
@@ -172,8 +176,13 @@
           </thead>
           <tbody>
             {% for r in ids.items %}
+              {% set ep = edge_profile_by_symbol.get(r.symbol) %}
               <tr>
                 <td class="text-mono">{{ r.symbol }}</td>
+                <td class="num">{% if ep %}{{ "%.0f"|format(ep.edge_score) }}{% else %}—{% endif %}</td>
+                <td class="text-small">{% if ep %}{{ ep.confidence_level }}{% else %}—{% endif %}</td>
+                <td class="text-small text-mono">{% if ep %}{{ ep.recommended_mode }}{% else %}—{% endif %}</td>
+                <td class="num">{% if ep %}{{ ep.max_risk_multiplier }}{% else %}—{% endif %}</td>
                 <td>
                   {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">STRICT</span>
                   {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill good">AGGRESSIVE</span>

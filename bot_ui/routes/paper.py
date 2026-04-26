@@ -72,6 +72,8 @@ def paper_page(request: Request) -> HTMLResponse:
     # I/O — the UI render must NEVER connect to IBKR / TWS.
     ctx["intraday_paper_config"] = state.get_intraday_paper_config()
     ctx["intraday_paper_loop"] = state.get_intraday_paper_loop_status()
+    ep_rows = state.get_edge_profiles_view()
+    ctx["edge_profile_by_symbol"] = {r.symbol: r for r in ep_rows}
     ip = cfg.settings.trading.intraday_paper
     ctx["paper_sizing_ledger"] = ledger_snapshot_for_status(cfg, ip)
     ctx["recent_results"] = request.app.state.command_queue.list_recent(limit=8)

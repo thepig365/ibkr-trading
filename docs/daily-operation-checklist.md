@@ -71,6 +71,15 @@
 
 ---
 
+## 收盘后（可选）：Ticker edge 画像
+
+- [ ] 对关心标的、在**有 1m 缓存**的日期范围运行：  
+  `build-edge-profiles`（或 UI **Edge** 页白名单按钮；勿默认加大 `--fetch`）。  
+- [ ] 查看 `data/edge_profiles/YYYY-MM-DD-edge-profile-report.md` 与 JSON；`edge-profile-report --latest` 看最新路径。  
+- [ ] 在 **/edge** 与 **Signals（ICT 表）** 对照明细；纸面放大量以配置门控 + **edge 建议模式/乘子** 为准。详见 `docs/strategy-lab-user-manual.md` §6.2.1。
+
+---
+
 ## 纸面自动化（仅当你明确需要）
 
 - [ ] 在 `config/settings.yaml` 与 **runtime 文件**中确认 **MTF / Intraday 自动纸** 符合预期（非本文档可写范围则绝不通过提交修改只读受保护文件来「偷偷开启」）。  

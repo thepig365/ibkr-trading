@@ -278,8 +278,21 @@
         </div>
         <div class="card-sub text-small">
           {% if intraday_paper_loop.last_symbols_scanned %}
-            symbols: {% for s in intraday_paper_loop.last_symbols_scanned[:8] %}<code>{{ s }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
-            {% if intraday_paper_loop.last_symbols_scanned|length > 8 %}…{% endif %}
+            <div>symbols: {% for s in intraday_paper_loop.last_symbols_scanned[:8] %}<code>{{ s }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+            {% if intraday_paper_loop.last_symbols_scanned|length > 8 %}…{% endif %}</div>
+            <div class="text-dim" style="margin-top:4px;">edge (latest batch):</div>
+            <div style="margin-top:2px;">
+              {% for s in intraday_paper_loop.last_symbols_scanned[:8] %}
+                {% set ep = edge_profile_by_symbol.get(s) %}
+                <span class="text-mono">{{ s }}</span>
+                {% if ep %}
+                  <span class="text-small"> · edge {{ "%.0f"|format(ep.edge_score) }} · {{ ep.confidence_level }} · {{ ep.recommended_mode }} · risk×{{ ep.max_risk_multiplier }}</span>
+                {% else %}
+                  <span class="text-small text-dim"> · (no profile)</span>
+                {% endif %}
+                {% if not loop.last %}<br/>{% endif %}
+              {% endfor %}
+            </div>
           {% else %}
             No scan yet.
           {% endif %}

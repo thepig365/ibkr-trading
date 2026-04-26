@@ -28,6 +28,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Strategies | `/strategies` | 策略注册表与多策略扫描入口 |
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |
 | Backtest | `/backtest` | ICT/SMC 日内回测配置与运行（引擎在 CLI/Worker） |
+| Edge | `/edge` | 标的级 edge 画像、排名与纸面门控（只读 + 白名单构建命令） |
 | Logs | `/logs` | 近期命令与事件（只读） |
 | Settings | `/settings` | 安全说明、白名单命令、运行时标志；**本手册链接** |
 
@@ -129,8 +130,37 @@ python3 -m bot.cli engine-status --json --probe-ui
 | **重复仓位/重复挂单** | 与已有持仓或订单冲突。 |
 | **不在允许交易窗** | 如 NY 时间早于/晚于配置的新仓窗口。 |
 | **IBKR 不可用** | 端口未连、只读等。 |
+| **Ticker edge 门控** | 见下节：无画像、只 watch、strict_only 挡 aggress、disabled、或只应用了风险乘子（`edge_profile_missing` 等，见当次 `edge_audit`）。 |
+| **日度名义 / 表内 cap** | 如 `max_daily_notional_usd` 已用尽，不会绕过或重置该 cap。 |
 
 **不会**在 UI 渲染时偷偷连 TWS 或下单；**不会**在默认配置下发「实盘」或**市价**单。纸面为 LIMIT bracket（父限价 + 子止损/目标），由 Broker/配置双重约束。
+
+### 6.2.1 什么是 Ticker edge profile？为何不能「每个标的一样对待」？
+
+- **Edge 画像**是对 **单一标的、单一策略**（如 `ict_smc_intraday_v1`）在某段样本上的**回测统计**（满充率、R、利润因子、回撤、按小时/方向分解等）经**可解释**公式得到的 **edge_score、置信度、建议模式、风险乘子**。  
+- **不是**黑箱模型；**不是**在 UI 里直连 IBKR 算出来的。  
+- **原因**：多标的池子里，有的标的在样本内有统计优势，有的没有；把纸面试单与放大量一视同仁会稀释纪律、浪费日度名义 cap。引擎可以**广扫**表，但**纸面触发与放大量**应跟「已建立或正在建立的优势」走。
+
+**收盘后如何构建**（不默认拉全历史；无缓存时勿默默连券商）：
+
+```bash
+python3 -m bot.cli build-edge-profiles --symbols AAPL,NVDA,CRM --start 2026-04-01 --end 2026-04-24 --strategy ict_smc_intraday_v1
+```
+
+- 需已有 **1m 缓存**；缺数据时仅写出 `insufficient_data` 画像。  
+- 显式需要补线时**才**在命令上加 `--fetch`（只读拉 K 线到缓存）。  
+- 产物：`data/edge_profiles/YYYY-MM-DD-edge-profiles.json` 与同名 Markdown 报告。  
+
+**对纸交易的影响**（`trading.intraday_paper`）：
+
+- `edge_profile_enabled`：总开关。  
+- `unknown_edge_policy` / `unknown_edge_risk_multiplier` / `allow_aggressive_without_edge_profile`：无画像时策略——默认**允许小幅 STRICT 试单**、**乘子 0.25**、**不允许 aggressive** 直到有可用画像。  
+- 建议模式：`disabled` 跳过；`watch_only` 不提交纸单但可继续观察；`strict_only` 仅 STRICT；`strict_and_aggressive` 在配置允许时两者皆可。  
+- **风险乘子**：`effective_risk ∝ base_risk × max_risk_multiplier`（见当笔 `edge_audit`）。
+
+**置信度（简述）**：`insufficient_data` 样本不足；`weak` / `moderate` / `strong` 为递增；`negative` 为负期望、建议关闭纸试。  
+
+**为何无画像时仍可小额 STRICT 纸试**：在可控名义与纪律下，对**新标的**做最小暴露验证；**aggress** 默认需要画像支撑，避免在未知统计特性上放大噪声。
 
 ### 6.3 本地 Paper Forward Test（`settings.local` + runtime, 13I）
 

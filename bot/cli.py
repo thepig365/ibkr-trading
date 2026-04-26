@@ -3322,6 +3322,153 @@ def backtest_report_cmd(
     raise typer.Exit(0)
 
 
+# ---------------------------------------------------------------------------
+# Prompt 13L-alt: ticker edge profiles (research-only; no order placement)
+# ---------------------------------------------------------------------------
+
+
+@app.command("build-edge-profile")
+def build_edge_profile_cmd(
+    symbol: str = typer.Option(..., "--symbol", "-s", help="Ticker, e.g. CRM."),
+    start: str = typer.Option(..., "--start", help="YYYY-MM-DD"),
+    end: str = typer.Option(..., "--end", help="YYYY-MM-DD"),
+    strategy: str = typer.Option("ict_smc_intraday_v1", "--strategy"),
+    mode: str = typer.Option(
+        "strict_and_aggressive", "--mode",
+        help="strict_and_aggressive | strict_only | aggressive_only",
+    ),
+    direction: str = typer.Option("both", "--direction", help="long_only | short_only | both"),
+    fetch: bool = typer.Option(
+        False, "--fetch",
+        help="If cache missing, fetch 1m candles from IBKR (read-only).",
+    ),
+    min_trades: int = typer.Option(30, "--min-trades", min=1),
+) -> None:
+    """Run one backtest and write today's edge profile batch JSON + Markdown."""
+    from .edge.build_batch import build_edges_for_symbols  # noqa: PLC0415
+
+    cfg, _journal = _bootstrap()
+    _validate_backtest_date("--start", start)
+    _validate_backtest_date("--end", end)
+    if start > end:
+        console.print("[red]--start must be <= --end[/red]")
+        raise typer.Exit(2)
+    mstrong = min_trades * 2
+    profs, notes, meta = build_edges_for_symbols(
+        cfg,
+        [symbol],
+        start=start,
+        end=end,
+        strategy_id=strategy,
+        mode=mode,
+        direction=direction,
+        fetch=fetch,
+        min_trades_moderate=int(min_trades),
+        min_trades_strong=int(mstrong),
+        top_n=None,
+    )
+    if notes:
+        for n in notes:
+            console.print(f"[dim]{n}[/dim]")
+    console.print(
+        Panel.fit(
+            json.dumps(
+                {**meta, "profiles": [p.to_dict() for p in profs]},
+                indent=2,
+                default=str,
+                ensure_ascii=False,
+            ),
+            title="build-edge-profile",
+            style="cyan",
+        )
+    )
+    raise typer.Exit(0)
+
+
+@app.command("build-edge-profiles")
+def build_edge_profiles_cmd(
+    symbols: str = typer.Option(
+        ..., "--symbols", help="Comma-separated tickers, e.g. AAPL,AMD,NVDA",
+    ),
+    start: str = typer.Option(..., "--start"),
+    end: str = typer.Option(..., "--end"),
+    strategy: str = typer.Option("ict_smc_intraday_v1", "--strategy"),
+    mode: str = typer.Option("strict_and_aggressive", "--mode"),
+    direction: str = typer.Option("both", "--direction"),
+    fetch: bool = typer.Option(False, "--fetch"),
+    min_trades: int = typer.Option(30, "--min-trades", min=1),
+    top: Optional[int] = typer.Option(None, "--top", help="Top N in report only."),
+) -> None:
+    """Backtest a basket, compute edge profiles, save under data/edge_profiles/."""
+    from .edge.build_batch import build_edges_for_symbols  # noqa: PLC0415
+
+    cfg, _journal = _bootstrap()
+    _validate_backtest_date("--start", start)
+    _validate_backtest_date("--end", end)
+    syms = [x.strip().upper() for x in (symbols or "").split(",") if x.strip()]
+    if not syms:
+        console.print("[red]No symbols.[/red]")
+        raise typer.Exit(2)
+    mstrong = min_trades * 2
+    profs, notes, meta = build_edges_for_symbols(
+        cfg,
+        syms,
+        start=start,
+        end=end,
+        strategy_id=strategy,
+        mode=mode,
+        direction=direction,
+        fetch=fetch,
+        min_trades_moderate=int(min_trades),
+        min_trades_strong=int(mstrong),
+        top_n=top,
+    )
+    for n in notes:
+        console.print(f"[dim]{n}[/dim]")
+    console.print(
+        Panel.fit(
+            json.dumps(
+                {**meta, "count": len(profs)},
+                indent=2,
+                default=str,
+                ensure_ascii=False,
+            ),
+            title="build-edge-profiles",
+            style="green",
+        )
+    )
+    if meta.get("written"):
+        console.print(f"[green]Wrote:[/green] {meta['written']}")
+    raise typer.Exit(0)
+
+
+@app.command("edge-profile-report")
+def edge_profile_report_cmd(
+    latest: bool = typer.Option(True, "--latest", help="Show newest edge-profiles.json."),
+) -> None:
+    """Read-only: print the latest edge profile JSON path + summary (no IBKR)."""
+    from .edge.reports import latest_edge_profiles_path  # noqa: PLC0415
+
+    if not latest:
+        console.print("[yellow]Only --latest is supported for now.[/yellow]")
+    cfg = load_config()
+    p = latest_edge_profiles_path(Path(cfg.absolute("")))
+    if p is None or not p.is_file():
+        console.print(
+            "[yellow]No edge profiles yet — run build-edge-profiles.[/yellow]"
+        )
+        raise typer.Exit(0)
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        console.print(f"[red]Could not read {p}: {exc}[/red]")
+        raise typer.Exit(2)
+    n = len(data.get("profiles") or [])
+    console.print(Panel.fit(f"{p}\nprofiles={n}", title="edge-profile-report", style="cyan"))
+    console.print_json(data={"path": str(p), "date": data.get("date"), "n": n})
+    raise typer.Exit(0)
+
+
 @app.command("mtf-diagnostic-report")
 def mtf_diagnostic_report(
     use_latest: bool = typer.Option(
@@ -3953,6 +4100,16 @@ def intraday_paper_status_cmd(
         "max_daily_notional_usd": float(ip.max_daily_notional_usd),
         "max_equity_per_position_pct": float(ip.max_equity_per_position_pct),
         "max_quantity_per_order": int(ip.max_quantity_per_order),
+        "edge_profile_enabled": bool(getattr(ip, "edge_profile_enabled", True)),
+        "unknown_edge_policy": str(
+            getattr(ip, "unknown_edge_policy", "allow_strict_small_risk")
+        ),
+        "unknown_edge_risk_multiplier": float(
+            getattr(ip, "unknown_edge_risk_multiplier", 0.25)
+        ),
+        "allow_aggressive_without_edge_profile": bool(
+            getattr(ip, "allow_aggressive_without_edge_profile", False)
+        ),
         "kill_switch": kill,
         "runtime_intraday_on": runtime_on,
         "runtime_intraday_off_explicit": runtime_explicit_off,

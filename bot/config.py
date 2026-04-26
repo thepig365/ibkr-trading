@@ -84,6 +84,11 @@ class IntradayPaperConfig(BaseModel):
     max_daily_notional_usd: float = 100_000.0
     max_equity_per_position_pct: float = 10.0
     max_quantity_per_order: int = 100
+    # Prompt 13L-alt: ticker edge profiles gate paper size / mode.
+    edge_profile_enabled: bool = True
+    unknown_edge_policy: str = "allow_strict_small_risk"  # allow_strict_small_risk|watch_only|block_all
+    unknown_edge_risk_multiplier: float = 0.25
+    allow_aggressive_without_edge_profile: bool = False
 
     model_config = {"extra": "ignore"}
 
@@ -107,6 +112,21 @@ class IntradayPaperConfig(BaseModel):
     def _paper_eq_pct_sane(cls, v: float) -> float:
         if v <= 0 or v > 100.0:
             raise ValueError("trading.intraday_paper.max_equity_per_position_pct must be in (0, 100].")
+        return v
+
+    @field_validator("unknown_edge_policy")
+    @classmethod
+    def _edge_policy_ok(cls, v: str) -> str:
+        s = (v or "allow_strict_small_risk").strip()
+        if s not in {"allow_strict_small_risk", "watch_only", "block_all"}:
+            raise ValueError("unknown_edge_policy must be allow_strict_small_risk|watch_only|block_all")
+        return s
+
+    @field_validator("unknown_edge_risk_multiplier")
+    @classmethod
+    def _unk_edge_mult(cls, v: float) -> float:
+        if v < 0 or v > 1.0:
+            raise ValueError("unknown_edge_risk_multiplier must be in [0, 1]")
         return v
 
     @field_validator("max_quantity_per_order")

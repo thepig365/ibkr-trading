@@ -88,6 +88,9 @@ data/intraday_smc/*
 # Never committed; contains historical broker data.
 data/candles/*
 !data/candles/.gitkeep
+# Prompt 13L-alt: per-ticker edge profiles (backtest-derived; never commit).
+data/edge_profiles/*
+!data/edge_profiles/.gitkeep
 
 # UI server scratch (sessions, sqlite caches, etc.)
 bot_ui/.cache/

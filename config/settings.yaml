@@ -64,6 +64,11 @@ trading:
     target_required: true
     dry_run: true
     min_rr: 1.2
+    # 13L-alt: ticker edge profiles gate paper sizing / aggressiveness.
+    edge_profile_enabled: true
+    unknown_edge_policy: allow_strict_small_risk
+    unknown_edge_risk_multiplier: 0.25
+    allow_aggressive_without_edge_profile: false
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

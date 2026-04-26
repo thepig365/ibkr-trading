@@ -35,5 +35,7 @@ def signals_page(
     ctx["active_strategy"] = tab
     ctx["signals"] = state.signals()
     ctx["intraday_signals"] = state.intraday_signals()
+    ep_rows = state.get_edge_profiles_view()
+    ctx["edge_profile_by_symbol"] = {r.symbol: r for r in ep_rows}
     ctx["recent_results"] = request.app.state.command_queue.list_recent(limit=5)
     return request.app.state.templates.TemplateResponse(request, "signals.html", ctx)

@@ -305,7 +305,35 @@ class IntradayPaperConfigView:
     max_daily_notional_usd: float = 100_000.0
     max_equity_per_position_pct: float = 10.0
     max_quantity_per_order: int = 100
+    edge_profile_enabled: bool = True
+    unknown_edge_policy: str = "allow_strict_small_risk"
+    unknown_edge_risk_multiplier: float = 0.25
+    allow_aggressive_without_edge_profile: bool = False
     config_path: str | None = None
+
+
+@dataclass(frozen=True)
+class EdgeProfileRow:
+    """One row from ``data/edge_profiles/*-edge-profiles.json``."""
+
+    symbol: str = ""
+    edge_score: float = 0.0
+    confidence_level: str = ""
+    recommended_mode: str = ""
+    max_risk_multiplier: float = 0.0
+    total_signals: int = 0
+    filled_trades: int = 0
+    fill_rate: float = 0.0
+    win_rate: float | None = None
+    average_r: float | None = None
+    median_r: float | None = None
+    total_r: float = 0.0
+    profit_factor: float | None = None
+    max_drawdown_r: float = 0.0
+    best_direction: str = ""
+    best_hours: list[str] = field(default_factory=list)
+    profile_date: str = ""
+    source_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -497,6 +525,7 @@ class StateStore(Protocol):
     def get_strategy_registry_summary(self) -> StrategyRegistrySummary: ...
     def get_backtest_summary(self) -> BacktestSummaryView: ...
     def get_intraday_paper_config(self) -> IntradayPaperConfigView: ...
+    def get_edge_profiles_view(self) -> list["EdgeProfileRow"]: ...
     def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus: ...
     def get_journal_view(self, *, limit: int = 200) -> JournalView: ...
     def list_log_files(self) -> list[Path]: ...
@@ -1236,8 +1265,91 @@ class LocalFileStateStore:
                 merged.get("max_equity_per_position_pct", 10.0)
             ),
             max_quantity_per_order=int(merged.get("max_quantity_per_order", 100)),
+            edge_profile_enabled=bool(merged.get("edge_profile_enabled", True)),
+            unknown_edge_policy=str(
+                merged.get("unknown_edge_policy", "allow_strict_small_risk")
+            ),
+            unknown_edge_risk_multiplier=float(
+                merged.get("unknown_edge_risk_multiplier", 0.25)
+            ),
+            allow_aggressive_without_edge_profile=bool(
+                merged.get("allow_aggressive_without_edge_profile", False)
+            ),
             config_path=str(cfg_path) if cfg_path.exists() else None,
         )
+
+    def get_edge_profiles_view(self) -> list[EdgeProfileRow]:
+        """Latest ``data/edge_profiles/*-edge-profiles.json`` (read-only, no TWS)."""
+        out_dir = self.project_root / "data" / "edge_profiles"
+        if not out_dir.is_dir():
+            return []
+        cands = sorted(out_dir.glob("*-edge-profiles.json"))
+        latest = cands[-1] if cands else None
+        if latest is None:
+            return []
+        data = _safe_read_json(latest)
+        if not data:
+            return []
+        profs = data.get("profiles")
+        if not isinstance(profs, list):
+            return []
+        d = str(data.get("date") or "")
+        if not d and latest.stem:
+            # ``YYYY-MM-DD-edge-profiles`` -> YYYY-MM-DD
+            base = latest.stem.replace("-edge-profiles", "")
+            if base[:10] and len(base) >= 10 and base[4] == "-" and base[7] == "-":
+                d = base[:10]
+        rows: list[EdgeProfileRow] = []
+        for row in profs:
+            if not isinstance(row, dict):
+                continue
+            sym = str(row.get("symbol") or "").upper()
+            if not sym:
+                continue
+            bh = row.get("best_hours")
+            hours: list[str] = []
+            if isinstance(bh, list):
+                hours = [str(x) for x in bh if x is not None]
+            rows.append(
+                EdgeProfileRow(
+                    symbol=sym,
+                    edge_score=float(row.get("edge_score") or 0.0),
+                    confidence_level=str(
+                        row.get("confidence_level") or "insufficient_data"
+                    ),
+                    recommended_mode=str(
+                        row.get("recommended_mode") or "watch_only"
+                    ),
+                    max_risk_multiplier=float(
+                        row.get("max_risk_multiplier") or 0.0
+                    ),
+                    total_signals=int(row.get("total_signals") or 0),
+                    filled_trades=int(row.get("filled_trades") or 0),
+                    fill_rate=float(row.get("fill_rate") or 0.0),
+                    win_rate=row.get("win_rate")
+                    if row.get("win_rate") is not None
+                    else None,
+                    average_r=row.get("average_r")
+                    if row.get("average_r") is not None
+                    else None,
+                    median_r=row.get("median_r")
+                    if row.get("median_r") is not None
+                    else None,
+                    total_r=float(row.get("total_r") or 0.0),
+                    profit_factor=row.get("profit_factor")
+                    if row.get("profit_factor") is not None
+                    else None,
+                    max_drawdown_r=float(row.get("max_drawdown_r") or 0.0),
+                    best_direction=str(
+                        row.get("best_direction") or ""
+                    ),
+                    best_hours=hours,
+                    profile_date=d,
+                    source_path=str(latest),
+                )
+            )
+        rows.sort(key=lambda r: (r.edge_score, r.filled_trades), reverse=True)
+        return rows
 
     def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus:
         """Read ``data/runtime/intraday_auto_paper_loop_state.json``.
@@ -1829,6 +1941,9 @@ class DatabaseStateStore:
     def get_intraday_paper_config(self) -> IntradayPaperConfigView:  # pragma: no cover - stub
         raise self._not_yet()
 
+    def get_edge_profiles_view(self) -> list[EdgeProfileRow]:  # pragma: no cover - stub
+        raise self._not_yet()
+
     def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus:  # pragma: no cover - stub
         raise self._not_yet()
 
@@ -1868,6 +1983,7 @@ __all__ = [
     "IntradaySignalRow",
     "IntradaySignalsView",
     "IntradayPaperConfigView",
+    "EdgeProfileRow",
     "IntradayPaperLoopStatus",
     "IntradayPaperOrderRow",
     "JournalView",

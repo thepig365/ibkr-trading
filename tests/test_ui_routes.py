@@ -60,6 +60,7 @@ def _client(project_root: Path) -> TestClient:
     [
         "/dashboard",
         "/watchlist",
+        "/edge",
         "/signals",
         "/paper",
         "/strategies",

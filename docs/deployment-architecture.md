@@ -170,6 +170,8 @@ UI command runner allowlist additions for v2:
 - `macro-calendar` (with optional `--today` or strict `--date YYYY-MM-DD`)
 - `ibkr-news-status`
 - `ibkr-news-fetch` (`--symbols ^[A-Z]{1,5}(,[A-Z]{1,5})*$` and `--limit 1..200`)
+- `build-edge-profile` / `build-edge-profiles` (backtest from **local** 1m cache; optional `--fetch` for explicit IBKR candle fill)
+- `edge-profile-report` (read-only latest `data/edge_profiles/*-edge-profiles.json`)
 
 All other CLI subcommands (especially `auto-paper-mtf`, `place-order`,
 `run-auto-paper-mtf-loop`, `telegram-listen`, `run-scheduler`) remain

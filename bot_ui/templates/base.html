@@ -16,6 +16,7 @@
       <ul class="nav">
         <li><a href="{{ url_for('dashboard') }}" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a></li>
         <li><a href="{{ url_for('watchlist_page') }}" class="{% if active=='watchlist' %}active{% endif %}">Watchlist</a></li>
+        <li><a href="{{ url_for('edge_page') }}" class="{% if active=='edge' %}active{% endif %}">Edge</a></li>
         <li><a href="{{ url_for('signals_page') }}" class="{% if active=='signals' %}active{% endif %}">Signals (MTF)</a></li>
         <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>
         <li><a href="{{ url_for('journal_page') }}" class="{% if active=='journal' %}active{% endif %}">Journal</a></li>
