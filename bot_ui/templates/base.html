@@ -17,7 +17,7 @@
         <li><a href="{{ url_for('dashboard') }}" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a></li>
         <li><a href="{{ url_for('research') }}" class="{% if active=='research' %}active{% endif %}">Research</a></li>
         <li><a href="{{ url_for('watchlist_page') }}" class="{% if active=='watchlist' %}active{% endif %}">Watchlist</a></li>
-        <li><a href="{{ url_for('signals_page') }}?strategy=ict_smc_intraday_v1" class="{% if active=='signals' %}active{% endif %}">Signals</a></li>
+        <li><a href="{{ url_for('signals_page') }}" class="{% if active=='signals' %}active{% endif %}">Signals</a></li>
         <li><a href="{{ url_for('backtest_page') }}" class="{% if active=='backtest' %}active{% endif %}">Backtest</a></li>
         <li><a href="{{ url_for('edge_page') }}" class="{% if active=='edge' %}active{% endif %}">Edge</a></li>
         <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>

@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
 
 router = APIRouter()
@@ -17,7 +18,14 @@ router = APIRouter()
 @router.get("/edge", response_class=HTMLResponse, name="edge_page")
 def edge_page(request: Request) -> HTMLResponse:
     state = request.app.state.state_store
+    root = request.app.state.project_root
+    cat, ssel = get_catalog_and_selection(root)
+    edge_entry = cat.strategies.get(ssel.active_edge_strategy)
     ctx = base_context(request, active="edge")
+    ctx["strategy_ui_catalog"] = cat
+    ctx["strategy_selection"] = ssel
+    ctx["active_edge_entry"] = edge_entry
+    ctx["active_edge_id"] = ssel.active_edge_strategy
     rows = state.get_edge_profiles_view()
     ctx["edge_profiles"] = rows
     if rows:

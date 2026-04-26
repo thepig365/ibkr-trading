@@ -12,6 +12,12 @@
 3. 端口/Client ID 是否与 `config` 与 `docs/ibkr-setup.md` 一致。  
 4. 仍失败：在终端用 `strategy_lab_doctor.sh` 或同文档排查；**不要**在 UI 里关 TWS 的 Order 保护。
 
+## 在 /strategies 里选不了某策略的「纸面」
+
+- 只有 `config/strategy_ui.yaml` 里标注 **`paper_enabled: true`** 的模型才允许写入 **Set paper strategy**；当前为 **ICT/SMC Intraday**。  
+- **Chanlun / ORB** 等占位策略会显示为 **未就绪 / 未来开发**；这是预期，**不是** bug。  
+- 清理错误的手改文件可删除本机 `data/runtime/selected_strategy.json`，下次会回退为默认 **ict_smc_intraday_v1**。
+
 ## 盘前简报发不出 / 没有邮件
 
 - **没有配置 SMTP 等邮件环境**：`email_status` 会显示**跳过/缺凭证**，简报文件仍可生成 — **属预期**，不是崩溃。  

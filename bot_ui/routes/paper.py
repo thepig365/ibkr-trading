@@ -32,6 +32,7 @@ from bot.paper_activation import (
 )
 from bot.ux.paper_context import build_paper_page_ux
 
+from ..strategy_lab_context import get_catalog_and_selection
 from ..services.state_store import (
     INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
     KILL_SWITCH_RELPATH,
@@ -57,6 +58,11 @@ def paper_page(request: Request) -> HTMLResponse:
     state = request.app.state.state_store
     ctx = base_context(request, active="paper")
     root = request.app.state.project_root
+    cat, ssel = get_catalog_and_selection(root)
+    p_entry = cat.strategies.get(ssel.active_paper_strategy)
+    ctx["strategy_ui_catalog"] = cat
+    ctx["strategy_selection"] = ssel
+    ctx["active_paper_entry"] = p_entry
     cfg = load_config(project_root=root)
     ctx["paper_activation"] = build_paper_activation_status(cfg, probe_ibkr=False, journal=None)
     ctx["paper_readiness_snapshot"] = _read_json_optional(

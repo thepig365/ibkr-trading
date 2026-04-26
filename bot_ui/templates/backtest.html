@@ -5,6 +5,17 @@
 
 {% block content %}
   {% set bt = backtest %}
+  <div class="section flash" style="border-color: var(--border); max-width: 60rem;">
+    <strong>Active backtest model:</strong>
+    {% if active_backtest_entry %}{{ active_backtest_entry.display_name }}{% else %}{{ strategy_selection.active_backtest_strategy }}{% endif %}
+    <span class="text-mono text-dim">({{ strategy_selection.active_backtest_strategy }})</span>
+    · <a class="text-small" href="{{ url_for('strategies') }}">Strategy Control Center</a>
+    {% if active_backtest_entry and not active_backtest_entry.backtest_enabled %}
+      <p class="text-dim text-small" style="margin:8px 0 0 0;">Backtest is <strong>not available</strong> for this model in this build. Choose <strong>ICT/SMC Intraday</strong> in the control center to use the intraday backtest engine.</p>
+    {% elif not backtest_effective_ict %}
+      <p class="text-dim text-small" style="margin:8px 0 0 0;">The <code>backtest-intraday-smc*</code> commands target <code>ict_smc_intraday_v1</code>. Set your <em>backtest</em> default to that strategy to run from here.</p>
+    {% endif %}
+  </div>
 
   <div class="grid">
     <div class="card">

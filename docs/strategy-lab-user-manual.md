@@ -58,6 +58,16 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **新闻源（可选，缺 API key 就跳过该源，不整份失败）**：环境变量名仅示例 — `BENZINGA_API_KEY`、`FINNHUB_API_KEY`、`FMP_API_KEY`、`POLYGON_API_KEY`；另有 IBKR News 等现有集成。  
 - **调度**：若使用外部 crontab/launchd，**推荐** 在 **America/New_York 08:30** 运行上述带 `--email` 的命令；仓库内**不**默认开启后台循环任务。
 
+### 2.4 多策略与「当前策略」
+
+- **配置来源**：`config/strategy_ui.yaml`（可提交，无密钥）描述每个策略的 **展示名、是否可 scan/backtest/edge/paper、最终触发周期** 等。  
+- **本机选择状态**：`data/runtime/selected_strategy.json`（**gitignore**，勿提交）保存四类默认：`active_scan_strategy`、`active_backtest_strategy`、`active_edge_strategy`、`active_paper_strategy`；未写文件时 UI 会按 **ict_smc_intraday_v1** 回退。  
+- **在 UI 里改**：**策略控制中心** → `/strategies` 用表单保存；**Signals / Backtest / Edge / Paper** 页会显示当前选择的策略。  
+- **为什么 ICT/SMC 用 1 分钟触发**：日内的最终入场在 **1 分钟** 上确认；高周期只做**背景与结构**，不替代 1m 条件。  
+- **Edge / 新闻**：**不能单独触发下单**；仍要 **有效 ICT/SMC 结构 + 1 分钟触发 + 纸面门控**。  
+- **Chanlun / ORB 等未来策略**：在列表中可见，但 **paper_enabled = false** 时，不能选为纸面策略；页面上有「未来 / 未就绪」类说明。  
+- **新策略何时能纸面**：在代码里**独立声明**纸面不变量、接入扫描器/回测/括号与安全测试后，再把 `paper_enabled` 与相关开关打开（由开发流程决定，不在这里自动放开）。
+
 ---
 
 ## 3. 每天如何使用（摘要）

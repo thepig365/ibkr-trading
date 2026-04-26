@@ -1,0 +1,112 @@
+# Strategy Lab — UI metadata (13STRATEGY-UI). Safe to commit; no secrets.
+# Used by the FastAPI UI for labels, gating, and the strategy selector.
+# Engine safety invariants (paper-only, no market orders, etc.) are unchanged in code.
+
+version: 1
+default_strategy: ict_smc_intraday_v1
+
+strategies:
+  mtf_smc:
+    display_name: MTF SMC / ICT
+    short_description: Multi-timeframe swing-alignment / SMC scan for higher-timeframe context.
+    human_summary: >
+      Aligns daily / lower-timeframe structure for the broader book;
+      not the same entry chain as the ICT/SMC intraday day-trade model.
+    status: implemented
+    research_only: false
+    scan_enabled: true
+    backtest_enabled: false
+    edge_profile_enabled: false
+    paper_enabled: false
+    supported_actions: [scan]
+    timeframes: ["1D", "1H", "15m", "5m"]
+    final_trigger_timeframe: n/a
+    default_symbol_universe: dynamic watchlist
+    risk_notes:
+      - Outputs are for research; day-trade execution uses the intraday path when enabled.
+    safety_notes:
+      - Paper tests for the intraday engine use ICT/SMC Intraday selection, not this MTF view alone.
+
+  ict_smc_intraday_v1:
+    display_name: ICT/SMC Intraday
+    short_description: >
+      Liquidity sweep + structure shift intraday model using 4H/30m/5m context
+      and 1-minute entry trigger.
+    human_summary: >
+      The default intraday model for Strategy Lab: higher-timeframe context, 5m setup,
+      1m trigger, then limit brackets with stop/target on paper only.
+    status: implemented
+    research_only: false
+    scan_enabled: true
+    backtest_enabled: true
+    edge_profile_enabled: true
+    paper_enabled: true
+    supported_actions: [scan, backtest, edge_profile, paper_readiness, paper_execution]
+    timeframes: ["4H", "30m", "5m", "1m"]
+    final_trigger_timeframe: 1m
+    timeframe_chain:
+      - 4H context
+      - 30m liquidity / setup zone
+      - 5m setup confirmation
+      - 1m final trigger
+    default_symbol_universe: dynamic watchlist
+    paper_requirements:
+      - DAY_TRADE_READY_STRICT or DAY_TRADE_READY_AGGRESSIVE
+      - five_min_setup_found
+      - one_min_trigger_found
+      - higher_timeframe_context_ok
+      - Bracket valid (entry / stop / target) and paper safety gates pass
+    risk_notes:
+      - Edge and news adjust priority and soft flags only; they do not replace ICT/SMC + 1m trigger.
+    safety_notes:
+      - Trades require ICT/SMC structure + 1-minute trigger; market orders stay disabled; paper-only.
+    how_it_works: >
+      Scans 4H/30m/5m for structure and liquidity behaviour, then requires a 1m trigger bar
+      before any paper bracket is considered. Execution remains gated in the worker/CLI, not in UI render.
+    what_blocks: >
+      Missing higher-timeframe context, no 5m setup, no 1m trigger, invalid R:R, daily budget, kill switch,
+      reconcile failure, or explicit block flags in the intraday path.
+
+  chanlun_intraday_v1:
+    display_name: Chanlun Intraday
+    short_description: Future — Chan-based intraday structure (not wired for production).
+    human_summary: >
+      Placeholder in the registry for a future Chanlun module. It is not ready for
+      backtest, edge, or paper in this build.
+    status: stub
+    research_only: true
+    scan_enabled: false
+    backtest_enabled: false
+    edge_profile_enabled: false
+    paper_enabled: false
+    supported_actions: []
+    timeframes: ["TBD"]
+    final_trigger_timeframe: n/a
+    default_symbol_universe: n/a
+    future_note: >
+      This strategy is registered for future development. Paper trading is disabled until
+      implementation, backtest, safety tests, and bracket integration are complete.
+    risk_notes: []
+    safety_notes:
+      - Cannot be selected as the active paper strategy.
+
+  orb_baseline:
+    display_name: Opening Range / ORB
+    short_description: Future — ORB baseline for the opening window (not implemented for paper).
+    human_summary: Placeholder in the registry; no ORB backtest/edge/paper path in this build yet.
+    status: stub
+    research_only: true
+    scan_enabled: false
+    backtest_enabled: false
+    edge_profile_enabled: false
+    paper_enabled: false
+    supported_actions: []
+    timeframes: ["ORB window (TBD)"]
+    final_trigger_timeframe: n/a
+    default_symbol_universe: n/a
+    future_note: >
+      Shown for roadmap visibility. Paper and automated scanning are off until a dedicated
+      module passes scanner, backtest, invariants, and tests.
+    risk_notes: []
+    safety_notes:
+      - Cannot be selected as the active paper strategy.

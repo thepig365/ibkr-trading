@@ -1,66 +1,146 @@
 {% extends "base.html" %}
-{% block title %}Strategies{% endblock %}
-{% block subtitle %}<div class="page-sub">RESEARCH-ONLY VIEW. This page reads files written by <code>python -m bot.cli strategy-scan</code> / <code>multi-strategy-scan</code>. It never connects to TWS or imports the IBKR client. Buttons run safe, allowlisted CLI commands only — no orders are placed.</div>{% endblock %}
+{% block title %}Strategies — Control Center{% endblock %}
+{% block subtitle %}
+<div class="page-sub">
+  <strong>Research and configuration only</strong> — this page does not connect to TWS. It shows registered strategies, your <strong>saved selection</strong> (in <code>data/runtime/selected_strategy.json</code>, gitignored), and safe allowlisted command buttons. <strong>News and edge never replace a strategy signal.</strong>
+</div>
+{% endblock %}
 
 {% block content %}
   {% set reg = strategy_registry %}
+  {% set ap = active_paper_entry %}
+  {% set sel = strategy_selection %}
+  {% set cat = strategy_ui_catalog %}
 
-  <div class="grid">
-    <div class="card">
-      <div class="card-title">Registered strategies</div>
-      <div class="card-value">{{ reg.strategies|length }}</div>
-      <div class="card-sub text-small">
-        config: <code>{{ reg.config_path or '—' }}</code><br/>
-        paper-only: {{ 'yes' if reg.paper_only else 'no' }} ·
-        execution allowed: {{ 'yes' if reg.paper_execution_allowed else 'no' }}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Latest multi-strategy scan</div>
-      {% if not reg.multi_scan_path %}
-        <div class="card-value text-dim">—</div>
-        <div class="card-sub">No <code>multi-strategy-scan</code> output yet. Click <code>Run multi-strategy scan</code>.</div>
-      {% else %}
-        <div class="card-value">
-          {{ reg.multi_scan_date or '—' }}
-          {% if reg.multi_scan_is_stale %}<span class="pill warn">stale</span>{% else %}<span class="pill good">today</span>{% endif %}
+  <div class="section">
+    <h2>1 · Active strategy (paper / desk default)</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">Paper strategy in use (UI selection)</div>
+        <div class="card-value text-small">
+          <strong>{% if ap %}{{ ap.display_name }}{% else %}{{ sel.active_paper_strategy }}{% endif %}</strong>
+          <span class="text-mono text-dim">({{ sel.active_paper_strategy }})</span>
         </div>
         <div class="card-sub text-small">
-          enabled: {{ reg.multi_scan_enabled_keys|join(', ') or '—' }}<br/>
-          skipped: {{ reg.multi_scan_skipped_keys|join(', ') or '—' }}<br/>
-          total signals: {{ reg.multi_scan_total_signals }}
+          <span class="pill good">Current safety: paper only</span>
+          {% if ap and ap.final_trigger_timeframe and ap.final_trigger_timeframe != 'n/a' %}
+            <span class="pill neutral">Final trigger: {{ ap.final_trigger_timeframe }}</span>
+          {% else %}
+            <span class="pill neutral">1-minute trigger (ICT/SMC path)</span>
+          {% endif %}
         </div>
-      {% endif %}
-    </div>
-
-    <div class="card">
-      <div class="card-title">Engine invariants</div>
-      <div class="card-value">
-        <span class="pill good">paper-only</span>
-        <span class="pill {{ 'good' if not reg.paper_execution_allowed else 'bad' }}">execution {{ 'off' if not reg.paper_execution_allowed else 'on' }}</span>
-      </div>
-      <div class="card-sub text-small">
-        research-only: {{ 'yes' if reg.research_only else 'no' }}<br/>
-        registry runs in-process; adapters lazy-import IBKR only inside <code>scan()</code>.
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Roadmap</div>
-      <div class="card-value">{{ (reg.strategies|selectattr('status','equalto','ready')|list)|length }}/{{ reg.strategies|length }} ready</div>
-      <div class="card-sub text-small">
-        not_implemented:
-        {% for s in reg.strategies if s.status == 'not_implemented' %}
-          <code>{{ s.key }}</code>{% if not loop.last %}, {% endif %}
-        {% else %}—{% endfor %}
+        <p class="text-small mt-8">{{ ap.human_summary if ap else '—' }}</p>
+        <form method="post" action="{{ url_for('strategies_set_selection') }}" class="form-row mt-12" style="flex-wrap:wrap; gap:8px; align-items:center;">
+          <input type="hidden" name="area" value="paper" />
+          <label class="text-small">Set paper strategy</label>
+          <select name="strategy_id" class="text-mono" style="min-width: 220px;">
+            {% for sid, e in cat.strategies.items() %}
+            <option value="{{ sid }}" {% if sel.active_paper_strategy == sid %}selected{% endif %} {% if not e.paper_enabled %}disabled{% endif %}>
+              {{ e.display_name }}{% if not e.paper_enabled %} — not for paper yet{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn ghost">Save</button>
+        </form>
+        <p class="text-dim text-small mt-8">Stubs (Chanlun, ORB) stay disabled for paper until implementation + tests. ICT/SMC remains the only paper-enabled intraday model here.</p>
       </div>
     </div>
   </div>
 
   <div class="section">
-    <h2>Run safe strategy commands</h2>
-    <p class="text-dim text-small">Each button POSTs to the allowlisted command runner. Only <code>strategy-list</code>, <code>strategy-info</code>, <code>strategy-status</code>, <code>strategy-scan</code> and <code>multi-strategy-scan</code> are accepted; everything else is rejected. <code>--strategy</code> values are validated against <code>^[a-z][a-z0-9_]{1,30}$</code>.</p>
+    <h2>2 · Per-area default (saved)</h2>
+    <p class="text-dim text-small">Used when you open pages without a query string, or to pre-fill the idea of which model you are working on. Does not start the broker.</p>
+    <div class="form-row" style="flex-wrap:wrap; gap:1rem;">
+      <form method="post" action="{{ url_for('strategies_set_selection') }}" class="form-row" style="gap:6px; align-items:center;">
+        <input type="hidden" name="area" value="scan" />
+        <span class="text-small">Scan</span>
+        <select name="strategy_id" class="text-mono" style="min-width: 180px;">{% for sid, e in cat.strategies.items() %}<option value="{{ sid }}" {% if sel.active_scan_strategy == sid %}selected{% endif %} {% if not e.scan_enabled %}disabled{% endif %}>{{ e.display_name }}{% if not e.scan_enabled %} (off){% endif %}</option>{% endfor %}</select>
+        <button type="submit" class="btn ghost" style="padding:4px 10px;">Save</button>
+      </form>
+      <form method="post" action="{{ url_for('strategies_set_selection') }}" class="form-row" style="gap:6px; align-items:center;">
+        <input type="hidden" name="area" value="backtest" />
+        <span class="text-small">Backtest</span>
+        <select name="strategy_id" class="text-mono" style="min-width: 180px;">{% for sid, e in cat.strategies.items() %}<option value="{{ sid }}" {% if sel.active_backtest_strategy == sid %}selected{% endif %} {% if not e.backtest_enabled %}disabled{% endif %}>{{ e.display_name }}{% if not e.backtest_enabled %} (n/a){% endif %}</option>{% endfor %}</select>
+        <button type="submit" class="btn ghost" style="padding:4px 10px;">Save</button>
+      </form>
+      <form method="post" action="{{ url_for('strategies_set_selection') }}" class="form-row" style="gap:6px; align-items:center;">
+        <input type="hidden" name="area" value="edge" />
+        <span class="text-small">Edge</span>
+        <select name="strategy_id" class="text-mono" style="min-width: 180px;">{% for sid, e in cat.strategies.items() %}<option value="{{ sid }}" {% if sel.active_edge_strategy == sid %}selected{% endif %} {% if not e.edge_profile_enabled %}disabled{% endif %}>{{ e.display_name }}{% if not e.edge_profile_enabled %} (n/a){% endif %}</option>{% endfor %}</select>
+        <button type="submit" class="btn ghost" style="padding:4px 10px;">Save</button>
+      </form>
+    </div>
+    <div class="text-mono text-small text-dim mt-8">File: <code>data/runtime/selected_strategy.json</code> (not committed)</div>
+  </div>
+
+  <div class="section">
+    <h2>3 · Strategy list</h2>
+    <div class="table-scroll">
+      <table class="data-table text-small">
+        <thead>
+          <tr>
+            <th>Strategy</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Scan</th>
+            <th>Backtest</th>
+            <th>Edge</th>
+            <th>Paper</th>
+            <th>Trigger</th>
+            <th>TFs</th>
+            <th>Last scan</th>
+            <th>Last backtest</th>
+            <th>Last edge</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in strategy_table_rows %}
+          {% set e = row.ui %}
+          <tr>
+            <td><strong>{{ e.display_name if e else row.id }}</strong><br/><span class="text-mono text-dim">{{ row.id }}</span></td>
+            <td class="text-small">{{ e.short_description if e else '—' }}</td>
+            <td><span class="pill neutral">{{ e.status if e else '—' }}</span></td>
+            <td>{% if e and e.scan_enabled %}<span class="pill good">on</span>{% else %}<span class="pill warn">off</span>{% endif %}</td>
+            <td>{% if e and e.backtest_enabled %}<span class="pill good">on</span>{% else %}<span class="pill warn">off</span>{% endif %}</td>
+            <td>{% if e and e.edge_profile_enabled %}<span class="pill good">on</span>{% else %}<span class="pill warn">off</span>{% endif %}</td>
+            <td>{% if e and e.paper_enabled %}<span class="pill good">on</span>{% else %}<span class="pill warn">off</span>{% endif %}</td>
+            <td>{{ e.final_trigger_timeframe if e else '—' }}</td>
+            <td class="text-mono" style="max-width:120px;white-space:pre-wrap;">{% if e %}{{ e.timeframes|join(', ') }}{% else %}—{% endif %}</td>
+            <td>{% if row.reg and row.reg.latest_scan_date %}{{ row.reg.latest_scan_date }}{% if row.reg.is_stale %}<span class="pill warn">stale</span>{% endif %}{% else %}—{% endif %}</td>
+            <td>{{ row.last_backtest or '—' }}</td>
+            <td>{{ row.last_edge or '—' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="12" class="text-dim">No rows.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4 · ICT/SMC — how it works (detail)</h2>
+    {% set ict = cat.strategies.get('ict_smc_intraday_v1') %}
+    <div class="text-small" style="max-width: 52rem;">
+      {% if ict %}
+        <p><strong>How it works:</strong> {{ ict.how_it_works or ict.human_summary }}</p>
+        <p><strong>What blocks trading:</strong> {{ ict.what_blocks or 'See Journal and intraday status for skip reasons.' }}</p>
+        {% if ict.timeframe_chain %}
+        <p><strong>Timeframe chain:</strong></p>
+        <ol>{% for line in ict.timeframe_chain %}<li>{{ line }}</li>{% endfor %}</ol>
+        {% endif %}
+        <p class="text-dim">Pages: <a href="/signals?strategy=ict_smc_intraday_v1">Signals</a> ·
+          <a href="/backtest">Backtest</a> · <a href="/edge">Edge</a> · <a href="/paper">Paper</a></p>
+        {% if ict.safety_notes %}
+        <p><strong>Safety:</strong> {{ ict.safety_notes|join(' ') }}</p>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>5 · Run safe strategy commands</h2>
+    <p class="text-dim text-small">Each button POSTs to the allowlisted command runner only.</p>
     <div>
       {% with command='multi-strategy-scan', label='Run multi-strategy scan', return_to='/strategies', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='strategy-status', args='--json', label='Strategy status', return_to='/strategies', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
@@ -69,41 +149,24 @@
   </div>
 
   <div class="section">
-    <h2>Strategies</h2>
-    <table class="table">
+    <h2>6 · Per-strategy scan (allowlisted)</h2>
+    <table class="data-table text-small">
       <thead>
         <tr>
-          <th>Key</th><th>Name</th><th>Version</th><th>Horizon</th>
-          <th>Status</th><th>Enabled</th><th>Latest scan</th><th>Signals</th><th>Actions</th>
+          <th>Key</th>
+          <th>Scan</th>
         </tr>
       </thead>
       <tbody>
         {% for s in reg.strategies %}
           <tr>
-            <td><code>{{ s.key }}</code></td>
-            <td>{{ s.name }}<br/><span class="text-dim text-small">{{ s.description_zh }}</span></td>
-            <td>{{ s.version }}</td>
-            <td>{{ s.horizon }}</td>
+            <td><code>{{ s.key }}</code><br/>{{ s.name }}</td>
             <td>
-              {% if s.status == 'ready' %}<span class="pill good">{{ s.status }}</span>
-              {% elif s.status == 'not_implemented' %}<span class="pill warn">{{ s.status }}</span>
-              {% else %}<span class="pill neutral">{{ s.status }}</span>{% endif %}
-            </td>
-            <td>{% if s.enabled %}<span class="pill good">on</span>{% else %}<span class="pill neutral">off</span>{% endif %}</td>
-            <td>
-              {% if s.latest_scan_path %}
-                <span class="text-small">{{ s.latest_scan_date }}</span>
-                {% if s.is_stale %}<span class="pill warn">stale</span>{% else %}<span class="pill good">today</span>{% endif %}
-                <br/><span class="text-dim text-small">{{ s.latest_scan_status or '—' }}</span>
-              {% else %}<span class="text-dim">—</span>{% endif %}
-            </td>
-            <td>{{ s.latest_signal_count }}</td>
-            <td>
-              {% with command='strategy-scan', args='--strategy ' ~ s.key, label='Scan', return_to='/strategies', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+              {% with command='strategy-scan', args='--strategy ' ~ s.key, label='Run scan', return_to='/strategies', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="9" class="text-dim">No strategies registered. (Did the <code>bot.strategies</code> import fail?)</td></tr>
+          <tr><td colspan="2" class="text-dim">No strategies.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -112,7 +175,7 @@
   {% if reg.config_notes %}
     <div class="section">
       <h2>Config notes</h2>
-      <ul>{% for n in reg.config_notes %}<li class="text-dim">{{ n }}</li>{% endfor %}</ul>
+      <ul class="text-dim text-small">{% for n in reg.config_notes %}<li>{{ n }}</li>{% endfor %}</ul>
     </div>
   {% endif %}
 {% endblock %}

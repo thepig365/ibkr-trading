@@ -12,6 +12,7 @@ from bot.data_lifecycle import data_status
 from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.report_email_status import load_report_email_status
 
+from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
 
 router = APIRouter()
@@ -66,6 +67,18 @@ def reports_page(request: Request) -> HTMLResponse:
     )
     ctx["data_disk"] = data_status(root)
     ctx["premarket_brief"] = find_latest_premarket_brief(root)
+    cat, ssel = get_catalog_and_selection(root)
+    ctx["strategy_ui_catalog"] = cat
+    ctx["strategy_selection"] = ssel
+    ctx["active_paper_entry"] = cat.strategies.get(ssel.active_paper_strategy)
+    if ctx.get("backtest") and not getattr(ctx["backtest"], "is_empty", True):
+        ctx["backtest_strategy_id"] = getattr(
+            ctx["backtest"],
+            "strategy_id",
+            "ict_smc_intraday_v1",
+        )
+    else:
+        ctx["backtest_strategy_id"] = ssel.active_backtest_strategy
 
     ctx["paper_audit_hint"] = ""
     pod = root / "data" / "paper_orders"

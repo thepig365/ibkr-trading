@@ -239,16 +239,17 @@ def test_intraday_signals_view_parses_summary(project_with_summary: Path) -> Non
 # ---------------------------------------------------------------------------
 # Route: /signals renders both tabs
 # ---------------------------------------------------------------------------
-def test_signals_default_tab_is_mtf_smc(empty_project: Path) -> None:
+def test_signals_default_tab_is_saved_or_ict(empty_project: Path) -> None:
     client = _client(empty_project)
     r = client.get("/signals")
     assert r.status_code == 200
     body = r.text
-    # Both tab labels are rendered as toggle links.
+    # All catalog strategies are links; default selection is ict_smc_intraday_v1.
     assert "MTF SMC" in body
     assert "ICT/SMC Intraday" in body
-    # Default tab is MTF — its actions row references scan-mtf-smc-watchlist.
-    assert "scan-mtf-smc-watchlist" in body
+    # Default (no file) is ICT: intraday actions are visible.
+    assert "scan-intraday-smc-watchlist" in body
+    assert "ict_smc_intraday_v1" in body
 
 
 def test_signals_intraday_tab_renders_summary(project_with_summary: Path) -> None:
@@ -276,11 +277,12 @@ def test_signals_intraday_tab_renders_summary(project_with_summary: Path) -> Non
 def test_signals_intraday_tab_handles_unknown_strategy_value(
     empty_project: Path,
 ) -> None:
-    """Unknown ?strategy values fall back to MTF SMC, never 500."""
+    """Unknown ?strategy values fall back to saved default (ict), never 500."""
     client = _client(empty_project)
     r = client.get("/signals?strategy=mystery_unicorn")
     assert r.status_code == 200
-    assert "MTF SMC" in r.text
+    assert "ict_smc_intraday_v1" in r.text
+    assert "Note:" in r.text
 
 
 # ---------------------------------------------------------------------------

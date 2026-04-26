@@ -64,9 +64,8 @@ def test_strategies_page_renders_200_with_empty_project(project: Path) -> None:
     assert r.status_code == 200, r.text
     # The page heading + sidebar both display "Strategies".
     assert "Strategies" in r.text
-    # Engine invariants block must render.
-    assert "Engine invariants" in r.text
-    assert "paper-only" in r.text
+    assert "Control Center" in r.text
+    assert "paper-only" in r.text or "paper only" in r.text.lower()
 
 
 def test_strategies_page_does_not_import_broker_or_ibkr_client(

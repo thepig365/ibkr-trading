@@ -5,10 +5,20 @@
 {% block content %}
   {% set tab = active_strategy or 'mtf_smc' %}
   <div class="section">
-    <h2>Strategy</h2>
-    <div class="form-row" style="gap:6px;">
-      <a class="btn {% if tab == 'mtf_smc' %}{% else %}ghost{% endif %}" href="{{ url_for('signals_page') }}?strategy=mtf_smc">MTF SMC</a>
-      <a class="btn {% if tab == 'ict_smc_intraday_v1' %}{% else %}ghost{% endif %}" href="{{ url_for('signals_page') }}?strategy=ict_smc_intraday_v1">ICT/SMC Intraday</a>
+    <h2>Current strategy (signals)</h2>
+    <p class="text-small">Active tab: <strong>{% if active_strategy_entry %}{{ active_strategy_entry.display_name }}{% else %}{{ tab }}{% endif %}</strong>
+      <span class="text-mono text-dim">({{ tab }})</span> ·
+      <a class="text-small" href="{{ url_for('strategies') }}">Strategy Control Center</a>
+    </p>
+    {% for w in strategy_resolve_warnings %}
+      <div class="text-small text-dim" style="margin-top:4px;">Note: {{ w }}</div>
+    {% endfor %}
+    <div class="form-row" style="gap:6px; flex-wrap:wrap; margin-top:8px;">
+      {% for sid, ent in ui_strategy_list %}
+        <a class="btn {% if tab == sid %}{% else %}ghost{% endif %}{% if not ent.scan_enabled %} text-dim{% endif %}" href="{{ url_for('signals_page') }}?strategy={{ sid }}">
+          {{ ent.display_name }}{% if not ent.scan_enabled %} — future{% endif %}
+        </a>
+      {% endfor %}
     </div>
     <div class="text-small text-dim" style="margin-top:6px;">
       <span class="pill good">paper-only</span>
@@ -17,7 +27,12 @@
     </div>
   </div>
 
-  {% if tab == 'mtf_smc' %}
+  {% if strategy_scan_blocked and active_strategy_entry %}
+    <div class="section flash" style="border-color: var(--border); max-width: 56rem;">
+      <h3>{{ active_strategy_entry.display_name }}</h3>
+      <p class="text-small">{{ active_strategy_entry.future_note or 'This strategy is not scan-enabled in the UI yet. Use the ICT/SMC or MTF tabs for available research scans.' }}</p>
+    </div>
+  {% elif tab == 'mtf_smc' %}
     {# ============================================================
        MTF SMC tab
        ============================================================ #}
@@ -92,9 +107,8 @@
     </div>
 
   {% else %}
-    {# ============================================================
-       ICT/SMC Intraday V1 tab (Prompt 13D)
-       ============================================================ #}
+    {# ICT/SMC Intraday (default intraday) #}
+    {% if tab == 'ict_smc_intraday_v1' %}
     {% set ids = intraday_signals %}
     <div class="section flash" style="border-color: var(--border);">
       <strong>What “ready to test” means:</strong> you still need a <strong>valid ICT/SMC setup</strong> and a <strong>1-minute entry trigger</strong>, plus all paper safety gates, before the engine may send a <em>limit bracket</em> elsewhere. <strong>News, edge scores, and watchlist priority do not place trades</strong> — they are context only. This page has no order buttons.
@@ -228,6 +242,9 @@
         <div class="empty">No intraday rows yet. Run a scan.</div>
       {% endif %}
     </div>
+  {% else %}
+    <div class="section text-dim text-small">No scan panel for <span class="text-mono">{{ tab }}</span> — choose <strong>ICT/SMC Intraday</strong> or <strong>MTF</strong>.</div>
+  {% endif %}
   {% endif %}
 
   {% include "_recent_results.html" %}

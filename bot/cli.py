@@ -5871,6 +5871,96 @@ def strategy_status_cmd(
     raise typer.Exit(code=0)
 
 
+@app.command("strategy-select")
+def strategy_select_cmd(
+    area: str = typer.Option(
+        ...,
+        "--area",
+        help="scan | backtest | edge | paper",
+    ),
+    strategy: str = typer.Option(
+        ...,
+        "--strategy",
+        help="Strategy id (e.g. ict_smc_intraday_v1).",
+    ),
+) -> None:
+    """Update local UI selection file (data/runtime/selected_strategy.json). No IBKR, no orders."""
+    from .strategy_ui import (  # noqa: PLC0415
+        load_strategy_selection,
+        load_strategy_ui_catalog,
+        save_strategy_selection,
+        selection_from_mapping,
+        validate_per_area,
+    )
+
+    cfg = load_config()
+    root = cfg.project_root
+    cat = load_strategy_ui_catalog(root)
+    cur = load_strategy_selection(root, catalog=cat)
+    ok, err = validate_per_area(cat, area, strategy)
+    if not ok:
+        console.print(Panel.fit(err, title="strategy-select", style="red"))
+        raise typer.Exit(code=2)
+    a = (area or "").strip().lower()
+    patch: dict[str, str] = {}
+    if a == "scan":
+        patch["active_scan_strategy"] = strategy
+    elif a in {"backtest", "bt"}:
+        patch["active_backtest_strategy"] = strategy
+    elif a in {"edge", "edge_profile"}:
+        patch["active_edge_strategy"] = strategy
+    elif a == "paper":
+        patch["active_paper_strategy"] = strategy
+    else:
+        console.print(
+            Panel.fit(
+                f"Unknown --area {area!r} (use scan, backtest, edge, or paper).",
+                title="strategy-select",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=2)
+    st, _ = selection_from_mapping(cat, patch, current=cur)
+    path = save_strategy_selection(root, st, catalog=cat)
+    out = {**st.to_dict(), "path": str(path), "warnings": st.last_warnings}
+    console.print_json(data=out)
+    raise typer.Exit(code=0)
+
+
+@app.command("strategy-selection-status")
+def strategy_selection_status_cmd(
+    json_out: bool = typer.Option(
+        True,
+        "--json/--no-json",
+        help="Print JSON (default: on).",
+    ),
+) -> None:
+    """Show merged strategy selection from data/runtime/selected_strategy.json (read-only; no TWS)."""
+    from .strategy_ui import load_strategy_selection, load_strategy_ui_catalog  # noqa: PLC0415
+
+    cfg = load_config()
+    root = cfg.project_root
+    cat = load_strategy_ui_catalog(root)
+    st = load_strategy_selection(root, catalog=cat)
+    payload = {
+        "file": str(root / "data/runtime/selected_strategy.json"),
+        "selection": st.to_dict(),
+        "warnings": st.last_warnings,
+        "catalog": cat.source_path,
+    }
+    if json_out:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False),
+                title="strategy-selection-status",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(code=0)
+
+
 @app.command("strategy-scan")
 def strategy_scan_cmd(
     strategy: str = typer.Option(

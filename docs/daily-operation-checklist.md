@@ -8,7 +8,8 @@
 ### 纯 UI 日流程（与 `docs/strategy-lab-user-manual.md` §3.1 一致）
 
 - [ ] 1. **`Strategy Lab.command`**（或 `start_strategy_lab_ui.sh`）  
-- [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算卡片  
+- [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算/当前**纸面策略**提示  
+- [ ] 2b. 如需切换 **scan / backtest / edge / paper** 的默认：打开 **/strategies**（Strategy Center），`data/runtime/selected_strategy.json` 不提交  
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist** — 构建表  
 - [ ] 5. **Signals（ICT）** — 日内扫描  

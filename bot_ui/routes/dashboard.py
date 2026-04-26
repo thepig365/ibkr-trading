@@ -16,6 +16,7 @@ from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
 from bot.ux.dashboard_context import DashboardUX
 
+from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
 
 router = APIRouter()
@@ -67,6 +68,8 @@ def dashboard(request: Request) -> HTMLResponse:
         root, resend_key_present=resend_ok, from_addr=report_from
     )
     premarket = find_latest_premarket_brief(root)
+    cat, ssel = get_catalog_and_selection(root)
+    paper_s_entry = cat.strategies.get(ssel.active_paper_strategy)
     ux = DashboardUX.from_runtime(
         paper_act=paper_act,
         runtime=state.runtime_flags(),
@@ -107,6 +110,9 @@ def dashboard(request: Request) -> HTMLResponse:
             "last_paper_reconcile_stdout": _stdout_after(
                 recent, "paper-reconcile"
             ),
+            "strategy_ui_catalog": cat,
+            "strategy_selection": ssel,
+            "active_paper_strategy_entry": paper_s_entry,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)

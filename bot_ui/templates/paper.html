@@ -3,6 +3,13 @@
 {% block subtitle %}<div class="page-sub"><strong>PAPER ONLY</strong> / paper account. See whether a <em>paper test</em> is allowed, your <strong>test budget</strong>, and the <strong>intraday paper switch</strong> — without placing orders. Toggles only affect local flag files read by a separate automatic run process.</div>{% endblock %}
 
 {% block content %}
+  <div class="section flash" style="border-color: var(--border); max-width: 60rem;">
+    <strong>Paper trading strategy:</strong>
+    {% if active_paper_entry %}{{ active_paper_entry.display_name }}{% else %}{{ strategy_selection.active_paper_strategy }}{% endif %}
+    <span class="text-mono text-dim">({{ strategy_selection.active_paper_strategy }})</span>
+    · <a class="text-small" href="{{ url_for('strategies') }}">Strategy Control Center</a>
+    <p class="text-small" style="margin:8px 0 0 0;">Trades still require a valid <strong>ICT/SMC</strong> setup and a <strong>1-minute trigger</strong>, plus all paper safety gates. Chanlun/ORB and other future models stay <strong>paper-off</strong> here until their own invariants and tests are complete.</p>
+  </div>
   <div class="grid">
     <div class="card" style="grid-column: 1 / -1;">
       <div class="card-title">Can I run a paper test now?</div>
@@ -197,9 +204,13 @@
       {% with command='paper-readiness-check', label='Check if paper test is allowed (readiness + scan + reconcile)', return_to='/paper', btn_class='', args='--intraday --probe-ibkr --scan --source dynamic --limit 20' %}
         {% include "_command_form.html" %}
       {% endwith %}
+      {% if active_paper_entry and active_paper_entry.paper_enabled %}
       {% with command='first-paper-pass', label='Run one controlled paper test (one bracket pass)', return_to='/paper', btn_class='warn', args='--source dynamic --limit 20' %}
         {% include "_command_form.html" %}
       {% endwith %}
+      {% else %}
+      <p class="text-dim text-small" style="margin:0;">“Run one controlled paper test” is only available for a <strong>paper-enabled</strong> model (ICT/SMC Intraday). Stubs are blocked.</p>
+      {% endif %}
     </div>
     {% if first_paper_last_snapshot %}
     {% set fpp = first_paper_last_snapshot %}
@@ -430,9 +441,13 @@
     </div>
 
     <div class="form-row mt-12">
+      {% if active_paper_entry and active_paper_entry.paper_enabled %}
       {% with command='auto-paper-intraday-smc', label='Run one automatic paper run (one intraday pass)', return_to='/paper', btn_class='', args='--source dynamic --limit 20' %}
         {% include "_command_form.html" %}
       {% endwith %}
+      {% else %}
+      <p class="text-dim text-small" style="margin:0;">Intraday automatic paper run is not offered until a <strong>paper-enabled</strong> strategy (ICT/SMC) is active.</p>
+      {% endif %}
       {% with command='intraday-paper-status', label='Intraday Paper Status', return_to='/paper', btn_class='ghost' %}
         {% include "_command_form.html" %}
       {% endwith %}

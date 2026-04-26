@@ -1,8 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Ticker edge profiles{% endblock %}
-{% block subtitle %}<div class="page-sub">Per-ticker backtest edge for <code>ict_smc_intraday_v1</code>. Read from disk; this page does not connect to TWS. Buttons enqueue allowlisted CLIs (no <code>--fetch</code> by default — use your own date range in args).</div>{% endblock %}
+{% block subtitle %}<div class="page-sub">Per-ticker edge (strategy-selected). Read from disk; this page does not connect to TWS. Buttons enqueue allowlisted CLIs (no <code>--fetch</code> by default — use your own date range in args).</div>{% endblock %}
 
 {% block content %}
+  <div class="section flash" style="border:1px solid var(--border);">
+    <strong>Selected edge model:</strong>
+    {% if active_edge_entry %}{{ active_edge_entry.display_name }}{% else %}{{ active_edge_id }}{% endif %}
+    <span class="text-mono text-dim">({{ active_edge_id }})</span>
+    · <a class="text-small" href="{{ url_for('strategies') }}">Strategy Control Center</a>
+  </div>
+  {% if active_edge_entry and not active_edge_entry.edge_profile_enabled %}
+  <div class="section text-dim text-small">Edge profile builds for this strategy are <strong>not available</strong> in this build. Select <strong>ICT/SMC Intraday</strong> to use the edge pipeline.</div>
+  {% endif %}
   <div class="section flash" style="border:1px solid var(--border);">
     <strong>Important:</strong> Edge ranks, scores, and risk multipliers are <em>eligibility only</em>. A trade still requires a valid ICT/SMC signal, 1m trigger, and all paper invariants. Edge cannot trigger a trade by itself.
   </div>
@@ -19,15 +28,15 @@
 
   <div class="section">
     <h2>Actions</h2>
-    <p class="text-small text-dim">Adjust <em>--start / --end / --symbols</em> to match your cached 1m range. Add <code>--fetch</code> only if you explicitly want a read-only IBKR candle fill (not used below).</p>
+    <p class="text-small text-dim">Adjust <em>--start / --end / --symbols</em> to match your cached 1m range. <code>--strategy</code> uses your selected edge default (below uses <code>{{ active_edge_id }}</code>).</p>
     <div class="form-row" style="flex-wrap:wrap;">
-      {% with command='build-edge-profiles', label='Build Edge (core 15, cache)', return_to='/edge', btn_class='', args='--symbols AAPL,AMD,NVDA,TSLA,CRM,AMZN,MSFT,META,QQQ,SPY,AVGO,MU,ARM,PLTR,TSM --start 2026-04-01 --end 2026-04-24 --strategy ict_smc_intraday_v1' %}
+      {% with command='build-edge-profiles', label='Build Edge (core 15, cache)', return_to='/edge', btn_class='', args='--symbols AAPL,AMD,NVDA,TSLA,CRM,AMZN,MSFT,META,QQQ,SPY,AVGO,MU,ARM,PLTR,TSM --start 2026-04-01 --end 2026-04-24 --strategy ' ~ active_edge_id %}
         {% include "_command_form.html" %}
       {% endwith %}
-      {% with command='build-edge-profiles', label='Build Edge (4-symbol mini)', return_to='/edge', btn_class='ghost', args='--symbols AAPL,AMD,NVDA,CRM --start 2026-04-01 --end 2026-04-24 --strategy ict_smc_intraday_v1' %}
+      {% with command='build-edge-profiles', label='Build Edge (4-symbol mini)', return_to='/edge', btn_class='ghost', args='--symbols AAPL,AMD,NVDA,CRM --start 2026-04-01 --end 2026-04-24 --strategy ' ~ active_edge_id %}
         {% include "_command_form.html" %}
       {% endwith %}
-      {% with command='build-edge-profile', label='Build one (CRM example)', return_to='/edge', btn_class='ghost', args='--symbol CRM --start 2026-04-01 --end 2026-04-24 --strategy ict_smc_intraday_v1' %}
+      {% with command='build-edge-profile', label='Build one (CRM example)', return_to='/edge', btn_class='ghost', args='--symbol CRM --start 2026-04-01 --end 2026-04-24 --strategy ' ~ active_edge_id %}
         {% include "_command_form.html" %}
       {% endwith %}
       {% with command='edge-profile-report', label='Latest Edge Report', return_to='/edge', btn_class='ghost', args='--latest' %}
