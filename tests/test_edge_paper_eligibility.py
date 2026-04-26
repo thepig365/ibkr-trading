@@ -11,6 +11,11 @@ import yaml
 
 from bot.config import load_config
 from bot.edge.eligibility import evaluate_edge_for_paper
+from bot.execution.ict_paper_invariants import (
+    STRUCTURE_CONTEXT_MISSING,
+    WAITING_FOR_1M_TRIGGER,
+)
+from bot.execution.intraday_paper_execution import build_intraday_paper_intent
 from bot.edge.ticker_edge import (
     REC_DISABLED,
     REC_STRICT_AND_AGGRESSIVE,
@@ -266,3 +271,104 @@ def test_risk_multiplier_scales_risk(
     assert d.allow_submit is True
     assert abs(d.effective_risk_pct - 0.1) < 1e-9
     assert d.edge_audit.get("edge_risk_multiplier_applied") is True
+
+
+def test_strong_edge_allows_risk_gate_but_ict_chain_blocks_intent(
+    tmp_project: Path, write_yaml: object,
+) -> None:
+    """13L-alt: edge may approve risk; no paper intent without 1m trigger."""
+    (tmp_project / "data" / "edge_profiles").mkdir(parents=True, exist_ok=True)
+    _merge_intraday_paper(tmp_project, {"edge_profile_enabled": True})
+    _seed_profile(
+        tmp_project,
+        symbol="AAPL",
+        mode=REC_STRICT_AND_AGGRESSIVE,
+        mrm=1.0,
+    )
+    from tests.test_intraday_paper_execution import _enable_intraday_paper  # noqa: PLC0415
+
+    _enable_intraday_paper(tmp_project, write_yaml)  # type: ignore[arg-type]
+    cfg = load_config(project_root=tmp_project)
+    d = evaluate_edge_for_paper(
+        cfg, "AAPL", SIGNAL_DAY_TRADE_READY_STRICT, base_risk_pct=0.1
+    )
+    assert d.allow_submit is True
+    it, err = build_intraday_paper_intent(
+        {
+            "symbol": "AAPL",
+            "signal_category": SIGNAL_DAY_TRADE_READY_STRICT,
+            "direction": "long",
+            "five_min_setup_found": True,
+            "one_min_trigger_found": False,
+            "higher_timeframe_context_ok": True,
+            "entry": 100.0,
+            "stop": 99.0,
+            "target": 102.0,
+        },
+        {"net_liquidation": 100_000.0},
+        cfg,
+    )
+    assert it is None
+    assert any(WAITING_FOR_1M_TRIGGER in e for e in err)
+
+
+def test_strong_edge_cannot_bypass_missing_5m_structure(
+    tmp_project: Path, write_yaml: object,
+) -> None:
+    """13L-alt: strong profile + READY label does not help without 5m flag."""
+    (tmp_project / "data" / "edge_profiles").mkdir(parents=True, exist_ok=True)
+    _merge_intraday_paper(tmp_project, {"edge_profile_enabled": True})
+    _seed_profile(
+        tmp_project,
+        symbol="NVDA",
+        mode=REC_STRICT_AND_AGGRESSIVE,
+        mrm=1.0,
+    )
+    from tests.test_intraday_paper_execution import _enable_intraday_paper  # noqa: PLC0415
+
+    _enable_intraday_paper(tmp_project, write_yaml)  # type: ignore[arg-type]
+    cfg = load_config(project_root=tmp_project)
+    assert evaluate_edge_for_paper(
+        cfg, "NVDA", SIGNAL_DAY_TRADE_READY_STRICT, base_risk_pct=0.1
+    ).allow_submit
+    it, err = build_intraday_paper_intent(
+        {
+            "symbol": "NVDA",
+            "signal_category": SIGNAL_DAY_TRADE_READY_STRICT,
+            "direction": "long",
+            "five_min_setup_found": False,
+            "one_min_trigger_found": True,
+            "higher_timeframe_context_ok": True,
+            "entry": 100.0,
+            "stop": 99.0,
+            "target": 102.0,
+        },
+        {"net_liquidation": 100_000.0},
+        cfg,
+    )
+    assert it is None
+    assert any(STRUCTURE_CONTEXT_MISSING in e for e in err)
+
+
+def test_aggressive_requires_edge_when_profile_enforced_and_no_allow_flag(
+    tmp_project: Path,
+) -> None:
+    """ICT chain alone is insufficient for aggressive if profile missing and policy requires it."""
+    (tmp_project / "data" / "edge_profiles").mkdir(parents=True, exist_ok=True)
+    _merge_intraday_paper(
+        tmp_project,
+        {
+            "edge_profile_enabled": True,
+            "unknown_edge_policy": "allow_strict_small_risk",
+            "allow_aggressive_without_edge_profile": False,
+        },
+    )
+    cfg = load_config(project_root=tmp_project)
+    d = evaluate_edge_for_paper(
+        cfg,
+        "NOSYM",
+        SIGNAL_DAY_TRADE_READY_AGGRESSIVE,
+        base_risk_pct=0.1,
+    )
+    assert d.allow_submit is False
+    assert "edge_profile_missing" in d.skip_reasons

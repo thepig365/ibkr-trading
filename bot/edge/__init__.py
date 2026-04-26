@@ -1,4 +1,17 @@
-"""Ticker edge profiling for ict_smc_intraday_v1 (Prompt 13L-alt)."""
+"""Ticker edge profiling for ict_smc_intraday_v1 (Prompt 13L-alt).
+
+Contract (see also ``bot.execution.ict_paper_invariants`` / commit 2c7493d):
+
+* Edge **never** creates paper eligibility. Execution requires a valid ICT
+  scan row: ``DAY_TRADE_READY_*`` plus ``five_min_setup_found``,
+  ``one_min_trigger_found``, and HTF flags (see
+  :func:`bot.execution.ict_paper_invariants.validate_ict_chain_flags_for_paper`).
+* This package may **only** rank, annotate, and apply mode / risk
+  multipliers *after* the ICT chain passes in ``intraday_paper_execution``.
+* Unknown profile: small STRICT paper risk only with valid ICT chain;
+  aggressive generally requires a profile and ``strict_and_aggressive``-style
+  permission plus ICT chain.
+"""
 
 from __future__ import annotations
 

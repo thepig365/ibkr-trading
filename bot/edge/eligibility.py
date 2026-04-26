@@ -1,4 +1,16 @@
-"""Paper trading eligibility from ticker edge profiles (Prompt 13L-alt)."""
+"""Paper trading eligibility from ticker edge profiles (Prompt 13L-alt).
+
+**Ordering invariant (13L-alt, ICT chain commit 2c7493d):** callers in
+:mod:`bot.execution.intraday_paper_execution` and the paper pass must run
+:func:`bot.execution.ict_paper_invariants.validate_ict_chain_flags_for_paper`
+*before* :func:`evaluate_edge_for_paper`. Edge must not weaken, bypass, or
+replace 5m/1m/HTF checks. A strong profile **cannot** produce an order
+without a valid ICT row.
+
+This module only adjusts **effective risk %**, **strict vs aggressive
+permission**, and **skip reasons** for symbols that *already* passed the
+ICT execution chain. It does not read news, watchlist, or volume scores.
+"""
 
 from __future__ import annotations
 
