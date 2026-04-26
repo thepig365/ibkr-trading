@@ -77,6 +77,7 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "paper-weekly-report": "Generate data/reports/paper weekly JSON+MD (file-based; no IBKR).",
     "data-status": "Show disk usage for local data/ categories (read-only).",
     "data-cleanup": "List or remove old ephemeral files; UI may only use --dry-run.",
+    "premarket-brief": "Generate Strategy Lab pre-market brief (read-only; never trades).",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -1310,6 +1311,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_data_status_args(args)
     if command == "data-cleanup":
         return validate_data_cleanup_args(args)
+    if command == "premarket-brief":
+        return validate_premarket_brief_args(args)
     return True, ""
 
 
@@ -1336,3 +1339,26 @@ def validate_data_cleanup_args(args: tuple[str, ...]) -> tuple[bool, str]:
             "data-cleanup: --apply is CLI-only; use --dry-run from the UI.",
         )
     return False, "data-cleanup: use --dry-run from the UI (or CLI --apply)."
+
+
+def validate_premarket_brief_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("premarket-brief", args)
+    if not ok:
+        return ok, err
+    allowed = frozenset({"--latest", "--today", "--email", "--telegram"})
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t in allowed:
+            i += 1
+            continue
+        if t == "--date":
+            if i + 1 >= len(args):
+                return False, "premarket-brief: --date needs YYYY-MM-DD."
+            val = str(args[i + 1])
+            if not _DATE_RE.match(val):
+                return False, "premarket-brief: --date must be YYYY-MM-DD."
+            i += 2
+            continue
+        return False, f"premarket-brief: unexpected token {t!r}."
+    return True, ""

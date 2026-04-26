@@ -167,3 +167,8 @@ reports:
   persistence_mode: "ephemeral"
   keep_local_reports_hours: 24
   keep_charts_days: 7
+
+# Pre-market brief (human-readable; optional email; never places trades)
+premarket_brief:
+  target_ny_time: "08:30"
+  timezone: "America/New_York"

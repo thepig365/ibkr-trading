@@ -87,8 +87,9 @@ def test_signals_ict_page_states_execution_invariants(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/signals?strategy=ict_smc_intraday_v1")
     assert r.status_code == 200
     t = r.text
-    assert "1m trigger" in t
-    assert "Edge profile alone never triggers" in t
+    assert "1-minute" in t
+    # Human copy: news + edge are context, not a trade signal.
+    assert "place trades" in t.lower() and "edge" in t.lower()
 
 
 def test_edge_page_states_edge_cannot_trigger_trade_alone(tmp_path: Path) -> None:

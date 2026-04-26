@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from bot.config import load_config
 from bot.data_lifecycle import data_status
+from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.report_email_status import load_report_email_status
 
 from ._helpers import base_context
@@ -64,6 +65,7 @@ def reports_page(request: Request) -> HTMLResponse:
         from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
     )
     ctx["data_disk"] = data_status(root)
+    ctx["premarket_brief"] = find_latest_premarket_brief(root)
 
     ctx["paper_audit_hint"] = ""
     pod = root / "data" / "paper_orders"

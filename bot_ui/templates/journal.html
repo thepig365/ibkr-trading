@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Trade Journal{% endblock %}
-{% block subtitle %}<div class="page-sub">PAPER ONLY · Read-only aggregate of <code>data/paper_orders/*.jsonl</code> and the latest backtest trades CSV. This page never connects to IBKR / TWS and never places, cancels, or modifies any order.</div>{% endblock %}
+{% block subtitle %}<div class="page-sub"><strong>Paper account only</strong> — a readable log of what the engine tried: sent to TWS, skipped, or protection incomplete. From local files only; <strong>no broker connection on load</strong> and no order buttons.</div>{% endblock %}
 
 {% block content %}
   {% set j = journal %}
@@ -35,10 +35,10 @@
     <h2>Paper bracket submissions</h2>
     <div class="form-row flex-wrap" style="gap:8px; align-items:center; margin-bottom:12px;">
       <span class="text-small text-dim">View:</span>
-      <a class="text-small {% if journal_filter == 'all' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=all">all</a>
-      <a class="text-small {% if journal_filter == 'submitted' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=submitted">submitted</a>
-      <a class="text-small {% if journal_filter == 'skipped' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=skipped">skipped</a>
-      <a class="text-small {% if journal_filter == 'incomplete' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=incomplete">incomplete</a>
+      <a class="text-small {% if journal_filter == 'all' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=all">All</a>
+      <a class="text-small {% if journal_filter == 'submitted' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=submitted">Sent to TWS</a>
+      <a class="text-small {% if journal_filter == 'skipped' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=skipped">Skipped</a>
+      <a class="text-small {% if journal_filter == 'incomplete' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=incomplete">Protection incomplete</a>
       <form method="get" class="form-row" style="gap:4px; margin:0; align-items:center;">
         <input type="hidden" name="filter" value="{{ journal_filter or 'all' }}"/>
         <input name="symbol" value="{{ journal_symbol or '' }}" placeholder="e.g. NVDA" class="text-mono" style="max-width:100px;"/>
@@ -71,9 +71,9 @@
               <th>R/R</th>
               <th>Qty</th>
               <th>Sizing</th>
-              <th>Integrity</th>
+              <th>Stop/target protection</th>
               <th>Prot</th>
-              <th>Status</th>
+              <th>Outcome</th>
               <th>Order / parent IDs</th>
               <th>ICT</th>
               <th>Edge</th>
@@ -110,16 +110,17 @@
                 <td>{% if r.quantity is not none %}{{ r.quantity|int }}{% else %}—{% endif %}</td>
                 <td class="text-small">{% if r.sizing_summary %}{{ r.sizing_summary }}{% else %}—{% endif %}</td>
                 <td>
-                  {% if r.bracket_integrity == 'complete' %}<span class="pill good">complete</span>
-                  {% elif r.bracket_integrity == 'incomplete' %}<span class="pill warn">incomplete</span>
+                  {% if r.bracket_integrity == 'complete' %}<span class="pill good">Protection complete</span>
+                  {% elif r.bracket_integrity == 'incomplete' %}<span class="pill warn">Protection incomplete</span>
                   {% elif r.bracket_integrity %}<span class="pill neutral">{{ r.bracket_integrity }}</span>
                   {% else %}—{% endif %}
+                  <div class="text-dim text-mono" style="font-size:10px;">{{ r.bracket_integrity }}</div>
                 </td>
                 <td>{% if r.bracket_protected is none %}—{% elif r.bracket_protected %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
                 <td>
-                  {% if r.submitted %}<span class="pill good">submitted (complete)</span>
-                  {% elif r.submitted_to_broker %}<span class="pill warn">reached TWS, incomplete</span>
-                  {% else %}<span class="pill warn">skipped / not to broker</span>{% endif %}
+                  {% if r.submitted %}<span class="pill good">Sent</span>
+                  {% elif r.submitted_to_broker %}<span class="pill warn">Sent to TWS, protection incomplete</span>
+                  {% else %}<span class="pill warn">Skipped</span>{% endif %}
                 </td>
                 <td class="text-mono text-small">P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %}<br/>{{ r.order_ids|join(', ') }}{% endif %}</td>
                 <td class="text-small text-mono">H{% if r.higher_timeframe_context_ok %}✓{% else %}·{% endif %} 5m{% if r.five_min_setup_found %}✓{% else %}·{% endif %} 1m{% if r.one_min_trigger_found %}✓{% else %}·{% endif %}</td>

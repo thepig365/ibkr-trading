@@ -11,8 +11,10 @@ from fastapi.responses import HTMLResponse
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
+from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
+from bot.ux.dashboard_context import DashboardUX
 
 from ._helpers import base_context
 
@@ -64,6 +66,16 @@ def dashboard(request: Request) -> HTMLResponse:
     report_email = load_report_email_status(
         root, resend_key_present=resend_ok, from_addr=report_from
     )
+    premarket = find_latest_premarket_brief(root)
+    ux = DashboardUX.from_runtime(
+        paper_act=paper_act,
+        runtime=state.runtime_flags(),
+        intraday=state.intraday_signals(),
+        loop=state.loop_status(),
+        ledger=ledger,
+        intraday_loop=state.get_intraday_paper_loop_status(),
+        first_paper=first_snap,
+    )
 
     ctx.update(
         {
@@ -85,6 +97,9 @@ def dashboard(request: Request) -> HTMLResponse:
             "op_hints": op_hints,
             "report_email": report_email,
             "reports_config": cfg.settings.reports,
+            "premarket_brief": premarket,
+            "premarket_config": cfg.settings.premarket_brief,
+            "ux": ux.to_dict,
             "last_engine_stdout": _stdout_after(
                 recent, "engine-status", "strategy-lab-engine-status"
             ),

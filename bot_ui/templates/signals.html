@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Signals{% endblock %}
-{% block subtitle %}<div class="page-sub">Latest scan summaries. Read-only view; the buttons re-run the scans. Research-only — no orders, no live trading.</div>{% endblock %}
+{% block subtitle %}<div class="page-sub">What the <strong>scanner</strong> found on your watchlist — in plain language where we can. <strong>Paper account only.</strong> Buttons re-run research scans; they are <em>approved safe actions</em>. No orders from this page.</div>{% endblock %}
 
 {% block content %}
   {% set tab = active_strategy or 'mtf_smc' %}
@@ -97,11 +97,11 @@
        ============================================================ #}
     {% set ids = intraday_signals %}
     <div class="section flash" style="border-color: var(--border);">
-      <strong>Execution policy:</strong> Paper brackets require an ICT/SMC <em>ready</em> category plus a 1m trigger, plus all safety gates. <strong>Edge profile alone never triggers a trade</strong> — it only ranks and sizes. Scans and this page are research-only; no order buttons.
+      <strong>What “ready to test” means:</strong> you still need a <strong>valid ICT/SMC setup</strong> and a <strong>1-minute entry trigger</strong>, plus all paper safety gates, before the engine may send a <em>limit bracket</em> elsewhere. <strong>News, edge scores, and watchlist priority do not place trades</strong> — they are context only. This page has no order buttons.
     </div>
 
     <div class="section">
-      <h2>Actions — ICT/SMC Intraday V1</h2>
+      <h2>Actions — intraday research scan</h2>
       <div class="form-row">
         {% with command='scan-intraday-smc-watchlist', args='--source dynamic --limit 20 --ibkr --chart --telegram', label='Run Intraday Scan + TG', return_to='/signals?strategy=ict_smc_intraday_v1', btn_class='' %}
           {% include "_command_form.html" %}
@@ -161,22 +161,23 @@
     {% endif %}
 
     <div class="section">
-      <h2>All symbols</h2>
+      <h2>All symbols (plain + technical)</h2>
+      <p class="text-dim text-small">“Ready to test” / Watching / Blocked are human shortcuts for the <code>signal_category</code> below. Expand technical details in your scan JSON if needed.</p>
       {% if ids.items %}
         <table>
           <thead>
             <tr>
               <th>Symbol</th>
-              <th class="num">Edge</th>
+              <th class="num">Hist. edge</th>
               <th>Conf</th>
               <th>Mode</th>
               <th class="num">Risk×</th>
-              <th>Category</th>
+              <th>Status (plain)</th>
               <th>Dir</th>
               <th class="num">Score</th>
               <th>HTF</th>
               <th>5m setup</th>
-              <th>1m trigger</th>
+              <th>1-min trigger</th>
               <th class="num">Entry</th>
               <th class="num">Stop</th>
               <th class="num">Target</th>
@@ -195,13 +196,14 @@
                 <td class="text-small text-mono">{% if ep %}{{ ep.recommended_mode }}{% else %}—{% endif %}</td>
                 <td class="num">{% if ep %}{{ ep.max_risk_multiplier }}{% else %}—{% endif %}</td>
                 <td>
-                  {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">STRICT</span>
-                  {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill good">AGGRESSIVE</span>
-                  {% elif r.signal_category == 'WATCH_ONLY' %}<span class="pill neutral">WATCH</span>
-                  {% elif r.signal_category == 'INVALID_RISK' %}<span class="pill warn">INVALID</span>
-                  {% elif r.signal_category == 'NO_SETUP' %}<span class="pill neutral">NO_SETUP</span>
+                  {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">Ready to test (strict)</span>
+                  {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill good">Ready to test (aggressive)</span>
+                  {% elif r.signal_category == 'WATCH_ONLY' %}<span class="pill neutral">Watching</span>
+                  {% elif r.signal_category == 'INVALID_RISK' %}<span class="pill warn">Blocked — risk / R:R</span>
+                  {% elif r.signal_category == 'NO_SETUP' %}<span class="pill neutral">No complete signal yet</span>
                   {% elif r.signal_category in ('BLOCKED', 'ERROR') %}<span class="pill bad">{{ r.signal_category }}</span>
                   {% else %}<span class="pill neutral">{{ r.signal_category or '—' }}</span>{% endif %}
+                  <div class="text-dim text-small text-mono">{{ r.signal_category }}</div>
                 </td>
                 <td>{{ r.direction or '—' }}</td>
                 <td class="num">{% if r.score is not none %}{{ "%.0f"|format(r.score or 0) }}{% else %}—{% endif %}</td>

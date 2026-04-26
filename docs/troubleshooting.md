@@ -12,6 +12,13 @@
 3. 端口/Client ID 是否与 `config` 与 `docs/ibkr-setup.md` 一致。  
 4. 仍失败：在终端用 `strategy_lab_doctor.sh` 或同文档排查；**不要**在 UI 里关 TWS 的 Order 保护。
 
+## 盘前简报发不出 / 没有邮件
+
+- **没有配置 SMTP 等邮件环境**：`email_status` 会显示**跳过/缺凭证**，简报文件仍可生成 — **属预期**，不是崩溃。  
+- **没有第三方新闻 key**：相应 provider 为 **skipped_missing_credentials**，整份仍可用其它源/占位 — **不**需要为此改交易安全边界。  
+- 确认命令：`python3 -m bot.cli premarket-brief --latest` 能读到 `data/premarket_briefs/` 下最近 JSON。  
+- **再强调**：盘前内容**不触发**发单；若误以为是「交易信号」——仍以 **ICT/SMC + 1m 触发** 与 Journal/门控 为准。  
+
 ## 有信号 / 流程正常，但「没有下单」或 Paper pass 全跳过
 
 1. 在 **Paper** 页看 **Intraday** 卡片区 **skipped** 原因（如 `trading.intraday_paper.enabled=false`、未开 runtime、对账、Kill、时段外、无 READY 等）。  

@@ -30,6 +30,7 @@ from bot.paper_activation import (
     PAPER_READINESS_STATE_RELPATH,
     build_paper_activation_status,
 )
+from bot.ux.paper_context import build_paper_page_ux
 
 from ..services.state_store import (
     INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
@@ -79,6 +80,17 @@ def paper_page(request: Request) -> HTMLResponse:
     ctx["recent_results"] = request.app.state.command_queue.list_recent(limit=8)
     jv = state.get_journal_view(limit=30, view_filter="all", symbol="")
     ctx["latest_paper_orders"] = jv.paper_orders
+    first_row = jv.paper_orders[0] if jv.paper_orders else None
+    ctx["paper_ux"] = build_paper_page_ux(
+        max_notional_per_order_usd=float(ip.max_notional_per_order_usd),
+        max_daily_notional_usd=float(ip.max_daily_notional_usd),
+        market_orders_allowed=bool(ip.market_orders_allowed),
+        paper_activation=ctx["paper_activation"],
+        kill_switch=bool(ctx["runtime"].kill_switch_active),
+        paper_sizing_ledger=ctx.get("paper_sizing_ledger"),
+        intraday_loop=ctx["intraday_paper_loop"],
+        first_journal_row=first_row,
+    )
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

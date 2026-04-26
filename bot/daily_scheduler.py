@@ -49,6 +49,7 @@ _UNSAFE_COMMANDS: frozenset[str] = frozenset({
 # unsafe names above. This keeps future research commands easy to add.
 _KNOWN_REPORT_COMMANDS: frozenset[str] = frozenset({
     "pre-open-news",
+    "premarket-brief",
     "market-regime",
     "build-watchlist",
     "export-tws-watchlist",

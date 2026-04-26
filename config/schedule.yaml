@@ -28,6 +28,15 @@ schedule:
       command: "pre-open-news"
       telegram: true
 
+    # Strategy Lab pre-market brief (disabled — enable only after validating the command in your environment)
+    premarket_brief:
+      enabled: false
+      time: "08:30"
+      days: ["mon", "tue", "wed", "thu", "fri"]
+      command: "premarket-brief"
+      # Operate as: python3 -m bot.cli premarket-brief --today --email
+      telegram: false
+
     opening_smc_review:
       enabled: true
       time: "09:45"

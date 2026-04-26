@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Reports{% endblock %}
 {% block subtitle %}
-<div class="page-sub">Index of latest generated JSON/MD and safe buttons to regenerate. Read-only; no TWS/IBKR on page load. Commands run only when you click a button.</div>
+<div class="page-sub">What happened in reports on disk — <strong>read-only</strong>. No broker when the page loads. Buttons are <em>approved safe actions</em> to regenerate files.</div>
 {% endblock %}
 
 {% block content %}
@@ -22,6 +22,17 @@
   </div>
 
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+    <div class="card">
+      <div class="card-title">Pre-Market Brief (latest file)</div>
+      <div class="card-sub text-small text-mono">
+        {% if premarket_brief %}
+          date: {{ premarket_brief.date_ny }} · tone: {{ premarket_brief.market_tone }}<br/>
+          providers: {{ premarket_brief.provider_status or {} }}
+        {% else %}
+          <span class="text-dim">— generate from Research page</span>
+        {% endif %}
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">Paper daily / weekly (13M)</div>
       <div class="card-sub text-small text-mono">

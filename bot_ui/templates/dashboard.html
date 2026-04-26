@@ -1,10 +1,51 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block subtitle %}
-<div class="page-sub">Command center — all data here is from local files or your last allowlisted command output. <strong>No IBKR connection on page load.</strong> Nothing runs until you press a button.</div>
+<div class="page-sub">Your day at a glance — everything here is from <strong>saved files</strong> or your last <em>approved safe action</em> (button). <strong>No broker connection when this page loads.</strong> Nothing runs until you click a button.</div>
 {% endblock %}
 
 {% block content %}
+  <div class="section">
+    <h2>Today’s safety &amp; readiness</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+      <div class="card">
+        <div class="card-title">1 · Is the engine safe today?</div>
+        <div class="card-value">{% if ux.safety_headline %}{{ ux.safety_headline }}{% else %}—{% endif %}</div>
+        <div class="card-sub text-small">{{ ux.safety_detail or '—' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">2 · Trade readiness (research view)</div>
+        <div class="card-value">{{ ux.trade_readiness_headline or '—' }}</div>
+        <div class="card-sub text-small">{{ ux.trade_readiness_detail or '—' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">3 · Today’s test budget (paper)</div>
+        <div class="card-sub text-small">
+          Per trade cap: {% if paper_sizing_ledger.get('max_notional_per_order_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('max_notional_per_order_usd', 0)) }}{% else %}—{% endif %} ·
+          Daily cap: {% if paper_sizing_ledger.get('max_daily_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('max_daily_notional_usd', 0)) }}{% else %}—{% endif %}<br/>
+          Used: {% if paper_sizing_ledger.get('today_submitted_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('today_submitted_notional_usd', 0)) }}{% else %}—{% endif %} ·
+          Remaining: <strong>{% if paper_sizing_ledger.get('daily_remaining_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('daily_remaining_notional_usd', 0)) }}{% else %}—{% endif %}</strong>
+        </div>
+        <div class="text-dim text-small">This is your <em>paper test budget</em> (notional), not a profit target.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">4 · Pre-market brief (latest file)</div>
+        {% if premarket_brief %}
+          <div class="text-small">Date: <strong>{{ premarket_brief.date_ny }}</strong> · tone: {{ premarket_brief.market_tone }}</div>
+          <div class="text-small mt-8">Top notes:</div>
+          <ul class="text-small">{% for h in (premarket_brief.headlines or [])[:3] %}<li>{{ h.title }}{% if h.symbol %} ({{ h.symbol }}){% endif %}</li>{% else %}<li class="text-dim">—</li>{% endfor %}</ul>
+          <div class="text-dim text-small">Email: {% if report_email.by_report and 'premarket_brief' in report_email.by_report %}{{ report_email.by_report['premarket_brief'].status }}{% else %}not sent yet{% endif %}</div>
+        {% else %}
+          <div class="text-dim text-small">No pre-market brief on disk yet. Use Research → <em>Generate Pre-Market Brief</em> or run <code>python -m bot.cli premarket-brief</code> (default ~08:30 NY in docs).</div>
+        {% endif %}
+      </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">5 · Next step</div>
+        <div class="card-value text-small">{{ ux.next_action or '—' }}</div>
+      </div>
+    </div>
+  </div>
+
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
     <div class="card">
       <div class="card-title">Account snapshot (file)</div>

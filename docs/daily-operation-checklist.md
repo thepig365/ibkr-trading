@@ -45,6 +45,11 @@
 - [ ] **启动 TWS / IB Gateway（纸面账户）**；确认端口、客户端 ID 与 `docs/ibkr-setup.md` 一致。  
 - [ ] 检查 **Kill Switch** 未误开：`data/KILL_SWITCH` 不应在常规日存在。  
 - [ ] （可选）运行诊断：`./scripts/strategy_lab_doctor.sh` 或加 `--check-ibkr` 仅检测端口。  
+- [ ] **（建议）美东 08:30 前后** 生成盘前简报：  
+  `python3 -m bot.cli premarket-brief --today`  
+  若已配置发信：  
+  `python3 -m bot.cli premarket-brief --today --email`（缺凭证会安全跳过；见用户手册 **§2.3**）  
+- [ ] 在 **Research** 或 **Dashboard** 看简报摘要/邮件状态；**新闻与简报不触发交易** — 仍需 ICT/SMC + 1 分钟触发。  
 
 ---
 

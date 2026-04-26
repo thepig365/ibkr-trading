@@ -356,6 +356,13 @@ class StrategyConfig(BaseModel):
     description: str = ""
 
 
+class PremarketBriefConfig(BaseModel):
+    """Pre-market human brief (read-only; never triggers trades)."""
+
+    target_ny_time: str = "08:30"
+    timezone: str = "America/New_York"
+
+
 class ReportsConfig(BaseModel):
     """Report delivery and local retention (Strategy Lab; never weakens live-trading safety)."""
 
@@ -389,6 +396,7 @@ class Settings(BaseModel):
     # whether the bot can trade.
     smc_timeframes: SmcTimeframesConfig = Field(default_factory=SmcTimeframesConfig)
     reports: ReportsConfig = Field(default_factory=ReportsConfig)
+    premarket_brief: PremarketBriefConfig = Field(default_factory=PremarketBriefConfig)
 
 
 class AppConfig(BaseModel):

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Research{% endblock %}
-{% block subtitle %}<div class="page-sub">RESEARCH-ONLY VIEW. This page reads files written by <code>python -m bot.cli research-report</code>. It never connects to TWS or imports the IBKR client. Buttons run safe, allowlisted CLI commands only.</div>{% endblock %}
+{% block subtitle %}<div class="page-sub"><strong>Research only</strong> — this page shows saved reports and news context. <strong>No broker when the page loads.</strong> Buttons run <em>approved safe actions</em> only. News and research text <strong>do not place trades</strong>.</div>{% endblock %}
 
 {% block content %}
   {% set inst = research.instruction or {} %}
@@ -64,8 +64,35 @@
   </div>
 
   <div class="section">
-    <h2>Run safe research commands</h2>
-    <p class="text-dim text-small">Each button POSTs to the allowlisted command runner. Forbidden tokens (place_order, --live, etc.) are rejected. <code>ibkr-news-fetch</code> is restricted to comma-separated UPPER tickers and a numeric limit between 1 and 200.</p>
+    <h2>Pre-Market Brief (US session context)</h2>
+    <p class="text-small">Designed to run about <strong>1 hour before the US open</strong> (e.g. <code>08:30 America/New_York</code> in your own scheduler). It combines the <strong>manual macro calendar</strong> with <strong>optional</strong> Finnhubs/FMP news API keys. <strong>Never places trades</strong> — for context and watchlist risk only. Trades still need ICT/SMC + 1m trigger.</p>
+    {% if premarket_brief %}
+      <div class="card" style="padding:10px; margin:10px 0;">
+        <div class="text-small">Latest: <strong>{{ premarket_brief.date_ny }}</strong> · generated {{ premarket_brief.generated_at_utc or '—' }} · <em>{{ premarket_brief.market_tone }}</em></div>
+        <div class="text-small mt-8"><strong>Headlines (sample):</strong></div>
+        <ul class="text-small">
+          {% for h in (premarket_brief.headlines or [])[:6] %}
+          <li>{{ h.title }}{% if h.symbol %} — {{ h.symbol }}{% endif %}</li>
+          {% else %}
+          <li class="text-dim">—</li>
+          {% endfor %}
+        </ul>
+        <div class="text-dim text-small">Providers: {% for k, v in (premarket_brief.provider_status or {}).items() %}{{ k }}={{ v }}{% if not loop.last %}; {% endif %}{% else %}n/a{% endfor %}</div>
+        <div class="text-dim text-small">Email last: {% if premarket_email.by_report and 'premarket_brief' in premarket_email.by_report %}{{ premarket_email.by_report['premarket_brief'].status }}{% if premarket_email.by_report['premarket_brief'].at_utc %} @ {{ premarket_email.by_report['premarket_brief'].at_utc[:19] }}Z{% endif %}{% else %}not sent yet{% endif %}</div>
+      </div>
+    {% else %}
+      <p class="text-dim text-small">No pre-market brief file yet — generate one below (creates <code>data/premarket_briefs/</code>, gitignored).</p>
+    {% endif %}
+    <div class="form-row flex-wrap" style="gap:6px;">
+      {% with command='premarket-brief', label='Generate Pre-Market Brief', return_to='/research', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='premarket-brief', args='--email', label='Email Pre-Market Brief', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='premarket-brief', args='--latest', label='Show latest Pre-Market JSON', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Approved research actions</h2>
+    <p class="text-dim text-small">Each button uses the <em>approved safe action</em> runner. Live trading and shell injection patterns are blocked. <code>ibkr-news-fetch</code> (if you add a form later) is restricted to tickers and limits.</p>
     <div>
       {% with command='research-report', label='Run Research Report', return_to='/research', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='research-report', args='--telegram', label='Send Telegram Summary', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}

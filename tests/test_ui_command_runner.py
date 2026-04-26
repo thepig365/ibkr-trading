@@ -131,6 +131,7 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "edge-profile-report": ("--latest",),
     "data-status": (),
     "data-cleanup": ("--dry-run",),
+    "premarket-brief": ("--latest",),
 }
 
 

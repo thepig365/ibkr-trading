@@ -9,8 +9,13 @@ the LocalCommandRunner allowlist.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+
+from bot.premarket.storage import find_latest_premarket_brief
+from bot.reports.report_email_status import load_report_email_status
 
 from ._helpers import base_context
 
@@ -20,12 +25,22 @@ router = APIRouter()
 @router.get("/research", response_class=HTMLResponse, name="research")
 def research(request: Request) -> HTMLResponse:
     state = request.app.state.state_store
+    root = request.app.state.project_root
     summary = state.get_research_summary()
+    pm = find_latest_premarket_brief(root)
+    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
+    pm_email = load_report_email_status(
+        root,
+        resend_key_present=resend_ok,
+        from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
+    )
     ctx = base_context(request, active="research")
     ctx.update(
         {
             "research": summary,
             "page_title": "Research Intelligence",
+            "premarket_brief": pm,
+            "premarket_email": pm_email,
         }
     )
     return request.app.state.templates.TemplateResponse(

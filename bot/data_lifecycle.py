@@ -47,6 +47,8 @@ def data_status(root: Path) -> DataStatusReport:
         "data/paper_orders",
         "data/runtime",
         "data/reports",
+        "data/premarket_briefs",
+        "data/news_cache",
         "data/debug_charts",
         "data/candles",
         "data/backtests",

@@ -1,8 +1,46 @@
 {% extends "base.html" %}
 {% block title %}Paper Trading{% endblock %}
-{% block subtitle %}<div class="page-sub">PAPER ACCOUNT ONLY. This page never places orders. It runs read-only checks and toggles runtime flags consumed by the auto-paper loop process.</div>{% endblock %}
+{% block subtitle %}<div class="page-sub"><strong>PAPER ONLY</strong> / paper account. See whether a <em>paper test</em> is allowed, your <strong>test budget</strong>, and the <strong>intraday paper switch</strong> — without placing orders. Toggles only affect local flag files read by a separate automatic run process.</div>{% endblock %}
 
 {% block content %}
+  <div class="grid">
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-title">Can I run a paper test now?</div>
+      <div class="card-value">
+        {% if paper_ux.can_paper_test == 'Yes' %}<span class="pill good">Yes</span>
+        {% elif paper_ux.can_paper_test == 'Not sure' %}<span class="pill warn">Not sure</span>
+        {% else %}<span class="pill bad">No</span>{% endif %}
+      </div>
+      <p class="card-sub text-small">{{ paper_ux.can_paper_test_detail }}</p>
+      {% if paper_ux.blockers %}
+      <ul class="text-small" style="margin:8px 0 0 1rem;">
+        {% for b in paper_ux.blockers[:6] %}<li>{{ b }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    <div class="card">
+      <div class="card-title">What the engine is allowed to risk (paper)</div>
+      <ul class="text-small card-sub" style="margin:0; padding-left:1.1rem;">
+        {% for x in paper_ux.risk_bullets %}<li>{{ x }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Latest paper test (most recent log row)</div>
+      {% if paper_ux.latest_sent_to_tws %}
+        <p class="text-small"><strong>Sent to TWS?</strong> {{ paper_ux.latest_sent_to_tws }}</p>
+        <p class="text-small"><strong>Stop/target protection</strong> · {{ paper_ux.latest_protection or '—' }}</p>
+        {% if paper_ux.latest_broker_error %}
+          <p class="text-small text-dim">Broker: {{ paper_ux.latest_broker_error }}</p>
+        {% endif %}
+        {% if paper_ux.latest_why_skipped %}
+          <p class="text-small">Why skipped: {{ paper_ux.latest_why_skipped }}</p>
+        {% endif %}
+      {% else %}
+        <p class="text-dim text-small">No paper-bracket rows in the journal yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="grid">
     <div class="card">
       <div class="card-title">Account (paper)</div>
@@ -30,7 +68,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Loop status</div>
+      <div class="card-title">Automatic paper run (MTF) status</div>
       {% if loop.is_empty %}
         <div class="card-value text-dim">—</div>
         <div class="card-sub">Loop has not run on this machine yet.</div>
@@ -59,7 +97,7 @@
           <button type="submit" class="btn warn">Resume (remove kill switch)</button>
         {% else %}
           <input type="hidden" name="enable" value="on" />
-          <button type="submit" class="btn danger">Engage kill switch</button>
+          <button type="submit" class="btn danger">Emergency stop (kill switch)</button>
         {% endif %}
       </form>
     </div>
@@ -148,18 +186,18 @@
       {% with command='write-paper-local-config', label='Write Local Paper Config', return_to='/paper', btn_class='warn', args='--write' %}
         {% include "_command_form.html" %}
       {% endwith %}
-      {% with command='intraday-paper-on', label='Intraday Paper ON', return_to='/paper', btn_class='' %}
+      {% with command='intraday-paper-on', label='Turn paper testing ON (intraday)', return_to='/paper', btn_class='' %}
         {% include "_command_form.html" %}
       {% endwith %}
-      {% with command='intraday-paper-off', label='Intraday Paper OFF', return_to='/paper', btn_class='ghost' %}
+      {% with command='intraday-paper-off', label='Turn paper testing OFF (intraday)', return_to='/paper', btn_class='ghost' %}
         {% include "_command_form.html" %}
       {% endwith %}
     </div>
     <div class="form-row mt-12" style="flex-wrap:wrap;">
-      {% with command='paper-readiness-check', label='Paper Readiness (scan+recon)', return_to='/paper', btn_class='', args='--intraday --probe-ibkr --scan --source dynamic --limit 20' %}
+      {% with command='paper-readiness-check', label='Check if paper test is allowed (readiness + scan + reconcile)', return_to='/paper', btn_class='', args='--intraday --probe-ibkr --scan --source dynamic --limit 20' %}
         {% include "_command_form.html" %}
       {% endwith %}
-      {% with command='first-paper-pass', label='First Paper Pass (one bracket pass)', return_to='/paper', btn_class='warn', args='--source dynamic --limit 20' %}
+      {% with command='first-paper-pass', label='Run one controlled paper test (one bracket pass)', return_to='/paper', btn_class='warn', args='--source dynamic --limit 20' %}
         {% include "_command_form.html" %}
       {% endwith %}
     </div>
@@ -197,10 +235,10 @@
             <th>Est $</th>
             <th>TIF</th>
             <th>minTick</th>
-            <th>to_bkr</th>
-            <th>ok</th>
-            <th>integ</th>
-            <th>prot</th>
+            <th>Sent to TWS</th>
+            <th>OK</th>
+            <th>Stop/target</th>
+            <th>Prot</th>
             <th>Order IDs</th>
             <th>Skip / broker</th>
           </tr>
@@ -218,9 +256,13 @@
             <td>{% if r.estimated_notional is not none %}${{ "{:,.0f}".format(r.estimated_notional) }}{% else %}—{% endif %}</td>
             <td>{% if r.order_tif %}<code>{{ r.order_tif }}</code>{% else %}—{% endif %}</td>
             <td class="text-dim">{% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} ({{ r.min_tick_source }}){% endif %}{% else %}—{% endif %}</td>
-            <td>{% if r.submitted_to_broker %}<span class="pill warn">Y</span>{% else %}<span class="pill neutral">N</span>{% endif %}</td>
-            <td>{% if r.submitted %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
-            <td>{{ r.bracket_integrity or '—' }}</td>
+            <td>{% if r.submitted_to_broker %}<span class="pill warn">Yes</span>{% else %}<span class="pill neutral">No</span>{% endif %}</td>
+            <td>{% if r.submitted %}<span class="pill good">Yes</span>{% else %}<span class="pill warn">No</span>{% endif %}</td>
+            <td>
+              {% if r.bracket_integrity == 'complete' %}<span class="text-small">Complete</span>
+              {% elif r.bracket_integrity == 'incomplete' %}<span class="text-small" style="color:var(--warn)">Incomplete</span>
+              {% else %}{{ r.bracket_integrity or '—' }}{% endif %}
+            </td>
             <td>{% if r.bracket_protected is none %}—{% elif r.bracket_protected %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
             <td class="text-mono">P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %}<br/>ids: {{ r.order_ids|join(',') }}{% endif %}</td>
             <td>
@@ -252,18 +294,17 @@
   </div>
 
   <div class="section">
-    <h2>ICT/SMC Intraday Paper Trading</h2>
+    <h2>ICT/SMC intraday paper testing</h2>
     <div class="text-small text-dim mb-12">
-      PAPER ONLY · Every order is a LIMIT bracket (entry + stop + target).
-      Live trading is hard-blocked at the broker layer.
+      Paper account only · every order is a <strong>limit bracket</strong> (entry + stop + target) · <strong>market orders disabled</strong> · not live.
     </div>
     <div class="grid">
       <div class="card">
-        <div class="card-title">Intraday auto (runtime)</div>
+        <div class="card-title">Intraday paper switch (runtime file)</div>
         <div class="card-value">
-          {% if runtime.intraday_auto_paper_explicit_off %}<span class="pill warn">EXPLICITLY OFF</span>
-          {% elif runtime.intraday_auto_paper_enabled %}<span class="pill good">ON</span>
-          {% else %}<span class="pill neutral">unset</span>{% endif %}
+          {% if runtime.intraday_auto_paper_explicit_off %}<span class="pill warn">Off (explicit)</span>
+          {% elif runtime.intraday_auto_paper_enabled %}<span class="pill good">On</span>
+          {% else %}<span class="pill neutral">Not set</span>{% endif %}
         </div>
         <div class="card-sub text-small">
           Canonical path: <code>{{ runtime.intraday_auto_paper_enabled_path or 'data/runtime/intraday_auto_paper_enabled' }}</code>
@@ -271,10 +312,10 @@
         <form action="{{ url_for('toggle_intraday_auto') }}" method="post" class="form-row mt-12">
           {% if runtime.intraday_auto_paper_enabled %}
             <input type="hidden" name="state" value="off" />
-            <button type="submit" class="btn warn">Disable Intraday Paper</button>
+            <button type="submit" class="btn warn">Turn paper testing OFF</button>
           {% else %}
             <input type="hidden" name="state" value="on" />
-            <button type="submit" class="btn">Enable Intraday Paper</button>
+            <button type="submit" class="btn">Turn paper testing ON</button>
           {% endif %}
         </form>
       </div>
@@ -312,7 +353,7 @@
             {% if paper_sizing_ledger.daily_notional_ledger_warning %}
               <span class="pill warn">ledger: {{ paper_sizing_ledger.daily_notional_ledger_warning }}</span>
             {% else %}
-              Ledger read OK (UTC day, <code>submitted_to_broker</code> rows).
+              Ledger read OK (UTC day, rows that reached TWS).
             {% endif %}
           </div>
         {% else %}
@@ -381,15 +422,15 @@
         {% endif %}
         {% if not intraday_paper_loop.is_empty and intraday_paper_loop.last_bracket_incomplete %}
           <div class="card-sub text-small mt-12" style="color: var(--warn, #c45);">
-            <strong>Bracket integrity</strong> · worst: <code>{{ intraday_paper_loop.last_worst_bracket_integrity or 'incomplete' }}</code>
-            — at least one leg was rejected or cancelled. Verify in TWS; see Journal for details.
+            <strong>Stop/target protection was incomplete on the last run</strong> (worst: <code>{{ intraday_paper_loop.last_worst_bracket_integrity or 'incomplete' }}</code>)
+            — a leg may have been rejected or cancelled. Verify in TWS; see Journal.
           </div>
         {% endif %}
       </div>
     </div>
 
     <div class="form-row mt-12">
-      {% with command='auto-paper-intraday-smc', label='Run One Intraday Paper Pass', return_to='/paper', btn_class='', args='--source dynamic --limit 20' %}
+      {% with command='auto-paper-intraday-smc', label='Run one automatic paper run (one intraday pass)', return_to='/paper', btn_class='', args='--source dynamic --limit 20' %}
         {% include "_command_form.html" %}
       {% endwith %}
       {% with command='intraday-paper-status', label='Intraday Paper Status', return_to='/paper', btn_class='ghost' %}

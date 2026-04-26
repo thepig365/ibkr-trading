@@ -6005,6 +6005,94 @@ def multi_strategy_scan_cmd(
     raise typer.Exit(code=0)
 
 
+@app.command("premarket-brief")
+def premarket_brief_cmd(
+    report_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="Trading day YYYY-MM-DD (US/Eastern calendar context).",
+    ),
+    today: bool = typer.Option(
+        False,
+        "--today",
+        help="Use today's calendar date in America/New_York (same as default when no --date).",
+    ),
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Print the most recent saved brief JSON on disk.",
+    ),
+    email: bool = typer.Option(
+        False,
+        "--email",
+        help="Send by email (Resend) if RESEND_API_KEY is set; never crashes if missing.",
+    ),
+    telegram: bool = typer.Option(
+        False,
+        "--telegram",
+        help="Reserved for future Telegram digest (v1: prints a note only).",
+    ),
+) -> None:
+    """Human pre-market brief: macro (manual YAML) + optional news APIs. Never trades."""
+    from datetime import date as date_cls
+    from datetime import datetime as dt_mod
+    from zoneinfo import ZoneInfo
+
+    from .premarket.brief import build_premarket_brief
+    from .premarket.storage import find_latest_premarket_brief
+
+    cfg, _journal = _bootstrap()
+    root = cfg.project_root
+
+    if latest:
+        j = find_latest_premarket_brief(root)
+        if not j:
+            console.print(
+                Panel.fit(
+                    "No pre-market brief JSON under data/premarket_briefs/ yet.",
+                    title="premarket-brief --latest",
+                )
+            )
+            raise typer.Exit(0)
+        p = j.get("date_ny", "")
+        console.print(
+            Panel.fit(
+                json.dumps(j, ensure_ascii=False, indent=2)[:12000],
+                title=f"premarket-brief latest ({p})",
+            )
+        )
+        raise typer.Exit(0)
+
+    ny = ZoneInfo("America/New_York")
+    if report_date:
+        day = date_cls.fromisoformat(report_date)
+    elif today:
+        day = dt_mod.now(ny).date()
+    else:
+        # Default: "today" in New York (avoids off-by-one vs UTC)
+        day = dt_mod.now(ny).date()
+
+    data = build_premarket_brief(
+        cfg, trading_day=day, email=email, email_to=cfg.settings.reports.email_to
+    )
+    if telegram:
+        console.print(
+            "[dim]telegram: optional digest not wired in this version — use research-report --telegram[/dim]"
+        )
+    lines = [
+        f"date_ny={data.date_ny}",
+        f"market_tone={data.market_tone}",
+        "",
+        "summary:",
+        *[f"  - {s}" for s in data.summary_lines],
+        "",
+        "providers:",
+        *[f"  {k}: {v}" for k, v in sorted(data.provider_status.items())],
+    ]
+    console.print(Panel.fit("\n".join(lines), title="premarket-brief"))
+    raise typer.Exit(0)
+
+
 # Backwards-compatible alias used by tests and shell scripts.
 send_telegram_message = send_telegram_message  # noqa: PLW0127 - explicit re-export
 

@@ -60,6 +60,8 @@ data/runtime/
 data/auto_paper_loop/
 # Prompt 13M: paper daily/weekly reports (file outputs; never commit)
 data/reports/
+data/premarket_briefs/
+data/news_cache/
 
 # Generated daily research / scan / chart / journal artifacts.
 # Source code creates them on demand; .gitkeep sentinels keep dirs in tree.
