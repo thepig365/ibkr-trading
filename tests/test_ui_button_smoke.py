@@ -76,7 +76,11 @@ def test_all_command_forms_use_allowlisted_commands() -> None:
         if path.name.startswith("_") and path.name != "_command_form.html":
             continue
         text = path.read_text(encoding="utf-8")
-        if "api_run_command" not in text and "/api/commands/run" not in text:
+        has_direct_api = (
+            "api_run_command" in text or "/api/commands/run" in text
+        )
+        uses_command_include = "_command_form.html" in text
+        if not has_direct_api and not uses_command_include:
             continue
         for m in _CMD_WITH_RE.finditer(text):
             cmd = m.group(1)
@@ -84,9 +88,35 @@ def test_all_command_forms_use_allowlisted_commands() -> None:
                 continue
             assert cmd in ALLOWED_COMMANDS, f"{path.name}: unknown command {cmd!r}"
             assert is_allowed(cmd), f"{path.name}: command not allowed {cmd!r}"
-        for m in _CMD_HIDDEN_RE.finditer(text):
-            cmd = m.group(1)
-            assert cmd in ALLOWED_COMMANDS, f"{path.name}: hidden unknown {cmd!r}"
+        if has_direct_api:
+            for m in _CMD_HIDDEN_RE.finditer(text):
+                cmd = m.group(1)
+                assert cmd in ALLOWED_COMMANDS, f"{path.name}: hidden unknown {cmd!r}"
+
+
+def test_healthz_paper_only(tmp_path: Path) -> None:
+    (tmp_path / "data").mkdir()
+    c = _client(tmp_path)
+    r = c.get("/healthz")
+    assert r.status_code == 200
+    j = r.json()
+    assert j.get("status") == "ok"
+    assert j.get("paper_only") is True
+
+
+def test_data_cleanup_command_form_is_dry_run_only() -> None:
+    """Prose in settings may document ``--apply`` for CLI; the form must POST --dry-run only."""
+    t = (REPO / "bot_ui" / "templates" / "settings.html").read_text(encoding="utf-8")
+    assert "command='data-cleanup'" in t
+    assert "args='--dry-run'" in t
+
+
+def test_journals_and_logs_pages_have_no_command_runner_forms() -> None:
+    for name in ("journal.html", "logs.html"):
+        text = (REPO / "bot_ui" / "templates" / name).read_text(encoding="utf-8")
+        assert "api_run_command" not in text
+        assert "/api/commands/run" not in text
+        assert "_command_form.html" not in text
 
 
 def test_run_auto_loop_not_allowlisted() -> None:

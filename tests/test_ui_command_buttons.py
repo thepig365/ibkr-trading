@@ -9,7 +9,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from bot_ui.app import create_app
-from bot_ui.services.command_queue import LocalCommandRunner
+from bot_ui.services.command_queue import (
+    CommandRequest,
+    LocalCommandRunner,
+    validate_request,
+)
 from bot_ui.services.state_store import LocalFileStateStore
 
 REPO = Path(__file__).resolve().parent.parent
@@ -100,30 +104,96 @@ def test_post_paper_activation_and_intraday_status(ui_client: TestClient) -> Non
         assert _last_result(ui_client).exit_code == 0
 
 
-def test_post_intraday_paper_on_off_validates(ui_client: TestClient) -> None:
+def test_intraday_paper_on_off_is_allowlisted_without_runtime_toggle_test() -> None:
+    """Do not POST on/off in smoke tests (filesystem side effects). Validate only."""
     for cmd in ("intraday-paper-on", "intraday-paper-off"):
+        ok, reason = validate_request(CommandRequest(command=cmd, args=()))
+        assert ok, reason
+
+
+def test_post_settings_data_status_and_cleanup_dry_run(ui_client: TestClient) -> None:
+    for cmd, args in (("data-status", ""), ("data-cleanup", "--dry-run")):
         r = ui_client.post(
             "/api/commands/run",
-            data={"command": cmd, "return_to": "/paper"},
+            data={
+                "command": cmd,
+                "args": args,
+                "return_to": "/settings",
+            },
             follow_redirects=True,
         )
-        assert r.status_code == 200
-        lr = _last_result(ui_client)
-        assert lr.accepted
-        assert lr.exit_code == 0
+        assert r.status_code == 200, (cmd, r.text[:200])
+        assert _last_result(ui_client).accepted
 
 
-def test_broker_readonly_commands_are_accepted(ui_client: TestClient) -> None:
-    """Validation passes; connection to TWS may still fail in CI."""
+def test_post_watchlist_build_watchlist(ui_client: TestClient) -> None:
+    r = ui_client.post(
+        "/api/commands/run",
+        data={
+            "command": "build-watchlist",
+            "args": "--limit 30",
+            "return_to": "/watchlist",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert _last_result(ui_client).accepted
+
+
+def test_post_strategies_strategy_list_json(ui_client: TestClient) -> None:
+    r = ui_client.post(
+        "/api/commands/run",
+        data={
+            "command": "strategy-list",
+            "args": "--json",
+            "return_to": "/strategies",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert _last_result(ui_client).accepted
+
+
+def test_multi_strategy_scan_is_allowlisted_for_strategies_page() -> None:
+    """Full multi-strategy-scan can take minutes; validate args only (matches Strategies button)."""
+    ok, err = validate_request(
+        CommandRequest(command="multi-strategy-scan", args=tuple())
+    )
+    assert ok, err
+
+
+def test_post_signals_scan_validates_same_args_as_quick_button() -> None:
+    ok, err = validate_request(
+        CommandRequest(
+            command="scan-intraday-smc-watchlist",
+            args=(
+                "--source",
+                "dynamic",
+                "--limit",
+                "10",
+                "--ibkr",
+            ),
+        )
+    )
+    assert ok, err
+
+
+def test_paper_readiness_check_validates_for_dashboard_button() -> None:
+    """Same args as Readiness on Dashboard; validate only (full run can probe/scan)."""
+    ok, err = validate_request(
+        CommandRequest(
+            command="paper-readiness-check",
+            args=("--intraday", "--source", "dynamic", "--limit", "20"),
+        )
+    )
+    assert ok, err
+
+
+def test_broker_readonly_commands_validate_for_ui_buttons() -> None:
+    """Allowlist/validator only — avoids blocking on TWS in CI (operators test from live UI)."""
     for cmd in ("ibkr-session-status", "open-orders", "portfolio", "paper-reconcile"):
-        r = ui_client.post(
-            "/api/commands/run",
-            data={"command": cmd, "return_to": "/settings"},
-            follow_redirects=True,
-        )
-        assert r.status_code == 200
-        lr = _last_result(ui_client)
-        assert lr.accepted, f"{cmd}: {lr.rejected_reason}"
+        ok, err = validate_request(CommandRequest(command=cmd, args=()))
+        assert ok, f"{cmd}: {err}"
 
 
 def test_forbidden_command_rejected_by_runner(ui_client: TestClient) -> None:
