@@ -60,11 +60,12 @@ The FastAPI UI is **read-only on startup** (no TWS connection). For a
 daily workflow, helper scripts, and smoke tests, see
 [`docs/strategy-lab-daily-workflow.md`](docs/strategy-lab-daily-workflow.md).
 
-**macOS:** double-click launchers in the repo root (see [`docs/mac-launchers.md`](docs/mac-launchers.md)) — e.g. **Start Strategy Lab.command** to start the UI and open the browser, without extra terminal commands.
+**macOS:** double-click **`Strategy Lab.command`** in the repo root (see [`docs/mac-launchers.md`](docs/mac-launchers.md)) — starts the UI if needed (via `healthz`), then opens **`/dashboard`**. Use **Stop Strategy Lab.command** to stop; **Strategy Lab Doctor.command** for diagnostics. **Start / Open Strategy Lab.command** remain for legacy compatibility.
 
 | Command | Purpose |
 |--------|---------|
-| `Start Strategy Lab.command` (macOS) | Runs `start_strategy_lab_ui.sh` + `open_strategy_lab_ui.sh` (paper-only, no TWS on start) |
+| `Strategy Lab.command` (macOS) | One-click: if UI up, open dashboard; else `start_strategy_lab_ui.sh` + wait for `healthz` + `open_strategy_lab_ui.sh` (paper-only, no TWS on start) |
+| `Start Strategy Lab.command` (macOS, optional) | Always runs `start` then `open` (does not skip duplicate start) |
 | `python3 -m bot_ui` | Open the UI (default `http://127.0.0.1:8765/`) |
 | `python3 -m bot.cli engine-status --json` | Full read-only lab snapshot (config + `data/*` + `ui_process`) |
 | `./scripts/start_strategy_lab_ui.sh` | Background UI + PID + logs (see `docs/strategy-lab-daily-workflow.md`) |
@@ -75,7 +76,7 @@ daily workflow, helper scripts, and smoke tests, see
 
 ```
 ibkr-trading-bot/
-├── *.command               # macOS double-click: Start/Stop/Open Strategy Lab, Doctor
+├── *.command               # macOS: Strategy Lab (main), Start/Stop/Open, Doctor
 ├── bot/                    # all runtime code
 │   ├── cli.py              # Typer entry point
 │   ├── config.py           # YAML + env loader

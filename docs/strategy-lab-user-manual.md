@@ -39,7 +39,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 1. （可选）启动 **TWS / IB Gateway** 纸面账户。  
 2. 需要与券商对账时：在 **Dashboard / Settings** 点 **Paper Reconcile**，或终端运行 `python3 -m bot.cli paper-reconcile`（见每日清单）。  
-3. 启动 **UI**：`python3 -m bot_ui` 或 `./scripts/start_strategy_lab_ui.sh`；macOS 可双击 `Start Strategy Lab.command`。  
+3. 启动 **UI**：`python3 -m bot_ui` 或 `./scripts/start_strategy_lab_ui.sh`；macOS **推荐** 双击 **`Strategy Lab.command`**（已运行则只开 Dashboard）。  
 4. 浏览器打开 `http://127.0.0.1:8765/`。  
 5. 按当日计划跑 **Research / Watchlist / 扫描 / 回测**，再在 **Paper** 区用**白名单按钮**触发 Worker。  
 6. 在 **Journal** 核对纸单与回测记录；在 **Reports** 生成/查看日周报告。  
@@ -53,7 +53,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 建议顺序（均为浏览器内**显式按钮**，页面加载**不会**连 IBKR）：
 
-1. 双击或用脚本**启动** Strategy Lab UI。  
+1. macOS **双击 `Strategy Lab.command`**（或脚本启动）进入 UI，并自动打开 **Dashboard**（若服务已在跑则不会重复启动）。  
 2. **Dashboard**：看 Engine health、TWS/IBKR 可稍后用按钮刷新；**不要** expect 页面一打开就已有券商状态。  
 3. **Research**：**Run Research Report** / Status / Macro 等。  
 4. **Watchlist**：**Build Watchlist**（需 IBKR 时选带 IBKR 的按钮）。  
@@ -74,6 +74,8 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 ---
 
 ## 4. 如何启动 UI
+
+**macOS（推荐）**：在仓库根目录**双击** **`Strategy Lab.command`** — 若本机 `http://127.0.0.1:8765/healthz` 已正常则**只**打开 **Dashboard**；否则先后台启动再打开。不连 IBKR。停止：双击 `Stop Strategy Lab.command`。说明见 `docs/mac-launchers.md`。
 
 **前台（调试用）**：
 
@@ -129,7 +131,7 @@ python3 -m bot.cli engine-status --json --probe-ui
 第一次把整条「研究 → 表 → 扫描 → 回测 → 纸面 → 日志」走通时，建议顺序如下（**纸账户；不下实盘单**）：
 
 1. 打开 **TWS / IB Gateway 纸面**（若你要 build-watchlist、扫描、对账、纸 pass 等需要连券商端口的步骤；仅看 UI 可跳过）。  
-2. **启动 UI**（推荐 macOS 双击 `Start Strategy Lab.command`，或 `./scripts/start_strategy_lab_ui.sh`）。  
+2. **启动 UI**（推荐 macOS 双击 **`Strategy Lab.command`**，或 `./scripts/start_strategy_lab_ui.sh`）。  
 3. 在 **Research** 用白名单运行 **Run Research Report**（或 `python3 -m bot.cli research-report`）。  
 4. 在终端或 **Watchlist** 相关流程跑 **Build Watchlist**（`build-watchlist --ibkr` 等，视配置而定）。  
 5. 在 **Signals** 侧跑 **Intraday Scan**（`scan-intraday-smc-watchlist`），确认 `data/intraday_smc/` 有最新汇总。  

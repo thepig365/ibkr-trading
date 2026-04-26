@@ -3,11 +3,11 @@
 > 按顺序执行；**不**包含实盘交易步骤。环境变量与密钥仍放在本机 `.env`（已 gitignore），勿提交。  
 > 与 `docs/strategy-lab-user-manual.md` 配合使用。
 
-**macOS 推荐首选：** 在仓库根目录**双击** `Start Strategy Lab.command` 启动并打开浏览器；收工可双击 `Stop Strategy Lab.command`。说明见 `docs/mac-launchers.md`。（终端下仍可用 `./scripts/start_strategy_lab_ui.sh` 等。）
+**macOS 推荐首选：** 在仓库根目录**双击** **`Strategy Lab.command`**（一键：若 UI 已在跑则只打开 Dashboard，否则启动后打开）；收工可双击 `Stop Strategy Lab.command`；诊断用 `Strategy Lab Doctor.command`。说明见 `docs/mac-launchers.md`。`Start Strategy Lab.command` / `Open Strategy Lab.command` 为可选旧版。（终端下仍可用 `./scripts/start_strategy_lab_ui.sh` 等。）
 
 ### 纯 UI 日流程（与 `docs/strategy-lab-user-manual.md` §3.1 一致）
 
-- [ ] 1. `Start Strategy Lab.command`（或 `start_strategy_lab_ui.sh`）  
+- [ ] 1. **`Strategy Lab.command`**（或 `start_strategy_lab_ui.sh`）  
 - [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算卡片  
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist** — 构建表  
@@ -58,7 +58,7 @@
 
 ## 启动 UI
 
-- [ ] **（macOS 主路径）** 仓库根目录双击 `Start Strategy Lab.command`（内部调用 `scripts/start_strategy_lab_ui.sh` 与 `open_strategy_lab_ui.sh`，本机、纸面、启动时不连 TWS。）  
+- [ ] **（macOS 主路径）** 仓库根目录双击 **`Strategy Lab.command`**（先检查 `healthz`，避免重复启动；再打开 `/dashboard`。不连 TWS。）  
 - [ ] 备选：终端中 `python3 -m bot_ui` **或** `./scripts/start_strategy_lab_ui.sh`，再 `http://127.0.0.1:8765/` 或 `./scripts/open_strategy_lab_ui.sh`  
 - [ ] 打开 **Dashboard** 看 badges（ACCOUNT: PAPER、BACKEND: LOCAL 等）。  
 

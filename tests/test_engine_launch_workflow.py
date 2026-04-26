@@ -52,6 +52,7 @@ SCRIPT_NAMES: tuple[str, ...] = (
 
 # macOS Finder double-click launchers (project root) — must delegate to scripts/ only.
 MAC_COMMANDS: tuple[str, ...] = (
+    "Strategy Lab.command",
     "Start Strategy Lab.command",
     "Stop Strategy Lab.command",
     "Open Strategy Lab.command",
@@ -109,6 +110,17 @@ def test_mac_command_launchers_exist_executable_delegate_no_secrets() -> None:
     assert "start_strategy_lab_ui" not in openf
     docf = (REPO_ROOT / "Strategy Lab Doctor.command").read_text(encoding="utf-8")
     assert "strategy_lab_doctor.sh" in docf
+    one = (REPO_ROOT / "Strategy Lab.command").read_text(encoding="utf-8")
+    assert "start_strategy_lab_ui.sh" in one
+    assert "open_strategy_lab_ui.sh" in one
+    assert 'dirname "$0"' in one
+    assert "healthz" in one
+    assert "first-paper-pass" not in one.lower()
+    assert "run-auto-paper-intraday-loop" not in one.lower()
+    assert "uvicorn" not in one.lower()
+    # Must not embed an absolute home path; repo root comes from this script's location.
+    assert "/Users/" not in one
+    assert "/home/" not in one
 
 
 def test_start_script_binds_loopback() -> None:
