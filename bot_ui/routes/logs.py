@@ -56,6 +56,9 @@ def logs_page(
         for p in files[:200]
     ]
 
+    paper_rep: dict[str, str | None] = {}
+    if hasattr(state, "latest_paper_report_links"):
+        paper_rep = state.latest_paper_report_links()  # type: ignore[assignment,union-attr]
     ctx = base_context(request, active="logs")
     ctx.update(
         {
@@ -65,6 +68,7 @@ def logs_page(
             "content": masked,
             "bytes_to_show": bytes_to_show,
             "error": error,
+            "paper_reports": paper_rep,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "logs.html", ctx)

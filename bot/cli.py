@@ -4357,6 +4357,182 @@ def engine_status_cmd(
     raise typer.Exit(run_engine_status_cli(as_json=as_json, probe_ui=probe_ui))
 
 
+@app.command("paper-daily-report")
+def paper_daily_report_cmd(
+    report_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="Report date YYYY-MM-DD (file-based; no IBKR).",
+    ),
+    today: bool = typer.Option(False, "--today", help="Use today's UTC date."),
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Pick the latest date from local paper-order / scan artifacts.",
+    ),
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help="Print only JSON to stdout (still writes files unless --no-save).",
+    ),
+    write_markdown: bool = typer.Option(
+        True,
+        "--markdown/--no-markdown",
+        help="Write companion .md (default on).",
+    ),
+    save: bool = typer.Option(True, "--save/--no-save", help="Write JSON/Markdown under output-dir."),
+    telegram: bool = typer.Option(
+        False,
+        "--telegram",
+        help="Send a short Chinese digest via Telegram if configured (no crash if missing).",
+    ),
+    output_dir: str = typer.Option(
+        "data/reports/paper",
+        "--output-dir",
+        help="Directory for report files (under project root).",
+    ),
+) -> None:
+    """File-based daily paper report. Does not connect to IBKR or place orders."""
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from .reports.paper_daily import build_daily_paper_report  # noqa: PLC0415
+    from .reports.render_markdown import (  # noqa: PLC0415
+        format_paper_daily_telegram_zh,
+        render_paper_daily_markdown,
+    )
+    from .reports.report_paths import (  # noqa: PLC0415
+        infer_latest_report_date,
+        utc_today_str,
+    )
+
+    cfg, _journal = _bootstrap()
+    root = _Path(cfg.project_root)
+    if latest:
+        d = infer_latest_report_date(root)
+    elif today:
+        d = utc_today_str()
+    elif report_date:
+        d = report_date.strip()[:10]
+    else:
+        d = utc_today_str()
+
+    payload = build_daily_paper_report(root, d)
+    md = render_paper_daily_markdown(payload)
+    out_abs = cfg.absolute(output_dir)
+    stem = f"{d}-paper-daily-report"
+    if save:
+        outd = _Path(out_abs)
+        outd.mkdir(parents=True, exist_ok=True)
+        jp = outd / f"{stem}.json"
+        jp.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n",
+            encoding="utf-8",
+        )
+        mp: _Path | None
+        if write_markdown:
+            mp = outd / f"{stem}.md"
+            mp.write_text(md, encoding="utf-8")
+        else:
+            mp = None
+        if not as_json:
+            lines = [f"json: {jp}", f"markdown: {mp or '(skipped)'}"]
+            console.print(Panel.fit("\n".join(lines), title="paper-daily-report", style="cyan"))
+    if telegram:
+        try:
+            send_telegram_message(
+                format_paper_daily_telegram_zh(payload),
+                cfg=cfg,
+                journal=None,
+            )
+        except (OSError, RuntimeError, ValueError, TypeError):
+            if not as_json:
+                console.print("[yellow]Telegram optional send failed or skipped.[/yellow]")
+    if as_json:
+        sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n")
+    elif not save:
+        console.print(Panel.fit(json.dumps(payload, indent=2, ensure_ascii=False, default=str), title="paper-daily-report"))
+    raise typer.Exit(0)
+
+
+@app.command("paper-weekly-report")
+def paper_weekly_report_cmd(
+    week_start: Optional[str] = typer.Option(
+        None, "--week-start", help="Week start YYYY-MM-DD (inclusive)."
+    ),
+    week_end: Optional[str] = typer.Option(
+        None, "--week-end", help="Week end YYYY-MM-DD (inclusive)."
+    ),
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Rolling last 7 UTC days ending today (no IBKR).",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Print only JSON to stdout."),
+    write_markdown: bool = typer.Option(
+        True,
+        "--markdown/--no-markdown",
+        help="Write companion .md (default on).",
+    ),
+    save: bool = typer.Option(True, "--save/--no-save"),
+    output_dir: str = typer.Option("data/reports/paper", "--output-dir"),
+) -> None:
+    """Aggregate daily file-based reports into a weekly summary. No IBKR."""
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from .reports.paper_weekly import build_weekly_latest, build_weekly_paper_report  # noqa: PLC0415
+    from .reports.render_markdown import render_paper_weekly_markdown  # noqa: PLC0415
+
+    cfg, _journal = _bootstrap()
+    root = _Path(cfg.project_root)
+    if latest:
+        payload = build_weekly_latest(root)
+    elif week_start and week_end:
+        payload = build_weekly_paper_report(root, week_start.strip()[:10], week_end.strip()[:10])
+    elif not week_start and not week_end:
+        payload = build_weekly_latest(root)
+    else:
+        console.print("[red]Provide both --week-start and --week-end, or use --latest.[/red]")
+        raise typer.Exit(2)
+
+    md = render_paper_weekly_markdown(payload)
+    ws = str(payload.get("week_start", ""))
+    we = str(payload.get("week_end", ""))
+    stem = f"{ws}_to_{we}-paper-weekly-report"
+    out_abs = cfg.absolute(output_dir)
+    if save:
+        outd = _Path(out_abs)
+        outd.mkdir(parents=True, exist_ok=True)
+        jp = outd / f"{stem}.json"
+        jp.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n",
+            encoding="utf-8",
+        )
+        mp2: _Path | None
+        if write_markdown:
+            mp2 = outd / f"{stem}.md"
+            mp2.write_text(md, encoding="utf-8")
+        else:
+            mp2 = None
+        if not as_json:
+            console.print(
+                Panel.fit(
+                    f"json: {jp}\nmarkdown: {mp2 or '(skipped)'}",
+                    title="paper-weekly-report",
+                    style="cyan",
+                )
+            )
+    if as_json:
+        sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n")
+    elif not save:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="paper-weekly-report",
+            )
+        )
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # Daily scheduler commands (Prompt 9 Part B)
 # ---------------------------------------------------------------------------

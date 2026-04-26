@@ -667,6 +667,37 @@ class LocalFileStateStore:
             self.project_root / INTRADAY_LOOP_STATE_RELPATH
         )
         self.paper_orders_dir = self.project_root / PAPER_ORDERS_DIRNAME
+        self.paper_reports_dir = self.data_dir / "reports" / "paper"
+
+    def latest_paper_report_links(self) -> dict[str, str | None]:
+        """Latest generated paper daily/weekly reports (Prompt 13M). No IBKR."""
+
+        def _rel(p: Path | None) -> str | None:
+            if p is None or not p.is_file():
+                return None
+            try:
+                return str(p.relative_to(self.project_root))
+            except ValueError:
+                return str(p)
+
+        d = self.paper_reports_dir
+        if not d.is_dir():
+            return {
+                "daily_json": None,
+                "daily_md": None,
+                "weekly_json": None,
+                "weekly_md": None,
+            }
+        dj = sorted(d.glob("*-paper-daily-report.json"))
+        dm = sorted(d.glob("*-paper-daily-report.md"))
+        wj = sorted(d.glob("*_to_*-paper-weekly-report.json"))
+        wm = sorted(d.glob("*_to_*-paper-weekly-report.md"))
+        return {
+            "daily_json": _rel(dj[-1] if dj else None),
+            "daily_md": _rel(dm[-1] if dm else None),
+            "weekly_json": _rel(wj[-1] if wj else None),
+            "weekly_md": _rel(wm[-1] if wm else None),
+        }
 
     # ------------------------------------------------------------------
     # Account / positions

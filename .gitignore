@@ -56,6 +56,8 @@ data/runtime/strategy_lab_ui.pid
 # Local Strategy Lab UI runtime / auto-paper loop state (machine-specific, never commit)
 data/runtime/
 data/auto_paper_loop/
+# Prompt 13M: paper daily/weekly reports (file outputs; never commit)
+data/reports/
 
 # Generated daily research / scan / chart / journal artifacts.
 # Source code creates them on demand; .gitkeep sentinels keep dirs in tree.
@@ -100,6 +102,8 @@ bot_ui/__pycache__/
 # Memory rolling files (do not leak personal trade / research data)
 memory/DAILY-SUMMARY.md
 memory/RESEARCH-REPORT.md
+memory/PAPER-DAILY-REPORT.md
+memory/PAPER-WEEKLY-REPORT.md
 memory/NEWS-REPORT.md
 memory/SMC-REVIEW-QUEUE.md
 

@@ -5,6 +5,15 @@
 {% block content %}
   {% if error %}<div class="flash fail">{{ error }}</div>{% endif %}
 
+  {% if paper_reports and (paper_reports.daily_md or paper_reports.weekly_md) %}
+  <div class="section text-small text-dim mb-12">
+    Latest paper reports:
+    {% if paper_reports.daily_md %}<span class="text-mono">{{ paper_reports.daily_md }}</span>{% endif %}
+    {% if paper_reports.weekly_md %} · <span class="text-mono">{{ paper_reports.weekly_md }}</span>{% endif %}
+    (open via <a href="{{ url_for('logs_page') }}?file={{ (paper_reports.daily_md or paper_reports.weekly_md)|urlencode }}">logs</a> with file=…)
+  </div>
+  {% endif %}
+
   <div class="layout" style="grid-template-columns: 320px 1fr; gap: 14px; min-height: 0;">
     <div class="section" style="padding: 12px;">
       <h2>Files</h2>

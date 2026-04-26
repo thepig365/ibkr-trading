@@ -14,6 +14,9 @@ router = APIRouter()
 def dashboard(request: Request) -> HTMLResponse:
     state = request.app.state.state_store
     ctx = base_context(request, active="dashboard")
+    paper_rep: dict[str, str | None] = {}
+    if hasattr(state, "latest_paper_report_links"):
+        paper_rep = state.latest_paper_report_links()  # type: ignore[assignment,union-attr]
     ctx.update(
         {
             "account": state.account_summary(),
@@ -22,6 +25,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "signals": state.signals(),
             "loop": state.loop_status(),
             "runtime": state.runtime_flags(),
+            "paper_reports": paper_rep,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)
