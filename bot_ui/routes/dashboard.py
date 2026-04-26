@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -10,6 +11,8 @@ from fastapi.responses import HTMLResponse
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
+from bot.reports.operational_hints import load_operational_hints
+from bot.reports.report_email_status import load_report_email_status
 
 from ._helpers import base_context
 
@@ -55,6 +58,13 @@ def dashboard(request: Request) -> HTMLResponse:
     except (OSError, TypeError, ValueError):
         paper_act = {}
 
+    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
+    report_from = (os.environ.get("REPORT_EMAIL_FROM") or "").strip()
+    op_hints = load_operational_hints(root)
+    report_email = load_report_email_status(
+        root, resend_key_present=resend_ok, from_addr=report_from
+    )
+
     ctx.update(
         {
             "account": state.account_summary(),
@@ -72,10 +82,16 @@ def dashboard(request: Request) -> HTMLResponse:
             "paper_sizing_ledger": ledger,
             "paper_activation": paper_act,
             "recent_command_results": recent,
+            "op_hints": op_hints,
+            "report_email": report_email,
+            "reports_config": cfg.settings.reports,
             "last_engine_stdout": _stdout_after(
                 recent, "engine-status", "strategy-lab-engine-status"
             ),
             "last_ibkr_stdout": _stdout_after(recent, "ibkr-session-status"),
+            "last_paper_reconcile_stdout": _stdout_after(
+                recent, "paper-reconcile"
+            ),
         }
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)

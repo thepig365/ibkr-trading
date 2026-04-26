@@ -13,6 +13,12 @@
       {% with command='edge-profile-report', args='--latest', label='Edge report (path)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='backtest-report', args='--latest', label='Backtest report (latest)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
     </div>
+    <p class="text-dim text-small mt-12">
+      Email defaults: <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code> ·
+      enabled: {{ reports_config.email_enabled }} ·
+      persistence: {{ reports_config.persistence_mode }} ·
+      local cache (h): {{ reports_config.keep_local_reports_hours }}
+    </p>
   </div>
 
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
@@ -22,6 +28,19 @@
         {% if paper_reports and paper_reports.daily_json %}<div>JSON: {{ paper_reports.daily_json }}</div>{% else %}<div class="text-dim">No daily JSON yet</div>{% endif %}
         {% if paper_reports and paper_reports.daily_md %}<div>MD: {{ paper_reports.daily_md }}</div>{% endif %}
         {% if paper_reports and paper_reports.weekly_json %}<div>Weekly JSON: {{ paper_reports.weekly_json }}</div>{% else %}<div class="text-dim">No weekly JSON yet</div>{% endif %}
+        {% if paper_reports and paper_reports.weekly_md %}<div>Weekly MD: {{ paper_reports.weekly_md }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Report email status</div>
+      <div class="card-sub text-small text-mono">
+        resend: {% if report_email.resend_configured %}<span class="pill good">key present</span>{% else %}<span class="pill warn">skipped_missing_credentials (no RESEND_API_KEY)</span>{% endif %}
+        · from: <code>{{ report_email.from_env or '—' }}</code><br/>
+        {% for k, info in (report_email.by_report or {}).items() %}
+          <div><strong>{{ k }}</strong> · {{ info.status }}{% if info.at_utc %} · {{ info.at_utc[:19] }}Z{% endif %}{% if info.to_addr %} → {{ info.to_addr }}{% endif %}{% if info.detail %}: {{ info.detail }}{% endif %}</div>
+        {% else %}
+        <span class="text-dim">No report emails logged yet. Run CLI with <code>--email</code> or enable <code>reports.email_enabled</code>.</span>
+        {% endfor %}
       </div>
     </div>
     <div class="card">
@@ -61,6 +80,17 @@
       <div class="card-title">Paper orders audit</div>
       <div class="card-sub text-small text-mono">
         {% if paper_audit_hint %}<code>{{ paper_audit_hint }}</code>{% else %}<span class="text-dim">—</span>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Data on disk (bytes)</div>
+      <div class="card-sub text-small text-mono">
+        {% for d in data_disk.dirs %}
+          <div>{{ d.relpath }}: {{ "{:,}".format(d.bytes) }} B ({{ d.file_count }} files)</div>
+        {% else %}
+        <span class="text-dim">—</span>
+        {% endfor %}
+        <div class="mt-8"><strong>Total</strong>: {{ "{:,}".format(data_disk.total_bytes) }} B</div>
       </div>
     </div>
   </div>

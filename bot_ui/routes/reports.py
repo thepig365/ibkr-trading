@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+
+from bot.config import load_config
+from bot.data_lifecycle import data_status
+from bot.reports.report_email_status import load_report_email_status
 
 from ._helpers import base_context
 
@@ -48,6 +54,16 @@ def reports_page(request: Request) -> HTMLResponse:
     ctx["scan_json_path"] = str(
         latest_glob_path(sdir, "*-watchlist-intraday-smc-summary.json") or ""
     )
+
+    cfg = load_config(project_root=root)
+    ctx["reports_config"] = cfg.settings.reports
+    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
+    ctx["report_email"] = load_report_email_status(
+        root,
+        resend_key_present=resend_ok,
+        from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
+    )
+    ctx["data_disk"] = data_status(root)
 
     ctx["paper_audit_hint"] = ""
     pod = root / "data" / "paper_orders"

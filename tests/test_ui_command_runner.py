@@ -129,6 +129,8 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
         "--strategy", "ict_smc_intraday_v1",
     ),
     "edge-profile-report": ("--latest",),
+    "data-status": (),
+    "data-cleanup": ("--dry-run",),
 }
 
 
@@ -186,6 +188,14 @@ def test_validate_request_accepts_safe_args() -> None:
         CommandRequest(command="build-watchlist", args=("--limit", "30"))
     )
     assert accepted is True, reason
+
+
+def test_data_cleanup_apply_rejected_from_ui_runner() -> None:
+    accepted, reason = validate_request(
+        CommandRequest(command="data-cleanup", args=("--apply",))
+    )
+    assert accepted is False
+    assert "apply" in reason.lower()
 
 
 # ---------------------------------------------------------------------------

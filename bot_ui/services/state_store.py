@@ -401,6 +401,15 @@ class IntradayPaperOrderRow:
     order_tif: str = ""
     estimated_notional: float | None = None
     sizing_summary: str = ""
+    # ICT / edge audit (optional; may be absent in older JSONL rows)
+    higher_timeframe_context_ok: bool = False
+    five_min_setup_found: bool = False
+    one_min_trigger_found: bool = False
+    edge_score: float | None = None
+    recommended_mode: str = ""
+    parent_entry_order_id: int | None = None
+    parent_sl_order_id: int | None = None
+    parent_tp_order_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -530,7 +539,9 @@ class StateStore(Protocol):
     def get_intraday_paper_loop_status(self) -> IntradayPaperLoopStatus: ...
     def get_first_paper_pass_snapshot(self) -> dict[str, Any]: ...
     def latest_paper_report_links(self) -> dict[str, str | None]: ...
-    def get_journal_view(self, *, limit: int = 200) -> JournalView: ...
+    def get_journal_view(
+        self, *, limit: int = 200, view_filter: str = "all", symbol: str = ""
+    ) -> JournalView: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
 
@@ -1449,7 +1460,9 @@ class LocalFileStateStore:
     # ------------------------------------------------------------------
     # Journal page (Prompt 13F PART E)
     # ------------------------------------------------------------------
-    def get_journal_view(self, *, limit: int = 200) -> JournalView:
+    def get_journal_view(
+        self, *, limit: int = 200, view_filter: str = "all", symbol: str = ""
+    ) -> JournalView:
         """Aggregate UI-friendly view of paper orders + backtest trades.
 
         * Reads every ``data/paper_orders/*-intraday-paper-orders.jsonl`` and
@@ -1482,6 +1495,22 @@ class LocalFileStateStore:
                 except OSError:
                     continue
         rows.sort(key=lambda r: r.timestamp, reverse=True)
+
+        sym_u = (symbol or "").strip().upper()
+        if sym_u:
+            rows = [r for r in rows if r.symbol.upper() == sym_u]
+        vf = (view_filter or "all").strip().lower()
+        if vf == "submitted":
+            rows = [r for r in rows if r.submitted or r.submitted_to_broker]
+        elif vf == "skipped":
+            rows = [r for r in rows if r.skipped_reasons]
+        elif vf == "incomplete":
+            rows = [
+                r
+                for r in rows
+                if (r.bracket_integrity and r.bracket_integrity != "complete")
+            ]
+
         if limit > 0:
             rows = rows[:int(limit)]
 
@@ -1859,6 +1888,25 @@ def _row_from_paper_order(
         bprot_t = None
     else:
         bprot_t = bool(bprot)
+    def _iid(x: object) -> int | None:
+        try:
+            if x is None:
+                return None
+            return int(x)
+        except (TypeError, ValueError):
+            return None
+
+    edge = obj.get("edge_audit") or obj.get("edge")
+    if isinstance(edge, dict):
+        es = _to_float(edge.get("edge_score"))
+        rm = str(edge.get("recommended_mode") or "")
+    else:
+        es, rm = (None, "")
+    if es is None:
+        es = _to_float(obj.get("edge_score"))
+    if not rm:
+        rm = str(obj.get("recommended_mode") or "")
+
     return IntradayPaperOrderRow(
         timestamp=str(obj.get("timestamp") or obj.get("ts") or ""),
         strategy_id=str(obj.get("strategy_id") or ""),
@@ -1895,6 +1943,17 @@ def _row_from_paper_order(
         order_tif=str(obj.get("tif") or obj.get("order_tif") or ""),
         estimated_notional=_to_float(obj.get("estimated_notional")),
         sizing_summary=_sizing_audit_brief(obj.get("sizing_audit")),
+        higher_timeframe_context_ok=bool(obj.get("higher_timeframe_context_ok", False)),
+        five_min_setup_found=bool(obj.get("five_min_setup_found", False)),
+        one_min_trigger_found=bool(obj.get("one_min_trigger_found", False)),
+        edge_score=es,
+        recommended_mode=rm,
+        parent_entry_order_id=_iid(
+            obj.get("parent_entry_order_id")
+            or obj.get("entry_order_id")
+        ),
+        parent_sl_order_id=_iid(obj.get("parent_sl_order_id") or obj.get("stop_order_id")),
+        parent_tp_order_id=_iid(obj.get("parent_tp_order_id") or obj.get("target_order_id")),
     )
 
 
@@ -1998,7 +2057,9 @@ class DatabaseStateStore:
     def latest_paper_report_links(self) -> dict[str, str | None]:  # pragma: no cover - stub
         raise self._not_yet()
 
-    def get_journal_view(self, *, limit: int = 200) -> JournalView:  # pragma: no cover - stub
+    def get_journal_view(  # pragma: no cover - stub
+        self, *, limit: int = 200, view_filter: str = "all", symbol: str = ""
+    ) -> JournalView:
         raise self._not_yet()
 
     def list_log_files(self) -> list[Path]:  # pragma: no cover - stub

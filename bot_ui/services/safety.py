@@ -75,6 +75,8 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "first-paper-pass": "One controlled pass: readiness then auto-paper-intraday-smc (no loop).",
     "paper-daily-report": "Generate data/reports/paper daily JSON+MD (file-based; no IBKR).",
     "paper-weekly-report": "Generate data/reports/paper weekly JSON+MD (file-based; no IBKR).",
+    "data-status": "Show disk usage for local data/ categories (read-only).",
+    "data-cleanup": "List or remove old ephemeral files; UI may only use --dry-run.",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -233,7 +235,7 @@ def validate_macro_calendar_args(args: tuple[str, ...]) -> tuple[bool, str]:
 
 # Optional flags accepted on research-report.
 _RESEARCH_REPORT_ALLOWED_FLAGS: frozenset[str] = frozenset(
-    {"--telegram", "--full", "--ibkr", "--no-ibkr"}
+    {"--telegram", "--full", "--ibkr", "--no-ibkr", "--email"}
 )
 
 
@@ -699,7 +701,7 @@ def validate_backtest_intraday_smc_watchlist_args(args: tuple[str, ...]) -> tupl
 
 
 _BACKTEST_REPORT_FLAGS_VALUE: frozenset[str] = frozenset({"--path"})
-_BACKTEST_REPORT_FLAGS_BOOL: frozenset[str] = frozenset({"--latest"})
+_BACKTEST_REPORT_FLAGS_BOOL: frozenset[str] = frozenset({"--latest", "--email"})
 
 
 def validate_backtest_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
@@ -1050,7 +1052,7 @@ def validate_paper_daily_report_args(args: tuple[str, ...]) -> tuple[bool, str]:
                 )
             i += 2
             continue
-        if a == "--markdown" or a == "--telegram":
+        if a == "--markdown" or a == "--telegram" or a == "--email":
             i += 1
             continue
         return False, f"paper-daily-report: unexpected token {a!r}."
@@ -1072,7 +1074,7 @@ def validate_paper_weekly_report_args(args: tuple[str, ...]) -> tuple[bool, str]
     seen_start = seen_end = seen_latest = False
     while i < len(args):
         a = args[i]
-        if a in {"--no-markdown", "--no-save"}:
+        if a in {"--no-markdown", "--no-save", "--email"}:
             i += 1
             continue
         if a == "--latest":
@@ -1304,4 +1306,33 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_paper_readiness_check_args(args)
     if command == "first-paper-pass":
         return validate_first_paper_pass_args(args)
+    if command == "data-status":
+        return validate_data_status_args(args)
+    if command == "data-cleanup":
+        return validate_data_cleanup_args(args)
     return True, ""
+
+
+def validate_data_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("data-status", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
+    if args == ("--json",):
+        return True, ""
+    return False, "data-status: only optional --json"
+
+
+def validate_data_cleanup_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("data-cleanup", args)
+    if not ok:
+        return ok, err
+    if args in ((), ("--dry-run",)):
+        return True, ""
+    if args == ("--apply",):
+        return (
+            False,
+            "data-cleanup: --apply is CLI-only; use --dry-run from the UI.",
+        )
+    return False, "data-cleanup: use --dry-run from the UI (or CLI --apply)."

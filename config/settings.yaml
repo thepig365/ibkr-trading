@@ -158,3 +158,12 @@ market_regime:
   require_vix_for_execution: true
   require_spy_200ma_for_execution: true
   require_qqq_200ma_for_execution: false
+
+# Strategy Lab: report email + ephemeral local copy (13DATA-UI).
+# Secrets use env only: RESEND_API_KEY, REPORT_EMAIL_FROM, REPORT_EMAIL_TO
+reports:
+  email_to: "ileonzh@gmail.com"
+  email_enabled: true
+  persistence_mode: "ephemeral"
+  keep_local_reports_hours: 24
+  keep_charts_days: 7

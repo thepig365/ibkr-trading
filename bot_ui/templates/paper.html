@@ -163,6 +163,77 @@
         {% include "_command_form.html" %}
       {% endwith %}
     </div>
+    {% if first_paper_last_snapshot %}
+    {% set fpp = first_paper_last_snapshot %}
+    {% set fex = fpp.get('execution') or {} %}
+    <div class="mt-12 card" style="padding:12px;">
+      <div class="card-title">Latest first-paper-pass (runtime JSON)</div>
+      <div class="text-small text-mono">
+        <div>result: <strong>{{ fpp.get('result', '—') }}</strong> · finished: {{ fpp.get('finished_at_utc', fpp.get('timestamp', '—')) }}</div>
+        <div>submitted_to_broker: {{ fex.get('submitted_to_broker', fpp.get('submitted_to_broker', '—')) }} · submitted: {{ fex.get('submitted', fpp.get('submitted', '—')) }} · bracket_integrity: {{ fex.get('bracket_integrity', fpp.get('bracket_integrity', '—')) }} · bracket_protected: {{ fex.get('bracket_protected', fpp.get('bracket_protected', '—')) }}</div>
+        <div>broker_error_codes: {{ fex.get('broker_error_codes', fpp.get('broker_error_codes', [])) }} · skipped_reasons: {{ fex.get('skipped_reasons', fpp.get('skipped_reasons', [])) }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Latest paper bracket rows (JSONL, newest)</h2>
+    <p class="text-dim text-small">Same data as <a href="{{ url_for('journal_page') }}">Journal</a>, most recent 30. Read-only; no TWS on load.</p>
+    {% if not latest_paper_orders %}
+      <div class="text-dim text-small">No paper order audit rows yet.</div>
+    {% else %}
+    <div class="table-scroll">
+      <table class="data-table text-small">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th>Sym</th>
+            <th>Dir</th>
+            <th>Qty</th>
+            <th>Entry</th>
+            <th>SL</th>
+            <th>TP</th>
+            <th>Est $</th>
+            <th>TIF</th>
+            <th>minTick</th>
+            <th>to_bkr</th>
+            <th>ok</th>
+            <th>integ</th>
+            <th>prot</th>
+            <th>Order IDs</th>
+            <th>Skip / broker</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in latest_paper_orders %}
+          <tr>
+            <td><code>{{ r.timestamp[:19] }}Z</code></td>
+            <td><strong>{{ r.symbol }}</strong></td>
+            <td>{{ r.direction or '—' }}</td>
+            <td>{% if r.quantity is not none %}{{ (r.quantity|int) }}{% else %}—{% endif %}</td>
+            <td>{% if r.entry is not none %}{{ "%.2f"|format(r.entry) }}{% else %}—{% endif %}</td>
+            <td>{% if r.stop is not none %}{{ "%.2f"|format(r.stop) }}{% else %}—{% endif %}</td>
+            <td>{% if r.target is not none %}{{ "%.2f"|format(r.target) }}{% else %}—{% endif %}</td>
+            <td>{% if r.estimated_notional is not none %}${{ "{:,.0f}".format(r.estimated_notional) }}{% else %}—{% endif %}</td>
+            <td>{% if r.order_tif %}<code>{{ r.order_tif }}</code>{% else %}—{% endif %}</td>
+            <td class="text-dim">{% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} ({{ r.min_tick_source }}){% endif %}{% else %}—{% endif %}</td>
+            <td>{% if r.submitted_to_broker %}<span class="pill warn">Y</span>{% else %}<span class="pill neutral">N</span>{% endif %}</td>
+            <td>{% if r.submitted %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
+            <td>{{ r.bracket_integrity or '—' }}</td>
+            <td>{% if r.bracket_protected is none %}—{% elif r.bracket_protected %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
+            <td class="text-mono">P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %}<br/>ids: {{ r.order_ids|join(',') }}{% endif %}</td>
+            <td>
+              {% if r.skipped_reasons %}{% for x in r.skipped_reasons %}<span class="pill warn">{{ x }}</span> {% endfor %}{% endif %}
+              {% if r.broker_error_codes %}[{{ r.broker_error_codes|join(',') }}]{% endif %}
+              {% if r.broker_errors %}{% for m in r.broker_errors %}{{ m }} {% endfor %}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
 
   <div class="section">

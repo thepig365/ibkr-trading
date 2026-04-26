@@ -41,6 +41,12 @@ def test_journal_renders_paper_row_with_bracket_and_sizing(tmp_path: Path) -> No
         "submitted": False,
         "submitted_to_broker": False,
         "bracket_integrity": "incomplete",
+        "bracket_protected": True,
+        "higher_timeframe_context_ok": True,
+        "five_min_setup_found": True,
+        "one_min_trigger_found": False,
+        "edge_audit": {"edge_score": 55.0, "recommended_mode": "strict"},
+        "parent_entry_order_id": 1001,
         "entry": 100.0,
         "stop": 99.0,
         "target": 102.0,
@@ -63,6 +69,12 @@ def test_journal_renders_paper_row_with_bracket_and_sizing(tmp_path: Path) -> No
     assert "incomplete" in t
     assert "minTick" in t or "0.01" in t
     assert "Est. notional" in t or "500" in t
+    assert "55" in t or "strict" in t
+    assert "1001" in t or "Prot" in t
+
+    r2 = _client(tmp_path).get("/journal?filter=incomplete&symbol=NVDA")
+    assert r2.status_code == 200
+    assert "NVDA" in r2.text
 
 
 def test_log_mask_strips_telegram_token_like_strings() -> None:

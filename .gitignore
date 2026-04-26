@@ -23,6 +23,7 @@ dist/
 .coverage.*
 htmlcov/
 .tox/
+archive/
 
 # Virtual envs
 .venv/

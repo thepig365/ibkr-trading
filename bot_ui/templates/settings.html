@@ -72,6 +72,29 @@
   </div>
 
   <div class="section">
+    <h2>Data &amp; email (read-only + safe CLI)</h2>
+    <p class="text-dim text-small">Report recipient (config): <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code> ·
+      email UI flag: {{ reports_config.email_enabled }} ·
+      last email: {% if report_email.by_report %}{% for k, info in report_email.by_report.items() %}{{ k }}={{ info.status }}{% if not loop.last %}; {% endif %}{% endfor %}{% else %}<span class="text-dim">none logged</span>{% endif %}
+    </p>
+    <div class="form-row flex-wrap" style="gap:6px; margin-bottom:12px;">
+      {% with command='data-status', label='Data Status', return_to='/settings', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='data-cleanup', args='--dry-run', label='Cleanup dry-run', return_to='/settings', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+    <p class="text-small text-dim">Apply cleanup is <strong>CLI only</strong> (<code>python -m bot.cli data-cleanup --apply</code>); the UI will not run destructive cleanup.</p>
+    <h3 class="text-small">Disk snapshot (on page load)</h3>
+    <table class="data-table text-small">
+      <thead><tr><th>Path</th><th>Bytes</th><th>Files</th></tr></thead>
+      <tbody>
+        {% for d in data_disk.dirs %}
+        <tr><td class="text-mono">{{ d.relpath }}</td><td>{{ "{:,}".format(d.bytes) }}</td><td>{{ d.file_count }}</td></tr>
+        {% endfor %}
+        <tr><th>Total</th><th colspan="2">{{ "{:,}".format(data_disk.total_bytes) }}</th></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
     <h2>Operator documentation (local)</h2>
     <p class="text-small">Chinese PDF-style guides — open in your editor (paths relative to project root <span class="text-mono">{{ project_root_short }}</span>):</p>
     <ul class="text-small">

@@ -33,6 +33,18 @@
 
   <div class="section">
     <h2>Paper bracket submissions</h2>
+    <div class="form-row flex-wrap" style="gap:8px; align-items:center; margin-bottom:12px;">
+      <span class="text-small text-dim">View:</span>
+      <a class="text-small {% if journal_filter == 'all' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=all">all</a>
+      <a class="text-small {% if journal_filter == 'submitted' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=submitted">submitted</a>
+      <a class="text-small {% if journal_filter == 'skipped' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=skipped">skipped</a>
+      <a class="text-small {% if journal_filter == 'incomplete' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=incomplete">incomplete</a>
+      <form method="get" class="form-row" style="gap:4px; margin:0; align-items:center;">
+        <input type="hidden" name="filter" value="{{ journal_filter or 'all' }}"/>
+        <input name="symbol" value="{{ journal_symbol or '' }}" placeholder="e.g. NVDA" class="text-mono" style="max-width:100px;"/>
+        <button type="submit" class="btn ghost" style="padding:4px 8px;">By symbol</button>
+      </form>
+    </div>
     {% if not j.paper_orders %}
       <div class="card-sub text-small text-dim">
         Empty. After enabling intraday paper trading and running
@@ -60,8 +72,11 @@
               <th>Qty</th>
               <th>Sizing</th>
               <th>Integrity</th>
+              <th>Prot</th>
               <th>Status</th>
-              <th>Order IDs</th>
+              <th>Order / parent IDs</th>
+              <th>ICT</th>
+              <th>Edge</th>
               <th>Reason / Skipped / Broker</th>
               <th>Charts</th>
             </tr>
@@ -100,12 +115,15 @@
                   {% elif r.bracket_integrity %}<span class="pill neutral">{{ r.bracket_integrity }}</span>
                   {% else %}—{% endif %}
                 </td>
+                <td>{% if r.bracket_protected is none %}—{% elif r.bracket_protected %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
                 <td>
                   {% if r.submitted %}<span class="pill good">submitted (complete)</span>
                   {% elif r.submitted_to_broker %}<span class="pill warn">reached TWS, incomplete</span>
                   {% else %}<span class="pill warn">skipped / not to broker</span>{% endif %}
                 </td>
-                <td>{% if r.order_ids %}{{ r.order_ids|join(', ') }}{% else %}—{% endif %}</td>
+                <td class="text-mono text-small">P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %}<br/>{{ r.order_ids|join(', ') }}{% endif %}</td>
+                <td class="text-small text-mono">H{% if r.higher_timeframe_context_ok %}✓{% else %}·{% endif %} 5m{% if r.five_min_setup_found %}✓{% else %}·{% endif %} 1m{% if r.one_min_trigger_found %}✓{% else %}·{% endif %}</td>
+                <td class="text-small">{% if r.edge_score is not none %}{{ "%.0f"|format(r.edge_score) }}{% else %}—{% endif %}{% if r.recommended_mode %} · <span class="text-dim">{{ r.recommended_mode }}</span>{% endif %}</td>
                 <td class="text-small">
                   {% if r.skipped_reasons %}
                     {% for reason in r.skipped_reasons %}<span class="pill warn">{{ reason }}</span> {% endfor %}

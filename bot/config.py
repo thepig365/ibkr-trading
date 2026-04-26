@@ -356,6 +356,26 @@ class StrategyConfig(BaseModel):
     description: str = ""
 
 
+class ReportsConfig(BaseModel):
+    """Report delivery and local retention (Strategy Lab; never weakens live-trading safety)."""
+
+    email_to: str = "ileonzh@gmail.com"
+    email_enabled: bool = True
+    persistence_mode: str = "ephemeral"  # ephemeral | keep_local
+    keep_local_reports_hours: int = 24
+    keep_charts_days: int = 7
+
+    @field_validator("persistence_mode")
+    @classmethod
+    def _mode_ok(cls, v: str) -> str:
+        s = (v or "ephemeral").strip().lower()
+        if s not in {"ephemeral", "keep_local"}:
+            raise ValueError("reports.persistence_mode must be ephemeral|keep_local")
+        return s
+
+    model_config = {"extra": "ignore"}
+
+
 class Settings(BaseModel):
     account: AccountConfig = Field(default_factory=AccountConfig)
     trading: TradingConfig = Field(default_factory=TradingConfig)
@@ -368,6 +388,7 @@ class Settings(BaseModel):
     # Research-only; these control how candles are fetched, never
     # whether the bot can trade.
     smc_timeframes: SmcTimeframesConfig = Field(default_factory=SmcTimeframesConfig)
+    reports: ReportsConfig = Field(default_factory=ReportsConfig)
 
 
 class AppConfig(BaseModel):

@@ -22,6 +22,62 @@
   </div>
 
   <div class="section">
+    <h2>Operational snapshot</h2>
+    <p class="text-dim text-small">From <code>data/runtime/operational_hints.json</code> (refreshed by Open Orders / Paper Reconcile) and last report email outcome. No IBKR on load.</p>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card">
+        <div class="card-title">Account &amp; orders (hints)</div>
+        <div class="card-sub text-small text-mono">
+          mode: <strong>{{ op_hints.account_mode or 'paper' }}</strong> ·
+          open orders: <strong>{% if op_hints.open_orders_n is not none %}{{ op_hints.open_orders_n }}{% else %}—{% endif %}</strong><br/>
+          reconcile: {% if op_hints.reconcile_pass is not none %}{% if op_hints.reconcile_pass %}<span class="pill good">pass</span>{% else %}<span class="pill warn">issues</span>{% endif %}{% else %}<span class="text-dim">—</span>{% endif %}
+          · hints at: {{ op_hints.updated_utc[:19] if op_hints.updated_utc else '—' }}Z<br/>
+          {{ op_hints.note or '' }}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Daily notional (ledger)</div>
+        <div class="card-sub text-small text-mono">
+          used: {{ paper_sizing_ledger.get('today_submitted_notional_usd', '—') }} ·
+          remaining: {{ paper_sizing_ledger.get('daily_remaining_notional_usd', '—') }}<br/>
+          cap: {{ paper_sizing_ledger.get('max_daily_notional_usd', '—') }}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Intraday scan (latest file)</div>
+        {% if intraday and not intraday.is_empty %}
+          <div class="card-sub text-small">scanned: {{ intraday.symbols_scanned or '—' }} ·
+            {% for k, v in (intraday.counts or {}).items() %}
+              <span class="pill neutral text-small">{{ k }}: {{ v }}</span>
+            {% else %}<span class="text-dim">no counts</span>{% endfor %}
+          </div>
+        {% else %}
+          <div class="text-dim text-small">No scan summary</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Report email (last run)</div>
+        <div class="card-sub text-small text-mono">
+          default to: <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code><br/>
+          resend key: {% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">missing</span>{% endif %}
+          · from env: <code>{{ report_email.from_env or '—' }}</code><br/>
+          {% for k, info in (report_email.by_report or {}).items() %}
+            <div><strong>{{ k }}</strong>: {{ info.status }}{% if info.at_utc %} @ {{ info.at_utc[:19] }}Z{% endif %}{% if info.to_addr %} → {{ info.to_addr }}{% endif %}</div>
+          {% else %}
+            <span class="text-dim">No emailed reports recorded yet (run a report with --email).</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% if last_paper_reconcile_stdout %}
+    <div class="mt-12">
+      <div class="card-title">Last paper-reconcile (stdout head)</div>
+      <pre class="code text-small" style="max-height: 120px; overflow: auto;">{{ last_paper_reconcile_stdout[:2000] }}</pre>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Run safe commands (allowlisted only)</h2>
     <p class="text-dim text-small">Submits to <code>python -m bot.cli &lt;name&gt;</code> via the local runner. TWS/IBKR only when you click a broker-status command below.</p>
     <div class="form-row flex-wrap" style="gap:6px; align-items: center;">

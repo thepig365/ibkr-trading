@@ -393,6 +393,14 @@ def open_orders() -> None:
 
     if not orders:
         console.print("[green]No open orders.[/green]")
+        try:
+            from .reports.operational_hints import (  # noqa: PLC0415
+                write_open_orders_count,
+            )
+
+            write_open_orders_count(cfg.project_root, 0)
+        except (OSError, TypeError, ValueError):
+            pass
         return
 
     t = Table(title="Open orders")
@@ -413,6 +421,14 @@ def open_orders() -> None:
         )
         journal.record_open_order(o.to_dict(), source="cli.open-orders")
     console.print(t)
+    try:
+        from .reports.operational_hints import (  # noqa: PLC0415
+            write_open_orders_count,
+        )
+
+        write_open_orders_count(cfg.project_root, len(orders))
+    except (OSError, TypeError, ValueError):
+        pass
 
 
 def _reconcile_failure_body(report: ReconciliationReport) -> str:
@@ -458,6 +474,15 @@ def reconcile_(
             style=style,
         )
     )
+
+    try:
+        from .reports.operational_hints import (  # noqa: PLC0415
+            write_reconcile_status,
+        )
+
+        write_reconcile_status(cfg.project_root, bool(report.passed))
+    except (OSError, TypeError, ValueError):
+        pass
 
     if not report.passed:
         # Failures are always surfaced, regardless of --notify.
@@ -3239,6 +3264,11 @@ def backtest_report_cmd(
         None, "--path",
         help="Print a specific summary JSON path instead of the latest.",
     ),
+    email: bool = typer.Option(
+        False,
+        "--email",
+        help="Send metrics summary by email (Resend) if configured.",
+    ),
 ) -> None:
     """Print a saved backtest summary (read-only, never connects to IBKR)."""
     from .backtests import REPORT_DIRNAME
@@ -3319,6 +3349,40 @@ def backtest_report_cmd(
         console.print(st)
 
     console.print(f"[green]Source:[/green] {target}")
+    if email:
+        try:
+            from .reports.report_email import send_report_email  # noqa: PLC0415
+            from .reports.report_email_status import (  # noqa: PLC0415
+                record_email_outcome,
+            )
+
+            subj = f"[Strategy Lab] Backtest {target.name}"
+            mlines = [
+                f"total_signals: {metrics.get('total_signals')}",
+                f"win_rate: {metrics.get('win_rate')}",
+                f"total_r: {metrics.get('total_r')}",
+                f"max_dd_r: {metrics.get('max_drawdown_r')}",
+                f"pf: {metrics.get('profit_factor')}",
+            ]
+            btxt = "Strategy Lab — Backtest summary\n" + "\n".join(
+                mlines
+            ) + f"\nfile: {target}"
+            ob = send_report_email(
+                to_cfg=cfg.settings.reports.email_to,
+                subject=subj[:200],
+                text_body=btxt[:20_000],
+            )
+            record_email_outcome(
+                cfg.project_root,
+                "backtest",
+                status=ob.status,
+                to_addr=cfg.settings.reports.email_to,
+                report_key=target.stem,
+                detail=ob.detail,
+            )
+            console.print(f"[cyan]email:[/cyan] {ob.status}")
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            console.print(f"[yellow]email error (non-fatal): {exc}[/yellow]")
     raise typer.Exit(0)
 
 
@@ -4357,6 +4421,78 @@ def engine_status_cmd(
     raise typer.Exit(run_engine_status_cli(as_json=as_json, probe_ui=probe_ui))
 
 
+@app.command("data-status")
+def data_status_cmd(
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit JSON sizes on stdout.",
+    ),
+) -> None:
+    """Show disk usage for local data/ categories (read-only, no deletions)."""
+    from .data_lifecycle import data_status  # noqa: PLC0415
+
+    cfg, _j = _bootstrap()
+    st = data_status(cfg.project_root)
+    if as_json:
+        d = {
+            "project_root": st.project_root,
+            "total_bytes": st.total_bytes,
+            "dirs": [
+                {"path": s.relpath, "bytes": s.bytes, "file_count": s.file_count}
+                for s in st.dirs
+            ],
+        }
+        print(json.dumps(d, ensure_ascii=False, indent=2))
+    else:
+        t = Table(title="data/ sizes (read-only)", show_lines=True)
+        t.add_column("path")
+        t.add_column("bytes", justify="right")
+        t.add_column("files", justify="right")
+        for s in st.dirs:
+            t.add_row(s.relpath, str(s.bytes), str(s.file_count))
+        t.add_row("— total —", str(st.total_bytes), "")
+        console.print(t)
+    raise typer.Exit(0)
+
+
+@app.command("data-cleanup")
+def data_cleanup_cmd(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Delete eligible files. Without this flag, dry-run only.",
+    ),
+    dry_run: bool = typer.Option(
+        True,
+        "--dry-run",
+        help="List files that would be removed (default).",
+    ),
+) -> None:
+    """Remove old ephemeral report/chart/log files. Never touches audit or runtime/."""
+    from .data_lifecycle import data_cleanup  # noqa: PLC0415
+
+    cfg, _j = _bootstrap()
+    do_apply = bool(apply)
+    if dry_run and not apply:
+        do_apply = False
+    res = data_cleanup(cfg.project_root, apply=do_apply)
+    lines = res.would_delete if not do_apply else res.deleted
+    body = "\n".join(lines[:200]) if lines else "(nothing eligible)"
+    console.print(
+        Panel.fit(
+            body,
+            title="data-cleanup (dry-run)" if not do_apply else "data-cleanup (apply)",
+        )
+    )
+    if res.skipped_protected:
+        console.print(
+            f"[dim]skipped_protected: {len(res.skipped_protected)} paths[/dim]"
+        )
+    console.print(res.message)
+    raise typer.Exit(0)
+
+
 @app.command("paper-daily-report")
 def paper_daily_report_cmd(
     report_date: Optional[str] = typer.Option(
@@ -4391,6 +4527,11 @@ def paper_daily_report_cmd(
         "--output-dir",
         help="Directory for report files (under project root).",
     ),
+    email: bool = typer.Option(
+        False,
+        "--email",
+        help="Send summary via Resend if RESEND_API_KEY is set (no crash if missing).",
+    ),
 ) -> None:
     """File-based daily paper report. Does not connect to IBKR or place orders."""
     from pathlib import Path as _Path  # noqa: PLC0415
@@ -4420,6 +4561,7 @@ def paper_daily_report_cmd(
     md = render_paper_daily_markdown(payload)
     out_abs = cfg.absolute(output_dir)
     stem = f"{d}-paper-daily-report"
+    mp = None
     if save:
         outd = _Path(out_abs)
         outd.mkdir(parents=True, exist_ok=True)
@@ -4428,7 +4570,6 @@ def paper_daily_report_cmd(
             json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n",
             encoding="utf-8",
         )
-        mp: _Path | None
         if write_markdown:
             mp = outd / f"{stem}.md"
             mp.write_text(md, encoding="utf-8")
@@ -4447,6 +4588,42 @@ def paper_daily_report_cmd(
         except (OSError, RuntimeError, ValueError, TypeError):
             if not as_json:
                 console.print("[yellow]Telegram optional send failed or skipped.[/yellow]")
+
+    want_email = email or (cfg.settings.reports.email_enabled and save)
+    if want_email and not as_json and save:
+        try:
+            from .reports.report_email import send_report_email  # noqa: PLC0415
+            from .reports.report_email_status import (  # noqa: PLC0415
+                record_email_outcome,
+            )
+
+            if mp and mp.exists():
+                text_body = (
+                    f"Strategy Lab — Paper Daily ({d})\n\n"
+                    + mp.read_text(encoding="utf-8")[:20_000]
+                )
+            else:
+                text_body = f"Strategy Lab — Paper Daily ({d})\n\n" + md[:20_000]
+            out = send_report_email(
+                to_cfg=cfg.settings.reports.email_to,
+                subject=f"[Strategy Lab] Paper daily {d}",
+                text_body=text_body,
+            )
+            record_email_outcome(
+                cfg.project_root,
+                "paper_daily",
+                status=out.status,
+                to_addr=cfg.settings.reports.email_to,
+                report_key=d,
+                detail=out.detail,
+            )
+            if not as_json:
+                console.print(
+                    f"[cyan]email:[/cyan] {out.status} ({out.detail[:80]})"
+                )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            if not as_json:
+                console.print(f"[yellow]email error (non-fatal): {exc}[/yellow]")
     if as_json:
         sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n")
     elif not save:
@@ -4475,6 +4652,11 @@ def paper_weekly_report_cmd(
     ),
     save: bool = typer.Option(True, "--save/--no-save"),
     output_dir: str = typer.Option("data/reports/paper", "--output-dir"),
+    email: bool = typer.Option(
+        False,
+        "--email",
+        help="Send summary email via Resend if configured (no crash if missing).",
+    ),
 ) -> None:
     """Aggregate daily file-based reports into a weekly summary. No IBKR."""
     from pathlib import Path as _Path  # noqa: PLC0415
@@ -4499,6 +4681,7 @@ def paper_weekly_report_cmd(
     we = str(payload.get("week_end", ""))
     stem = f"{ws}_to_{we}-paper-weekly-report"
     out_abs = cfg.absolute(output_dir)
+    mp2 = None
     if save:
         outd = _Path(out_abs)
         outd.mkdir(parents=True, exist_ok=True)
@@ -4507,7 +4690,6 @@ def paper_weekly_report_cmd(
             json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n",
             encoding="utf-8",
         )
-        mp2: _Path | None
         if write_markdown:
             mp2 = outd / f"{stem}.md"
             mp2.write_text(md, encoding="utf-8")
@@ -4530,6 +4712,41 @@ def paper_weekly_report_cmd(
                 title="paper-weekly-report",
             )
         )
+
+    want_wemail = email or (cfg.settings.reports.email_enabled and save)
+    if want_wemail and not as_json and save:
+        try:
+            from .reports.report_email import send_report_email  # noqa: PLC0415
+            from .reports.report_email_status import (  # noqa: PLC0415
+                record_email_outcome,
+            )
+
+            if write_markdown and mp2 and mp2.exists():
+                wbody = f"Strategy Lab — Paper weekly {ws} → {we}\n\n" + mp2.read_text(
+                    encoding="utf-8"
+                )[:20_000]
+            else:
+                wbody = f"Strategy Lab — Paper weekly {ws} → {we}\n\n" + md[:20_000]
+            outw = send_report_email(
+                to_cfg=cfg.settings.reports.email_to,
+                subject=f"[Strategy Lab] Paper weekly {ws} to {we}",
+                text_body=wbody,
+            )
+            record_email_outcome(
+                cfg.project_root,
+                "paper_weekly",
+                status=outw.status,
+                to_addr=cfg.settings.reports.email_to,
+                report_key=f"{ws}_{we}",
+                detail=outw.detail,
+            )
+            if not as_json:
+                console.print(
+                    f"[cyan]email:[/cyan] {outw.status} ({outw.detail[:80]})"
+                )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            if not as_json:
+                console.print(f"[yellow]email error (non-fatal): {exc}[/yellow]")
     raise typer.Exit(0)
 
 
@@ -5190,6 +5407,11 @@ def research_report_cmd(
         "--ibkr/--no-ibkr",
         help="Fetch fresh IBKR news (default). Use --no-ibkr to skip the connect.",
     ),
+    email: bool = typer.Option(
+        False,
+        "--email",
+        help="Send digest email via Resend if configured (no crash if missing).",
+    ),
 ) -> None:
     """Build the v2 Research Report (JSON + instructions JSON + Markdown).
 
@@ -5264,6 +5486,35 @@ def research_report_cmd(
             f"[cyan]Telegram parts queued: {len(parts)} "
             f"(limit={limit}, full={full})[/cyan]"
         )
+
+    if email or cfg.settings.reports.email_enabled:
+        try:
+            from .reports.report_email import send_report_email  # noqa: PLC0415
+            from .reports.report_email_status import (  # noqa: PLC0415
+                record_email_outcome,
+            )
+
+            rbody = "Strategy Lab — Research\n\n" + (
+                render_telegram_digest(report)[:20_000]
+            )
+            outr = send_report_email(
+                to_cfg=cfg.settings.reports.email_to,
+                subject=f"[Strategy Lab] Research {report.date}",
+                text_body=rbody,
+            )
+            record_email_outcome(
+                cfg.project_root,
+                "research",
+                status=outr.status,
+                to_addr=cfg.settings.reports.email_to,
+                report_key=str(report.date),
+                detail=outr.detail,
+            )
+            console.print(
+                f"[cyan]email:[/cyan] {outr.status} ({outr.detail[:80]})"
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            console.print(f"[yellow]email error (non-fatal): {exc}[/yellow]")
 
     console.print(
         "[dim]execution_allowed=false. This CLI never places orders "

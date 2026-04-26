@@ -77,6 +77,8 @@ def paper_page(request: Request) -> HTMLResponse:
     ip = cfg.settings.trading.intraday_paper
     ctx["paper_sizing_ledger"] = ledger_snapshot_for_status(cfg, ip)
     ctx["recent_results"] = request.app.state.command_queue.list_recent(limit=8)
+    jv = state.get_journal_view(limit=30, view_filter="all", symbol="")
+    ctx["latest_paper_orders"] = jv.paper_orders
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

@@ -17,7 +17,7 @@ Strict invariants:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from ._helpers import base_context
@@ -26,14 +26,22 @@ router = APIRouter()
 
 
 @router.get("/journal", response_class=HTMLResponse, name="journal_page")
-def journal_page(request: Request) -> HTMLResponse:
+def journal_page(
+    request: Request,
+    view_filter: str = Query("all", alias="filter", description="all|submitted|skipped|incomplete"),
+    symbol: str = Query(""),
+) -> HTMLResponse:
     state = request.app.state.state_store
-    journal = state.get_journal_view(limit=200)
+    journal = state.get_journal_view(
+        limit=200, view_filter=view_filter, symbol=symbol
+    )
     ctx = base_context(request, active="journal")
     ctx.update(
         {
             "journal": journal,
             "page_title": "Trade Journal (paper + backtest)",
+            "journal_filter": view_filter,
+            "journal_symbol": symbol.strip().upper(),
         }
     )
     return request.app.state.templates.TemplateResponse(
