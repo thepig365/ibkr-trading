@@ -24,10 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from .auto_paper_mtf import (
-    is_kill_switch_active as _shared_is_kill_switch_active,
-    us_rth_allows_new_entries,
-)
+from .auto_paper_mtf import is_kill_switch_active as _shared_is_kill_switch_active
+from .ny_session_windows import us_morning_paper_window_allows, us_rth_allows_new_entries
 from .config import AppConfig
 from .execution.intraday_paper_execution import (
     INTRADAY_LOOP_STATE_RELPATH,
@@ -60,13 +58,21 @@ def run_auto_paper_intraday_loop(
     heartbeat_minutes: int = 30,
     time_fn: Callable[[], float] = time.time,
     sleep_fn: Callable[[float], None] = time.sleep,
+    session: str = "full",
 ) -> None:
     """Endless (or time-bounded) intraday paper loop.
+
+    ``session``:
+        * ``full`` — default NY entry window 09:45–15:30 (see ``us_rth_allows_new_entries``).
+        * ``morning`` — US morning test window 09:45–11:30 NY only (paper forward-test prep).
 
     Telegram throttling: at most one heartbeat per ``heartbeat_minutes``;
     submissions / errors / critical skips always send (the execution module
     decides which skips qualify as "critical").
     """
+    sess = (session or "full").strip().lower()
+    if sess not in {"full", "morning"}:
+        raise ValueError("session must be 'full' or 'morning'")
     t0 = time_fn()
     end = t0 + (float(stop_after_minutes) * 60.0) if stop_after_minutes else None
     cycle = 0
@@ -117,7 +123,11 @@ def run_auto_paper_intraday_loop(
             continue
 
         if market_hours_only:
-            ok, why = us_rth_allows_new_entries()
+            if sess == "morning":
+                ok, why = us_morning_paper_window_allows()
+            else:
+                ok, why = us_rth_allows_new_entries()
+            line["session"] = sess
             line["market_open"] = ok
             if not ok:
                 line["status"] = "skipped"

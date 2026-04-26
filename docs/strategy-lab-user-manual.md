@@ -76,6 +76,24 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **如何检查是否可做烟测**：终端 `python3 -m bot.cli auto-loop-readiness` 或 `… --json`；Dashboard / Paper 上同一按钮。输出含 `readiness`、`next_safe_action`（如 `ready_for_60min_smoke`、`wait_for_daily_budget`、`kill_switch_active`、`fix_reconcile` 等）。`--probe-ibkr` 可选、默认关闭；只有显式加才会走对账/探针。  
 - **收市后报告（预期工程能力，不由此 prompt 代跑）**：停循环后，你可以按 `docs/daily-operation-checklist.md` 顺序在终端跑：`open-orders`、`portfolio`、`paper-reconcile`、`paper-daily-report --email`（以环境是否配置发信为准）。
 
+#### Forward test（前向 / 纸面验证）与回测的区别
+
+- **回测（Backtest）**：在历史 K 线上重放策略逻辑，**不下单**、不经过 TWS；用于研究 R 分布与参数，**不是**「明天会不会这样走」的保证。  
+- **Forward test / 纸面 forward test**：在**真实行情时间**用**纸面账户**走与生产尽量一致的链路（扫描 → ICT/SMC 门控 → 1 分钟触发 → 限价括号 + 止损/目标），**仍无实盘**。目的为检验**实现、延迟、括号完整性、日志与帽位**，而不是回测收益。  
+- **共同前提**：`active_paper_strategy = ict_smc_intraday_v1`；**新闻与 Edge 不能单独创造可交易资格**；**禁止市价单**；**日帽 / 笔帽**见 `trading.intraday_paper`。
+
+#### 美东早晨纸面窗口（计划中的烟测，**不**在 UI 启动循环）
+
+- **参考时间**（`America/New_York`）：市场 **09:30** 开盘；**不早于 09:45** 起算新单；**早晨专项窗口 09:45–11:30** 用于未来「上午段」自动纸循环烟测；全日循环仍可用默认 **09:45–15:30**（以 `intraday_paper` 配置为准）。  
+- **CLI（仅操作员在终端使用）**：`python3 -m bot.cli run-auto-paper-intraday-loop --session morning` —— **不在** Strategy Lab UI 白名单，**没有**「Start morning loop」按钮。  
+- **只读检查**：Dashboard / Paper 的 **Morning paper test readiness** 与 **Check Morning Paper Readiness**（与 `auto-loop-readiness` 同源 JSON）含 `morning_next_safe_action`（如 `ready_for_morning_smoke`、`wait_for_market_open`、`wait_for_daily_budget` 等）。  
+- **为何先早晨、后全日**：早晨段流量与窗口更短，适合验证括号与日志；通过后再计划更长时烟测。  
+
+#### 收市后核查清单（只读命令序列）
+
+- 在终端可打印推荐顺序（**本身不下单、不发邮件**）：`python3 -m bot.cli eod-paper-checklist`  
+- 实跑券商侧时（TWS 纸面已登入）：`open-orders` → `portfolio` → `paper-reconcile` → `paper-daily-report --latest --email`（邮件依赖 Resend 等环境；缺凭证为 `skipped_missing_credentials`，不崩溃）。
+
 ### 2.6 回测与 1 分钟 K 线缓存（周末/多标的必读）
 
 - **会占磁盘、会积少成多吗**：会。`fetch-candles` / 一键回测里拉取的历史会写在 **`data/candles/`** 下，重复回测同一区间时**不必**反复拉。该目录在 **`.gitignore`** 中，**不会**随 `git push` 上传到 GitHub。回测产出的 **JSON/CSV/MD/PNG** 在 **`data/backtests/`**（含 `intraday/charts/`）同样是本地回顾文件，可按需清理旧时间戳；**`data/paper_orders/`** 与 **`data/runtime/`** 等为审计/运行态，**勿随意删**。在 **Backtest** 页有简要说明；**Settings** 与 **Reports** 的「Data on disk」表（页面加载时快照）和 **`python3 -m bot.cli data-status`** 可查看各类目录占用的字节数。  

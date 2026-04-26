@@ -64,6 +64,20 @@
         <div class="mt-8">{% with command='auto-loop-readiness', label='Check Auto Loop Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
         <p class="text-dim text-small" style="margin:8px 0 0 0;">The automatic intraday paper <strong>loop</strong> is <strong>not</strong> started from this page. After this checklist is green, plan any timed smoke test from a terminal (operator-only).</p>
       </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">7 · Morning paper test readiness (future US morning smoke)</div>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;">Window <strong>09:45–11:30</strong> <code>America/New_York</code> · no “Start morning loop” here. Refreshes the same file snapshot as the check below.</p>
+        <div class="card-value text-small" style="margin-bottom:6px;">
+          {% if auto_loop_readiness and auto_loop_readiness.get('morning_readiness') == 'Ready' %}
+            <span class="pill good">Ready</span>
+          {% else %}
+            <span class="pill warn">Not ready</span>
+          {% endif %}
+        </div>
+        <div class="card-sub text-small">{{ auto_loop_readiness.get('morning_readiness_reason') if auto_loop_readiness else '—' }}</div>
+        <div class="card-sub text-small" style="margin-top:4px;">Next: <strong class="text-mono">{{ auto_loop_readiness.get('morning_next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
+        <div class="mt-8">{% with command='auto-loop-readiness', label='Check Morning Paper Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
+      </div>
     </div>
   </div>
 

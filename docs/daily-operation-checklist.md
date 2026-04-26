@@ -9,6 +9,7 @@
 
 - [ ] 1. **`Strategy Lab.command`**（或 `start_strategy_lab_ui.sh`）  
 - [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算/当前**纸面策略**提示；如计划**日内自动纸循环烟测**（`run-auto-paper-intraday-loop`，仅终端）：先看 **Automatic paper loop readiness** 或 `python3 -m bot.cli auto-loop-readiness`（**不**在 UI 启动循环）  
+- [ ] 2a.（可选）**早晨纸面前向测试准备**：在 Dashboard / Paper 看 **Morning paper test readiness**（美东 **09:45–11:30** 为计划中的「上午段」窗口；**不**在 UI 启动 `run-auto-paper-intraday-loop`，也无「开始早晨循环」按钮）。  
 - [ ] 2b. 如需切换 **scan / backtest / edge / paper** 的默认：打开 **/strategies**（Strategy Center），`data/runtime/selected_strategy.json` 不提交  
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist** — 构建表  
@@ -22,6 +23,8 @@
 - [ ] 12. 收工：**Intraday Paper OFF**（如曾打开）、Stop UI  
 
 **周回测**：**Backtest** 页用 core basket 快捷或自填多周窗口；**不下单**。
+
+**收市（EOD，纸面）** — 需要 TWS 时依次：`open-orders` → `portfolio` → `paper-reconcile` → `paper-daily-report --latest --email`；只读打印推荐顺序：`python3 -m bot.cli eod-paper-checklist`。
 
 ## 第一次端到端纸面验证（E2E）
 

@@ -50,6 +50,17 @@
 4. **不要**在 UI 里找「开始循环」——该 CLI **不在**白名单；有意烟测时只在终端、且遵守用户手册美东时间窗与帽位。  
 5. 收工后日报邮件：见清单里 `paper-daily-report --email`；本检查**不**代跑、**不**启动循环。
 
+## Morning paper readiness 一直 Not ready
+
+- **正常原因**：**周末 / 美东 09:45 前** → `wait_for_market_open`；**11:30 后** 早晨窗口已结束；**日预算 0**；**Kill**；**对账未过**；**无当日 intraday 扫描文件**（`no_recent_scan`）。  
+- **与全日烟测一样**：`active_paper_strategy` 须为 **ICT/SMC 且 paper_enabled**；`paper-activation` 的 `final_readiness` 应为 **READY_FOR_PAPER_TEST**（见 Paper 页说明）。  
+- **UI 只有「Check Morning Paper Readiness」**，没有开始循环的按钮；完整 CLI 名见 `docs/strategy-lab-user-manual.md`（**不要**在 HTML 里搜索该字符串，页面可能不展示全名以防误点）。
+
+## EOD 报告 / 邮件
+
+- **推荐步骤打印**：`python3 -m bot.cli eod-paper-checklist`（只读）。  
+- **缺邮件凭证**：`paper-daily-report --email` 会 **跳过发信、不崩**；`report_email_status` 常见为 `skipped_missing_credentials`。
+
 ---
 
 ## UI 起不来

@@ -70,6 +70,7 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "auto-loop-readiness": (
         "Read-only checklist before run-auto-paper-intraday-loop; optional --json / --probe-ibkr."
     ),
+    "eod-paper-checklist": "Print read-only EOD paper review CLI sequence (no orders, no IBKR, no email).",
     "strategy-lab-engine-status": (
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
     ),
@@ -1192,6 +1193,15 @@ def validate_auto_loop_readiness_args(args: tuple[str, ...]) -> tuple[bool, str]
     return True, ""
 
 
+def validate_eod_paper_checklist_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("eod-paper-checklist", args)
+    if not ok:
+        return ok, err
+    if args:
+        return False, "eod-paper-checklist: no arguments allowed."
+    return True, ""
+
+
 def validate_paper_activation_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
     ok, err = _check_no_forbidden("paper-activation-status", args)
     if not ok:
@@ -1507,6 +1517,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_paper_activation_status_args(args)
     if command == "auto-loop-readiness":
         return validate_auto_loop_readiness_args(args)
+    if command == "eod-paper-checklist":
+        return validate_eod_paper_checklist_args(args)
     if command == "write-paper-local-config":
         return validate_write_paper_local_config_args(args)
     if command in {"intraday-paper-on", "intraday-paper-off"}:

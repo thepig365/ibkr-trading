@@ -4396,6 +4396,11 @@ def run_auto_paper_intraday_loop_cmd(
         30, "--heartbeat-minutes", min=1,
         help="Minimum minutes between Telegram heartbeats (no spam every cycle).",
     ),
+    session: str = typer.Option(
+        "full",
+        "--session",
+        help="RTH gating: 'full' 09:45–15:30 NY, 'morning' 09:45–11:30 NY (smoke; future use).",
+    ),
 ) -> None:
     """ICT/SMC intraday paper bracket loop. PAPER only. Ctrl+C to stop."""
     from .auto_paper_intraday_loop import run_auto_paper_intraday_loop
@@ -4403,12 +4408,20 @@ def run_auto_paper_intraday_loop_cmd(
     if source not in {"static", "dynamic", "manual"}:
         console.print("[red]--source must be static|dynamic|manual[/red]")
         raise typer.Exit(2)
+    sess = (session or "full").strip().lower()
+    if sess not in {"full", "morning"}:
+        console.print("[red]--session must be full|morning[/red]")
+        raise typer.Exit(2)
 
     cfg, journal = _bootstrap()
     console.print(
         "[cyan]run-auto-paper-intraday-loop: PAPER only; block_live_trading must stay true. "
         "Ctrl+C to stop.[/cyan]"
     )
+    if sess == "morning":
+        console.print(
+            "[dim]--session morning: new entries only 09:45–11:30 America/New_York.[/dim]"
+        )
     try:
         run_auto_paper_intraday_loop(
             cfg,
@@ -4421,6 +4434,7 @@ def run_auto_paper_intraday_loop_cmd(
             once=once,
             stop_after_minutes=stop_after_minutes,
             heartbeat_minutes=heartbeat_minutes,
+            session=sess,
         )
     except KeyboardInterrupt:
         console.print("[yellow]Interrupted by user.[/yellow]")
@@ -4554,6 +4568,58 @@ def auto_loop_readiness_cmd(
                 style="cyan",
             )
         )
+    raise typer.Exit(0)
+
+
+@app.command("eod-paper-checklist")
+def eod_paper_checklist_cmd() -> None:
+    """Read-only EOD US paper review steps. No IBKR, no email, no orders.
+
+    After market close, run these from a terminal (TWS paper logged in) in order;
+    for file-only daily summary without live broker, use paper-daily-report with --latest.
+    """
+    payload: dict[str, Any] = {
+        "description": (
+            "End-of-day paper checklist (this command only prints; it does not run subcommands)"
+        ),
+        "paper_only": True,
+        "no_orders": True,
+        "default_morning_window_ny": "09:45–11:30 (forward-test smoke, CLI --session morning)",
+        "rth_new_entries_ny": "default 09:45–15:30 from intraday_paper config",
+        "sequence": [
+            {
+                "step": 1,
+                "cli": "python3 -m bot.cli open-orders",
+                "note": "Read-only; requires TWS/IB if you want live broker state.",
+            },
+            {
+                "step": 2,
+                "cli": "python3 -m bot.cli portfolio",
+                "note": "Read-only account + positions when connected.",
+            },
+            {
+                "step": 3,
+                "cli": "python3 -m bot.cli paper-reconcile",
+                "note": "Reconcile local journal vs paper broker.",
+            },
+            {
+                "step": 4,
+                "cli": "python3 -m bot.cli paper-daily-report --latest --email",
+                "note": (
+                    "Writes data/reports/paper; --email uses Resend when configured, "
+                    "else status skipped_missing_credentials (no crash)."
+                ),
+            },
+        ],
+        "alternate_file_only": "python3 -m bot.cli paper-daily-report --latest (no TWS; audit files only)",
+    }
+    console.print(
+        Panel.fit(
+            json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+            title="eod-paper-checklist (read-only)",
+            style="cyan",
+        )
+    )
     raise typer.Exit(0)
 
 

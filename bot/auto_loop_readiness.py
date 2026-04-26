@@ -5,9 +5,12 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
+from .ny_session_windows import us_morning_paper_window_allows
 from .config import AppConfig
 from .execution.intraday_paper_execution import (
     INTRADAY_AUTO_PAPER_ENABLED_RELPATH,
@@ -98,6 +101,90 @@ def _pick_next_action(
     return "ready_for_60min_smoke"
 
 
+def _today_ny_ymd() -> str:
+    return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+
+def _ny_weekday_minutes() -> tuple[int, int, int]:
+    """(weekday 0-6, minutes since midnight NY, full minutes 0-1439 for sorting)."""
+    z = ZoneInfo("America/New_York")
+    now = datetime.now(z)
+    w = int(now.weekday())
+    m = now.hour * 60 + now.minute
+    return w, m, m
+
+
+def _compute_morning_next_safe_action(
+    *,
+    kill: bool,
+    ict_paper: bool,
+    config_safe: bool,
+    rem: float | None,
+    loop_recon: str,
+    require_recon: bool,
+    final_ready: str,
+    latest_scan_path: str | None,
+    latest_scan_date: str | None,
+    probe_ibkr: bool,
+    pa: dict[str, Any],
+) -> str:
+    """Action codes for a future ``--session morning`` smoke (does not start the loop)."""
+    if kill:
+        return "kill_switch_active"
+    if not ict_paper:
+        return "paper_strategy_not_enabled"
+    if not config_safe:
+        return "not_ready"
+    if rem is not None and rem <= 0:
+        return "wait_for_daily_budget"
+    rs = (loop_recon or "").lower()
+    if require_recon and ("fail" in rs or "error" in rs):
+        return "reconcile_not_passed"
+
+    w, minutes, _ = _ny_weekday_minutes()
+    if w >= 5:
+        return "wait_for_market_open"
+    # Weekday: no entries before 09:45 NY (stabilization after 09:30 open)
+    if minutes < 9 * 60 + 45:
+        return "wait_for_market_open"
+    in_morning, _ = us_morning_paper_window_allows()
+    if not in_morning:
+        # e.g. after 11:30 NY, or not a US session day for cash equities
+        return "not_ready"
+
+    if final_ready != "READY_FOR_PAPER_TEST":
+        return "not_ready"
+
+    if probe_ibkr and pa.get("ibkr_probe_error"):
+        return "tws_not_connected"
+    if probe_ibkr and pa.get("reconciliation_passed") is False:
+        return "tws_not_connected"
+
+    scan_ok = bool(latest_scan_path)
+    if not scan_ok:
+        return "no_recent_scan"
+    today = _today_ny_ymd()
+    if latest_scan_date and str(latest_scan_date).strip()[:10] != today:
+        return "no_recent_scan"
+
+    return "ready_for_morning_smoke"
+
+
+def _morning_reason(code: str, *, recon: str) -> str:
+    mapping = {
+        "ready_for_morning_smoke": "Within 09:45–11:30 NY; ICT paper path, budget, and activation checks pass (loop not started by this command)",
+        "wait_for_market_open": "Wait for US session entry window (weekday, from 09:45 NY) or next session",
+        "wait_for_daily_budget": "Daily paper notional cap reached for today (UTC ledger)",
+        "tws_not_connected": "TWS/IB paper probe failed or reconciliation did not pass (when --probe-ibkr)",
+        "paper_strategy_not_enabled": "Active paper strategy is not ICT/SMC with paper enabled",
+        "kill_switch_active": "data/KILL_SWITCH is present",
+        "reconcile_not_passed": f"Reconciliation required but last status hints failure: {recon!r}",
+        "no_recent_scan": "No intraday scan summary for today (data/intraday_smc) or missing file",
+        "not_ready": "Config/activation/morning window conditions not all satisfied",
+    }
+    return mapping.get(code, code)
+
+
 def build_auto_loop_readiness(
     project_root: Path | str,
     cfg: AppConfig,
@@ -173,6 +260,26 @@ def build_auto_loop_readiness(
     re_status = "configured" if resend and rfrom else "skipped_missing_credentials"
 
     hints = _scan_edge_hints(root)
+    lspath = hints.get("latest_scan_path")
+    lsdate = hints.get("latest_scan_date")
+    if lspath and not lsdate:
+        sp = Path(str(lspath))
+        if len(sp.stem) >= 10 and sp.stem[4] == "-" and sp.stem[7] == "-":
+            lsdate = sp.stem[:10]
+
+    morning_next = _compute_morning_next_safe_action(
+        kill=kill,
+        ict_paper=ict_paper,
+        config_safe=config_safe,
+        rem=rem,
+        loop_recon=recon_loop,
+        require_recon=bool(ip.require_reconciliation_pass),
+        final_ready=final_ready,
+        latest_scan_path=str(lspath) if lspath else None,
+        latest_scan_date=str(lsdate) if lsdate else None,
+        probe_ibkr=probe_ibkr,
+        pa=pa,
+    )
 
     tws: dict[str, Any] = {"probed": bool(probe_ibkr)}
     if probe_ibkr and journal is not None and pa.get("reconciliation") is not None:
@@ -219,8 +326,18 @@ def build_auto_loop_readiness(
         "report_email_detail": asdict(report_email),
         "latest_scan_and_edge": hints,
         "tws": tws,
+        "morning_session_supported": True,
+        "morning_window_start_ny": "09:45",
+        "morning_window_end_ny": "11:30",
+        "no_new_entries_before_ny": "09:45",
+        "morning_next_safe_action": morning_next,
+        "morning_readiness": (
+            "Ready" if morning_next == "ready_for_morning_smoke" else "Not ready"
+        ),
+        "morning_readiness_reason": _morning_reason(morning_next, recon=recon_loop),
         "commands": {
             "start_loop": "python3 -m bot.cli run-auto-paper-intraday-loop (Ctrl+C to stop; not run by this check)",
+            "start_morning_loop": "python3 -m bot.cli run-auto-paper-intraday-loop --session morning (09:45–11:30 NY; planned smoke; not from UI)",
             "stop_loop": "Ctrl+C in terminal, or set kill switch / intraday runtime OFF as documented",
         },
     }

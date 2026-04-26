@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .config import AppConfig
 from .journal import Journal
+from .ny_session_windows import (
+    us_morning_paper_window_allows,
+    us_ny_rth_window_allows,
+    us_rth_allows_new_entries,
+)
 from .reconciliation import reconcile
 from .broker import Broker
 from .ibkr_client import IBKRClient
@@ -47,25 +51,6 @@ def is_runtime_mtf_auto_disabled_explicit(cfg: AppConfig) -> bool:
     except OSError:
         return False
     return t in ("0", "false", "no", "off")
-
-
-def us_rth_allows_new_entries(
-    *,
-    open_hhmm: tuple[int, int] = (9, 45),
-    close_hhmm: tuple[int, int] = (15, 30),
-) -> tuple[bool, str]:
-    from zoneinfo import ZoneInfo
-
-    z = ZoneInfo("America/New_York")
-    now = datetime.now(z)
-    if now.weekday() >= 5:
-        return False, "weekend (US)"
-    minutes = now.hour * 60 + now.minute
-    o = open_hhmm[0] * 60 + open_hhmm[1]
-    c = close_hhmm[0] * 60 + close_hhmm[1]
-    if minutes < o or minutes > c:
-        return False, f"outside {open_hhmm[0]:02d}:{open_hhmm[1]:02d}-{close_hhmm[0]:02d}:{close_hhmm[1]:02d} America/New_York"
-    return True, ""
 
 
 @dataclass

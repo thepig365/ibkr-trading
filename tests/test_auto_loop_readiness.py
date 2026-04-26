@@ -46,6 +46,8 @@ def test_module_does_not_import_intraday_loop() -> None:
     src = (REPO / "bot" / "auto_loop_readiness.py").read_text(encoding="utf-8")
     assert "auto_paper_intraday_loop" not in src
     assert "run_auto_paper_intraday_loop" not in src
+    assert "auto_paper_mtf" not in src
+    assert "ny_session_windows" in src
 
 
 def test_build_runs_read_only_completes(tmp_path: Path) -> None:
@@ -71,6 +73,11 @@ def test_build_runs_read_only_completes(tmp_path: Path) -> None:
     assert m_pa.called
     assert "next_safe_action" in r
     assert "commands" in r
+    assert r.get("morning_session_supported") is True
+    assert r.get("morning_window_start_ny") == "09:45"
+    assert r.get("morning_window_end_ny") == "11:30"
+    assert "morning_next_safe_action" in r
+    assert "morning_readiness" in r
 
 
 def test_kill_switch_gives_not_ready_and_action(tmp_path: Path) -> None:
@@ -84,11 +91,14 @@ def test_kill_switch_gives_not_ready_and_action(tmp_path: Path) -> None:
     assert r["readiness"] == "Not ready"
     assert r["next_safe_action"] == "kill_switch_active"
     assert r["kill_switch"] is True
+    assert r["morning_next_safe_action"] == "kill_switch_active"
+    assert r["morning_readiness"] == "Not ready"
 
 
 def test_daily_budget_zero_wait_for_budget(tmp_path: Path) -> None:
     _install_config(tmp_path)
     _runtime_flags(tmp_path)
+    (tmp_path / "data" / "runtime").mkdir(parents=True, exist_ok=True)
     (tmp_path / "data" / "runtime" / "selected_strategy.json").write_text(
         json.dumps({"active_paper_strategy": "ict_smc_intraday_v1"}),
         encoding="utf-8",
@@ -105,6 +115,7 @@ def test_daily_budget_zero_wait_for_budget(tmp_path: Path) -> None:
             r = build_auto_loop_readiness(tmp_path, cfg, None, probe_ibkr=False)
     assert r["next_safe_action"] == "wait_for_daily_budget"
     assert r["readiness"] == "Not ready"
+    assert r["morning_next_safe_action"] == "wait_for_daily_budget"
 
 
 def test_non_ict_paper_selection_not_ready(tmp_path: Path) -> None:
