@@ -49,6 +49,21 @@
         <div class="card-title">5 · Next step</div>
         <div class="card-value text-small">{{ ux.next_action or '—' }}</div>
       </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">6 · Automatic paper loop readiness (60&nbsp;min smoke prep)</div>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;">Read-only file snapshot. Does <strong>not</strong> start the auto loop. NY session reference: <code>America/New_York</code> — open 09:30, new entries 09:45–15:30 (config), wind-down 15:55, close 16:00; daily report window 16:05–16:30 (manual).</p>
+        <div class="card-value text-small" style="margin-bottom:6px;">
+          {% if auto_loop_readiness and auto_loop_readiness.get('readiness') == 'Ready' %}
+            <span class="pill good">Ready</span>
+          {% else %}
+            <span class="pill warn">Not ready</span>
+          {% endif %}
+        </div>
+        <div class="card-sub text-small">Reason: {{ auto_loop_readiness.get('readiness_reason') if auto_loop_readiness else '—' }}</div>
+        <div class="card-sub text-small" style="margin-top:4px;">Next safe action: <strong class="text-mono">{{ auto_loop_readiness.get('next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
+        <div class="mt-8">{% with command='auto-loop-readiness', label='Check Auto Loop Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
+        <p class="text-dim text-small" style="margin:8px 0 0 0;">The automatic intraday paper <strong>loop</strong> is <strong>not</strong> started from this page. After this checklist is green, plan any timed smoke test from a terminal (operator-only).</p>
+      </div>
     </div>
   </div>
 

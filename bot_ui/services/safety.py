@@ -63,6 +63,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "open-orders": "List open orders at IBKR (read-only; explicit button).",
     "portfolio": "List positions + account snapshot at IBKR (read-only; explicit button).",
     "intraday-paper-status": "Print intraday paper config + runtime + loop state (read-only).",
+    "auto-loop-readiness": (
+        "Read-only checklist before run-auto-paper-intraday-loop; optional --json / --probe-ibkr."
+    ),
     "strategy-lab-engine-status": (
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
     ),
@@ -1167,6 +1170,23 @@ def validate_strategy_lab_engine_status_args(args: tuple[str, ...]) -> tuple[boo
 
 _PAPER_ACTIVATION_STATUS_FLAGS = frozenset({"--probe-ibkr"})
 
+_AUTO_LOOP_READINESS_FLAGS: frozenset[str] = frozenset({"--json", "--probe-ibkr"})
+
+
+def validate_auto_loop_readiness_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("auto-loop-readiness", args)
+    if not ok:
+        return ok, err
+    for t in args:
+        if t not in _AUTO_LOOP_READINESS_FLAGS:
+            return (
+                False,
+                f"auto-loop-readiness: only {sorted(_AUTO_LOOP_READINESS_FLAGS)} or no args, got {t!r}.",
+            )
+    if args.count("--json") > 1 or args.count("--probe-ibkr") > 1:
+        return False, "auto-loop-readiness: duplicate flag."
+    return True, ""
+
 
 def validate_paper_activation_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
     ok, err = _check_no_forbidden("paper-activation-status", args)
@@ -1299,6 +1319,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_engine_status_args(args)
     if command == "paper-activation-status":
         return validate_paper_activation_status_args(args)
+    if command == "auto-loop-readiness":
+        return validate_auto_loop_readiness_args(args)
     if command == "write-paper-local-config":
         return validate_write_paper_local_config_args(args)
     if command in {"intraday-paper-on", "intraday-paper-off"}:

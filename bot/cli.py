@@ -4202,6 +4202,39 @@ def intraday_paper_status_cmd(
     raise typer.Exit(0)
 
 
+@app.command("auto-loop-readiness")
+def auto_loop_readiness_cmd(
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help="Output machine-readable JSON.",
+    ),
+    probe_ibkr: bool = typer.Option(
+        False,
+        "--probe-ibkr",
+        help="If set, may connect to TWS/IB for reconciliation (read-only).",
+    ),
+) -> None:
+    """Read-only checklist before run-auto-paper-intraday-loop. Does not start the loop or place orders."""
+    from .auto_loop_readiness import build_auto_loop_readiness  # noqa: PLC0415
+
+    cfg, journal = _bootstrap()
+    payload = build_auto_loop_readiness(
+        cfg.project_root, cfg, journal, probe_ibkr=probe_ibkr
+    )
+    if as_json:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="auto-loop-readiness",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # 13I: Local paper activation (settings.local + runtime; PAPER, bracket only).
 # ---------------------------------------------------------------------------

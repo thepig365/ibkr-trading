@@ -132,6 +132,7 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "data-status": (),
     "data-cleanup": ("--dry-run",),
     "premarket-brief": ("--latest",),
+    "auto-loop-readiness": (),
 }
 
 

@@ -23,6 +23,7 @@ from pathlib import Path
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
@@ -97,6 +98,16 @@ def paper_page(request: Request) -> HTMLResponse:
         intraday_loop=ctx["intraday_paper_loop"],
         first_journal_row=first_row,
     )
+    try:
+        ctx["auto_loop_readiness"] = build_auto_loop_readiness(
+            root, cfg, None, probe_ibkr=False
+        )
+    except (OSError, TypeError, ValueError):
+        ctx["auto_loop_readiness"] = {
+            "readiness": "Not ready",
+            "readiness_reason": "auto_loop_readiness: check failed (see logs)",
+            "next_safe_action": "run_readiness_check",
+        }
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

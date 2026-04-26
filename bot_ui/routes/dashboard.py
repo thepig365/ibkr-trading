@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
@@ -60,6 +61,16 @@ def dashboard(request: Request) -> HTMLResponse:
         paper_act = build_paper_activation_status(cfg, probe_ibkr=False, journal=None)
     except (OSError, TypeError, ValueError):
         paper_act = {}
+    try:
+        auto_loop_readiness = build_auto_loop_readiness(
+            root, cfg, None, probe_ibkr=False
+        )
+    except (OSError, TypeError, ValueError):
+        auto_loop_readiness = {
+            "readiness": "Not ready",
+            "readiness_reason": "auto_loop_readiness: check failed (see logs)",
+            "next_safe_action": "run_readiness_check",
+        }
 
     resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
     report_from = (os.environ.get("REPORT_EMAIL_FROM") or "").strip()
@@ -113,6 +124,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "strategy_ui_catalog": cat,
             "strategy_selection": ssel,
             "active_paper_strategy_entry": paper_s_entry,
+            "auto_loop_readiness": auto_loop_readiness,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)

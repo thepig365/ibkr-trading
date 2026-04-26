@@ -133,6 +133,25 @@
   </div>
 
   <div class="section">
+    <h2>Automatic paper loop readiness (60&nbsp;min smoke prep)</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px 0;">Read-only; does <strong>not</strong> start the automatic intraday paper loop. Use the button to refresh status after files change. NY: 09:30 open, entries from config (default 09:45–15:30), 15:55 wind-down, 16:00 close; post-close reports often 16:05–16:30.</p>
+    <div class="card" style="max-width: 52rem;">
+      <div class="card-title">Status</div>
+      <div class="card-value text-small" style="margin-bottom:6px;">
+        {% if auto_loop_readiness and auto_loop_readiness.get('readiness') == 'Ready' %}
+          <span class="pill good">Ready</span>
+        {% else %}
+          <span class="pill warn">Not ready</span>
+        {% endif %}
+      </div>
+      <div class="card-sub text-small">Reason: {{ auto_loop_readiness.get('readiness_reason') if auto_loop_readiness else '—' }}</div>
+      <div class="card-sub text-small" style="margin-top:4px;">Next safe action: <strong class="text-mono">{{ auto_loop_readiness.get('next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
+      <div class="mt-8">{% with command='auto-loop-readiness', label='Check Auto Loop Readiness', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
+      <p class="text-dim text-small" style="margin:8px 0 0 0;">No “Start auto loop” button here; run the loop from a terminal only when you intentionally schedule a smoke test.</p>
+    </div>
+  </div>
+
+  <div class="section">
     <h2>Local Paper Activation</h2>
     <p class="text-small text-dim mb-12">
       Forward-test setup uses only <strong>config/settings.local.yaml</strong> (gitignored, never the tracked <code>settings.yaml</code>) and <strong>data/runtime/</strong> flags.

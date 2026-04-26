@@ -93,7 +93,7 @@ def test_post_report_and_edge_path_commands(ui_client: TestClient) -> None:
 
 
 def test_post_paper_activation_and_intraday_status(ui_client: TestClient) -> None:
-    for cmd in ("paper-activation-status", "intraday-paper-status"):
+    for cmd in ("paper-activation-status", "intraday-paper-status", "auto-loop-readiness"):
         r = ui_client.post(
             "/api/commands/run",
             data={"command": cmd, "return_to": "/paper"},

@@ -172,6 +172,7 @@ UI command runner allowlist additions for v2:
 - `ibkr-news-fetch` (`--symbols ^[A-Z]{1,5}(,[A-Z]{1,5})*$` and `--limit 1..200`)
 - `build-edge-profile` / `build-edge-profiles` (backtest from **local** 1m cache; optional `--fetch` for explicit IBKR candle fill)
 - `edge-profile-report` (read-only latest `data/edge_profiles/*-edge-profiles.json`)
+- `auto-loop-readiness` (read-only; optional `--json` / `--probe-ibkr`; does not start the intraday auto loop)
 
 All other CLI subcommands (especially `auto-paper-mtf`, `place-order`,
 `run-auto-paper-mtf-loop`, `telegram-listen`, `run-scheduler`) remain
