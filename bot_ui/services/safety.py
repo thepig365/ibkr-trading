@@ -44,6 +44,7 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "scan-intraday-smc": "ICT/SMC Intraday V1 — single-symbol research scan (paper-only).",
     "scan-intraday-smc-watchlist": "ICT/SMC Intraday V1 — watchlist research scan (paper-only).",
     "fetch-candles": "Fetch historical OHLCV candles from IBKR into the local cache (read-only).",
+    "candle-coverage": "Read-only check of local 1m cache coverage for a date range (no IBKR, no backtest).",
     "backtest-intraday-smc": "Run the ICT/SMC Intraday backtest engine on a single symbol (cache-only, no broker).",
     "backtest-intraday-smc-watchlist": "Run the ICT/SMC Intraday backtest engine on multiple symbols (cache-only, no broker).",
     "backtest-report": "Print the latest backtest summary written under data/backtests/intraday/.",
@@ -1263,6 +1264,73 @@ def validate_first_paper_pass_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return validate_auto_paper_intraday_smc_args(args)
 
 
+_COVERAGE_TICKER_RE = re.compile(r"^[A-Z]{1,5}(,[A-Z]{1,5})*$")
+_COVERAGE_WL_OK = frozenset({"latest"})
+
+
+def validate_candle_coverage_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Validate ``candle-coverage`` — local file check only, no IBKR path."""
+    ok, err = _check_no_forbidden("candle-coverage", args)
+    if not ok:
+        return ok, err
+    flags: dict[str, str] = {}
+    json_count = 0
+    has_core = False
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t == "--json":
+            json_count += 1
+            if json_count > 1:
+                return False, "candle-coverage: duplicate --json"
+            i += 1
+            continue
+        if t == "--core-basket":
+            has_core = True
+            i += 1
+            continue
+        if t in ("--start", "--end", "--timeframe", "--symbols", "--watchlist"):
+            if i + 1 >= len(args):
+                return False, f"candle-coverage: {t} needs a value"
+            v = str(args[i + 1]).strip()
+            if t in ("--start", "--end") and not _BACKTEST_DATE_RE.match(v):
+                return False, f"candle-coverage: {t} must be YYYY-MM-DD"
+            if t == "--timeframe" and v.lower() not in ("1min", "1m"):
+                return False, "candle-coverage: only --timeframe 1min is allowed"
+            if t == "--symbols" and not _COVERAGE_TICKER_RE.match(v):
+                return (
+                    False,
+                    "candle-coverage: --symbols must match ^[A-Z]{1,5}(,[A-Z]{1,5})*$",
+                )
+            if t == "--watchlist" and v.lower() not in _COVERAGE_WL_OK:
+                return False, "candle-coverage: --watchlist only accepts 'latest'."
+            flags[t] = v
+            i += 2
+            continue
+        return False, f"candle-coverage: unexpected token {t!r}"
+    if not flags.get("--start") or not flags.get("--end"):
+        return False, "candle-coverage: --start and --end are required"
+    n_spec = int(has_core) + int(bool(flags.get("--watchlist"))) + int(
+        bool(flags.get("--symbols"))
+    )
+    if n_spec != 1:
+        return (
+            False,
+            "candle-coverage: require exactly one of --core-basket, --watchlist, or --symbols",
+        )
+    if has_core and (flags.get("--watchlist") or flags.get("--symbols")):
+        return (
+            False,
+            "candle-coverage: --core-basket is mutually exclusive with other symbol sources",
+        )
+    if flags.get("--timeframe") and str(flags["--timeframe"]).lower() not in (
+        "1min",
+        "1m",
+    ):
+        return False, "candle-coverage: only 1min"
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -1287,6 +1355,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_scan_intraday_smc_watchlist_args(args)
     if command == "fetch-candles":
         return validate_fetch_candles_args(args)
+    if command == "candle-coverage":
+        return validate_candle_coverage_args(args)
     if command == "backtest-intraday-smc":
         return validate_backtest_intraday_smc_args(args)
     if command == "backtest-intraday-smc-watchlist":

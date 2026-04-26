@@ -22,7 +22,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 from rich.console import Console
@@ -3091,6 +3091,139 @@ def _run_backtest_intraday_smc(
         },
     )
     return summary
+
+
+@app.command("candle-coverage")
+def candle_coverage_cmd(
+    start: str = typer.Option(..., "--start", help="YYYY-MM-DD inclusive."),
+    end: str = typer.Option(..., "--end", help="YYYY-MM-DD inclusive."),
+    timeframe: str = typer.Option("1min", "--timeframe", help="Only 1min (default)."),
+    symbols: str | None = typer.Option(
+        None,
+        "--symbols",
+        help="Comma-separated UPPER tickers (1–5 letters), e.g. AAPL,CRM",
+    ),
+    core_basket: bool = typer.Option(
+        False, "--core-basket", help="15-name core symbol basket.",
+    ),
+    watchlist: str | None = typer.Option(
+        None, "--watchlist", help="Use `latest` for newest *-dynamic-watchlist.json",
+    ),
+    as_json: bool = typer.Option(
+        False, "--json", help="Emit JSON only (no Rich panel / table).",
+    ),
+) -> None:
+    """Check local 1m candle file coverage; read-only, no IBKR, no backtest run."""
+    from .backtests.candle_coverage import (  # noqa: PLC0415
+        CORE_BASKET,
+        check_candle_coverage,
+        load_latest_watchlist_symbols,
+    )
+
+    cfg, _journal = _bootstrap()
+    root = Path(cfg.absolute(""))
+    n_sources = int(bool(symbols and symbols.strip())) + int(core_basket) + int(
+        bool((watchlist or "").strip())
+    )
+    if n_sources != 1:
+        if as_json:
+            console.print(
+                json.dumps(
+                    {
+                        "error": "specify exactly one of --symbols, --core-basket, or --watchlist",
+                    }
+                )
+            )
+        else:
+            console.print(
+                "[red]candle-coverage: specify exactly one of "
+                "--symbols, --core-basket, or --watchlist.[/red]"
+            )
+        raise typer.Exit(1)
+
+    tf = (timeframe or "1min").strip().lower()
+    if tf not in ("1min", "1m"):
+        if as_json:
+            console.print_json(data={"error": "only --timeframe 1min is supported"})
+        else:
+            console.print("[red]candle-coverage: only 1min is supported.[/red]")
+        raise typer.Exit(1)
+
+    sym_list: list[str] = []
+    wl_path: str | None = None
+    wl_err: str | None = None
+    source_tag = "symbols"
+    if core_basket:
+        sym_list = list(CORE_BASKET)
+        source_tag = "core_basket"
+    elif (watchlist or "").strip():
+        w = (watchlist or "").strip().lower()
+        if w != "latest":
+            if as_json:
+                console.print_json(
+                    data={"error": "only --watchlist latest is supported", "value": w}
+                )
+            else:
+                console.print(
+                    f"[red]candle-coverage: only `latest` is valid for --watchlist (got {w!r}).[/red]"
+                )
+            raise typer.Exit(1)
+        sym_list, pth, err = load_latest_watchlist_symbols(root)
+        wl_path = pth
+        wl_err = err
+        source_tag = "watchlist"
+        if err is not None:
+            payload: dict[str, Any] = {
+                "source": source_tag,
+                "requested_start": (start or "").strip(),
+                "requested_end": (end or "").strip(),
+                "timeframe": "1min",
+                "total_symbols": 0,
+                "ready_count": 0,
+                "partial_count": 0,
+                "missing_count": 0,
+                "symbols_ready": [],
+                "symbols_partial": [],
+                "symbols_missing": [],
+                "overall_status": "missing",
+                "per_symbol": {},
+                "trading_day_count": 0,
+                "will_backtest_be_complete": False,
+                "backtest_completeness_note": f"Watchlist not loaded: {err}",
+                "watchlist_path": pth,
+                "watchlist_error": err,
+            }
+            if as_json:
+                print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+            else:
+                console.print(Panel(json.dumps(payload, indent=2, default=str), title="candle-coverage", style="yellow"))
+            raise typer.Exit(0)
+    else:
+        sym_list = [s.strip().upper() for s in (symbols or "").split(",") if s.strip()]
+    try:
+        rep = check_candle_coverage(
+            sym_list, start, end, timeframe="1min", project_root=root
+        )
+    except ValueError as exc:
+        if as_json:
+            console.print_json(data={"error": str(exc)})
+        else:
+            console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    rep["source"] = source_tag
+    if wl_path is not None:
+        rep["watchlist_path"] = wl_path
+    if as_json:
+        print(json.dumps(rep, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel(
+                json.dumps(rep, indent=2, ensure_ascii=False, default=str),
+                title="candle-coverage (local 1m cache check)",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
 
 
 @app.command("backtest-intraday-smc")

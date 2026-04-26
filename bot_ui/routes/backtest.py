@@ -17,6 +17,10 @@ Strict invariants — must remain true forever:
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -24,6 +28,50 @@ from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
 
 router = APIRouter()
+
+
+def _backtest_candle_coverage_preview(root: object) -> dict[str, Any] | None:
+    """Local 1m cache coverage (core basket, last ~7 days). No IBKR."""
+    try:
+        from bot.backtests.candle_coverage import CORE_BASKET, check_candle_coverage
+    except (ImportError, OSError, ValueError, TypeError):
+        return None
+    try:
+        rpath = Path(str(root))
+        end = date.today()
+        start = end - timedelta(days=7)
+        rep = check_candle_coverage(
+            list(CORE_BASKET),
+            start.isoformat(),
+            end.isoformat(),
+            timeframe="1min",
+            project_root=rpath,
+        )
+    except (OSError, ValueError, TypeError, KeyError):
+        return None
+    rows: list[dict[str, Any]] = []
+    for sym in sorted(rep.get("per_symbol", {})):
+        p = rep["per_symbol"][sym]
+        st = str(p.get("status") or "")
+        lab = st.replace("_", " ").title()
+        rows.append(
+            {
+                "symbol": sym,
+                "status": st,
+                "status_label": lab,
+                "cached_start": p.get("cached_start"),
+                "cached_end": p.get("cached_end"),
+                "missing_n": len(p.get("missing_trading_days") or []),
+                "action": p.get("recommended_action") or "",
+            }
+        )
+    return {
+        "range_start": start.isoformat(),
+        "range_end": end.isoformat(),
+        "report": rep,
+        "rows": rows,
+        "all_ready": bool(rep.get("will_backtest_be_complete")),
+    }
 
 
 @router.get("/backtest", response_class=HTMLResponse, name="backtest_page")
@@ -44,6 +92,7 @@ def backtest_page(request: Request) -> HTMLResponse:
             "backtest_effective_ict": ssel.active_backtest_strategy
             in {"ict_smc_intraday_v1"},
             "recent_results": request.app.state.command_queue.list_recent(limit=5),
+            "candle_coverage_preview": _backtest_candle_coverage_preview(root),
         }
     )
     return request.app.state.templates.TemplateResponse(

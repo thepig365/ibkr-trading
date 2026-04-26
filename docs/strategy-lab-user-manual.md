@@ -76,6 +76,14 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **如何检查是否可做烟测**：终端 `python3 -m bot.cli auto-loop-readiness` 或 `… --json`；Dashboard / Paper 上同一按钮。输出含 `readiness`、`next_safe_action`（如 `ready_for_60min_smoke`、`wait_for_daily_budget`、`kill_switch_active`、`fix_reconcile` 等）。`--probe-ibkr` 可选、默认关闭；只有显式加才会走对账/探针。  
 - **收市后报告（预期工程能力，不由此 prompt 代跑）**：停循环后，你可以按 `docs/daily-operation-checklist.md` 顺序在终端跑：`open-orders`、`portfolio`、`paper-reconcile`、`paper-daily-report --email`（以环境是否配置发信为准）。
 
+### 2.6 回测与 1 分钟 K 线缓存（周末/多标的必读）
+
+- **为什么需要缓存**：`backtest-intraday-smc` / `backtest-intraday-smc-watchlist` 只读 **`data/candles/{标的}/1min/{YYYY-MM-DD}.csv`**（与 `fetch-candles` 写入布局一致），**不**在回测时自动向 IBKR 拉线。某标的在区间内**无文件**时引擎**跳过**该标的，多标的回测会看起来像「只跑了一两只」。  
+- **如何先看缺口**：在 **Backtest** 页用 **Check Data Coverage**（白名单命令 `candle-coverage`），或终端 `python3 -m bot.cli candle-coverage --core-basket --start YYYY-MM-DD --end YYYY-MM-DD` / `--symbols AAPL,CRM` / `--watchlist latest`。该检查**只读本地文件**，不连 TWS。  
+- **Ready / Partial / Missing**：在请求区间内的**美东周一日历**上（节假日未剔除，见报告备注），**每天**有非空 1m CSV 为 *Ready*；**部分**日期有文件为 *Partial*；**几乎无数据**为 *Missing*。  
+- **何时点 Fetch missing candles**：仅在你在 **Backtest** 页点击 **Fetch missing candles from IBKR**（`fetch-candles`）**且 TWS/网关已开**时，才会向券商拉**只读**历史；**每提交一次通常填一个标的+区间**；回测**不会**替你自动 fetch。  
+- **推荐流程（周末回测）**：打开 **Backtest** → 选标的来源与日期（或 `candle-coverage`）→ **Check Data Coverage** → 对缺口标的再 **Fetch**（需时）→ 再 **Check** → **Run backtest** → 看 **backtest-report** / 再 **Build edge profile**。
+
 ---
 
 ## 3. 每天如何使用（摘要）

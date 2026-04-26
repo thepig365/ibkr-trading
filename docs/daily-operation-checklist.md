@@ -13,7 +13,7 @@
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist** — 构建表  
 - [ ] 5. **Signals（ICT）** — 日内扫描  
-- [ ] 6. 若休市：**Backtest** — 1 周/2 周/1 月 或自填区间；**默认勿开 fetch**  
+- [ ] 6. 若休市：**Backtest** — 先用 **Check Data Coverage** / `candle-coverage` 看 1m 缓存是否够；再 1 周/2 周/1 月 或自填区间；**需要拉线时再**用显式 **Fetch missing candles**（`fetch-candles` + `--ibkr`）  
 - [ ] 7. **Edge** — 建立画像（默认缓存）  
 - [ ] 8. **Paper** — Readiness / Activation；**不**在无意向时点 First Paper Pass  
 - [ ] 9. 仅当准备好：`First Paper Pass` 一次受控试单（不启 loop）  

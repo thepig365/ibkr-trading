@@ -32,6 +32,8 @@ def test_backtest_cli_commands_in_allowlist() -> None:
         "backtest-intraday-smc",
         "backtest-intraday-smc-watchlist",
         "backtest-report",
+        "candle-coverage",
+        "fetch-candles",
     ):
         assert cmd in ALLOWED_COMMANDS
 
@@ -42,6 +44,8 @@ def test_backtest_page_renders_and_warns_cache_only_by_default(tmp_path: Path) -
     t = r.text
     assert "backtest" in t.lower()
     assert "backtest-intraday-smc" in t or "Backtest" in t
+    assert "Check Data Coverage" in t
+    assert "Fetch missing candles" in t or "Fetch Candles" in t
 
 
 def test_backtest_forms_no_market_or_live(tmp_path: Path) -> None:

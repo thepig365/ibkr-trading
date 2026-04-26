@@ -17,6 +17,127 @@
     {% endif %}
   </div>
 
+  <div class="section flash" style="border-color: var(--border); max-width: 64rem;" id="data-coverage">
+    <h2>Data needed for this backtest</h2>
+    <p class="text-dim text-small" style="margin-top:0;">
+      Backtests use <strong>local 1-minute</strong> candle data under <code>data/candles/{SYMBOL}/1min/</code>.
+      If a ticker has <strong>no or partial</strong> files for your date range, the engine <strong>skips</strong> that name — a basket result may look like “only one symbol ran”.
+      <strong>Check Data Coverage</strong> below only reads files (no IBKR). Use <strong>Fetch missing candles from IBKR</strong> one symbol at a time when you want to fill gaps.
+    </p>
+    <h3 class="text-small" style="margin:12px 0 6px 0;">ICT/SMC Intraday · 1m cache (preview)</h3>
+    <p class="text-dim text-small">Preview: <strong>core basket</strong> · last <strong>7 calendar days</strong> to today. Click <em>Check Data Coverage</em> below to use your own range and list.</p>
+    {% if candle_coverage_preview and candle_coverage_preview.rows %}
+    <table class="table" style="max-width:100%;">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Status</th><th>Cached range</th><th>Missing days (weekday est.)</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in candle_coverage_preview.rows %}
+        <tr>
+          <td><strong>{{ r.symbol }}</strong></td>
+          <td>
+            {% if r.status == 'ready' %}<span class="pill good">Ready</span>
+            {% elif r.status == 'partial' %}<span class="pill warn">Partial</span>
+            {% else %}<span class="pill bad">Missing</span>{% endif %}
+          </td>
+          <td class="text-small text-mono">{% if r.cached_start %}{{ r.cached_start }} → {{ r.cached_end }}{% else %}—{% endif %}</td>
+          <td class="num">{{ r.missing_n }}</td>
+          <td class="text-small">{% if r.action == 'run_backtest' %}Run backtest{% elif r.action == 'fetch_missing' %}Fetch missing{% else %}{{ r.action }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-dim text-small">Ready = every <em>weekday</em> in the window has a non-empty 1m CSV. Partial = some weekdays missing. Missing = no usable cache in range. US holidays are <strong>not</strong> removed from the weekday list (see CLI notes).</p>
+    {% if candle_coverage_preview.all_ready %}
+      <p class="text-small"><span class="pill good">All core symbols have 1m cache</span> for {{ candle_coverage_preview.range_start }}..{{ candle_coverage_preview.range_end }} (weekday approximation).</p>
+    {% else %}
+      <p class="text-small"><span class="pill warn">Incomplete cache</span> for one or more symbols — basket backtest will be <strong>incomplete</strong> until you fetch 1m data for the missing names.</p>
+    {% endif %}
+    {% else %}
+    <p class="text-dim text-small">No preview available.</p>
+    {% endif %}
+
+    <h3 class="text-small" style="margin:16px 0 6px 0;">Check coverage (local files only)</h3>
+    <form id="form-candle-coverage" action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 8px 12px; max-width: 760px;">
+      <input type="hidden" name="command" value="candle-coverage" />
+      <input type="hidden" name="return_to" value="/backtest" />
+      <input type="hidden" id="cc-args" name="args" value="" />
+      <label>Symbol source
+        <select id="cc-src">
+          <option value="core">Core basket (15 names)</option>
+          <option value="watchlist">Latest watchlist</option>
+          <option value="single">Single ticker</option>
+          <option value="custom" selected>Custom comma list</option>
+        </select>
+      </label>
+      <label>Custom / single (UPPER, comma, 1–5 letters each)
+        <input type="text" id="cc-symbols" placeholder="CRM,AAPL" pattern="^[A-Z]{1,5}(,[A-Z]{1,5})*$" />
+      </label>
+      <label>Date preset
+        <select id="cc-preset">
+          <option value="1w" selected>Last 1 week</option>
+          <option value="2w">Last 2 weeks</option>
+          <option value="1m">Last ~1 month (30d)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <label>Start
+        <input type="text" id="cc-start" pattern="^\d{4}-\d{2}-\d{2}$" />
+      </label>
+      <label>End
+        <input type="text" id="cc-end" pattern="^\d{4}-\d{2}-\d{2}$" />
+      </label>
+      <div style="grid-column:1/-1;">
+        <button type="submit" class="btn">Check Data Coverage</button>
+        <span class="text-dim text-small">Does not connect to IBKR.</span>
+      </div>
+    </form>
+    <script>
+    (function () {
+      var form = document.getElementById("form-candle-coverage");
+      if (!form) return;
+      function ymd(d) {
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      }
+      function syncRange() {
+        var end = new Date();
+        var start = new Date();
+        var pr = document.getElementById("cc-preset").value;
+        if (pr === "1w") start.setDate(end.getDate() - 7);
+        else if (pr === "2w") start.setDate(end.getDate() - 14);
+        else if (pr === "1m") start.setDate(end.getDate() - 30);
+        if (pr !== "custom") {
+          document.getElementById("cc-end").value = ymd(end);
+          document.getElementById("cc-start").value = ymd(start);
+        }
+      }
+      document.getElementById("cc-preset").addEventListener("change", syncRange);
+      syncRange();
+      form.addEventListener("submit", function (e) {
+        var st = (document.getElementById("cc-start").value || "").trim();
+        var en = (document.getElementById("cc-end").value || "").trim();
+        var src = document.getElementById("cc-src").value;
+        var parts = ["--timeframe", "1min", "--start", st, "--end", en];
+        if (src === "core") parts.splice(0, 0, "--core-basket");
+        else if (src === "watchlist") { parts.splice(0, 0, "--watchlist", "latest"); }
+        else {
+          var raw = (document.getElementById("cc-symbols").value || "").trim().toUpperCase();
+          var sym = (src === "single") ? (raw.split(",")[0] || raw).trim() : raw;
+          if (src === "single") {
+            if (!/^[A-Z]{1,5}$/.test(sym)) { e.preventDefault(); alert("Single ticker: one UPPER symbol, 1–5 letters."); return; }
+          } else if (!/^[A-Z]{1,5}(,[A-Z]{1,5})*$/.test(sym)) {
+            e.preventDefault(); alert("Enter valid UPPER symbols (1–5 letters each, comma-separated)."); return;
+          }
+          parts = ["--symbols", sym].concat(parts);
+        }
+        document.getElementById("cc-args").value = parts.join(" ");
+      });
+    })();
+    </script>
+  </div>
+
   <div class="grid">
     <div class="card">
       <div class="card-title">Latest backtest</div>
@@ -83,10 +204,11 @@
     <h2>Run a backtest (cache-only)</h2>
     <p class="text-dim text-small">
       Symbols are validated against <code>^[A-Z]{1,5}(,[A-Z]{1,5})*$</code>. Dates must be <code>YYYY-MM-DD</code>.
-      The backtest reads only from <code>data/candles/</code> — if data is missing, run <code>Fetch Candles</code> first.
+      The backtest reads only from <code>data/candles/</code> — if data is missing, symbols are <strong>skipped</strong> (no auto-fetch). Use <a href="#data-coverage">Check Data Coverage</a> and optional fetch above first.
       The <code>--ibkr</code> flag is allowed only for <code>fetch-candles</code>; backtests never connect to the broker.
     </p>
-    <form action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 8px 12px; max-width: 720px;">
+    <p class="text-small" style="color: var(--warn);">Only <em>X of Y</em> symbols have full 1m cache? The watchlist backtest will still run but the result is <strong>incomplete</strong> for the missing tickers — this is not a live-trading test of the full basket.</p>
+    <form id="form-backtest" action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 8px 12px; max-width: 720px;">
       <input type="hidden" name="command" value="backtest-intraday-smc-watchlist" />
       <input type="hidden" name="return_to" value="/backtest" />
       <input type="hidden" id="bt-args" name="args" value="" />
@@ -128,7 +250,7 @@
 
     <script>
       (function () {
-        var form = document.querySelector('form[action$="/api/commands/run"][method="post"]');
+        var form = document.getElementById("form-backtest");
         if (!form) return;
         var argsEl = document.getElementById('bt-args');
         if (!argsEl) return;
@@ -149,13 +271,12 @@
   </div>
 
   <div class="section">
-    <h2>Fetch candles from IBKR (explicit, read-only connect)</h2>
+    <h2>Fetch missing candles from IBKR (explicit, read-only connect)</h2>
     <p class="text-dim text-small">
       The <code>fetch-candles</code> command is the ONLY backtest-related command that opens an IBKR connection,
-      and it never places orders. Use it once before backtesting a symbol if its 1-minute cache under
-      <code>data/candles/{SYMBOL}/{TIMEFRAME}/</code> is missing or out of date.
+      and it never places orders. Use <strong>one symbol per run</strong> to fill <code>data/candles/{SYMBOL}/1min/</code> before re-running a coverage check.
     </p>
-    <form action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 8px 12px; max-width: 720px;">
+    <form id="form-fetch-candles" action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 8px 12px; max-width: 720px;">
       <input type="hidden" name="command" value="fetch-candles" />
       <input type="hidden" name="return_to" value="/backtest" />
       <input type="hidden" id="fc-args" name="args" value="" />
@@ -192,9 +313,8 @@
 
     <script>
       (function () {
-        var forms = document.querySelectorAll('form[action$="/api/commands/run"][method="post"]');
-        if (forms.length < 2) return;
-        var form = forms[1];
+        var form = document.getElementById("form-fetch-candles");
+        if (!form) return;
         var argsEl = document.getElementById('fc-args');
         if (!argsEl) return;
         form.addEventListener('submit', function () {

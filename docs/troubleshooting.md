@@ -25,6 +25,13 @@
 - 确认命令：`python3 -m bot.cli premarket-brief --latest` 能读到 `data/premarket_briefs/` 下最近 JSON。  
 - **再强调**：盘前内容**不触发**发单；若误以为是「交易信号」——仍以 **ICT/SMC + 1m 触发** 与 Journal/门控 为准。  
 
+## 多标的回测只跑了一两只（其余被跳过）
+
+- **原因**：`backtest-intraday-smc-watchlist` 对每个标的只读**本地** `data/candles/{SYMBOL}/1min/*.csv`；**没有 1m 文件就跳过**该标的，不会自动联网拉取。  
+- **诊断**：`python3 -m bot.cli candle-coverage --core-basket --start YYYY-MM-DD --end YYYY-MM-DD` 或在 **Backtest** 点 **Check Data Coverage**（只读盘，不连 IBKR）。看 **Ready / Partial / Missing**。  
+- **补数据**：在 **Backtest** 用 **Fetch missing candles from IBKR**（每通常一次一个标的+区间），TWS/网关需在线；**不要**以为「点了回测就会下载全市场」。  
+- 详见 `docs/strategy-lab-user-manual.md` **§2.6**。
+
 ## 有信号 / 流程正常，但「没有下单」或 Paper pass 全跳过
 
 1. 在 **Paper** 页看 **Intraday** 卡片区 **skipped** 原因（如 `trading.intraday_paper.enabled=false`、未开 runtime、对账、Kill、时段外、无 READY 等）。  
