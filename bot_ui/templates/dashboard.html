@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}{{ t('page.dashboard') }}{% endblock %}
 {% block subtitle %}
-<div class="page-sub">Your day at a glance — everything here is from <strong>saved files</strong> or your last <em>approved safe action</em> (button). <strong>No broker connection when this page loads.</strong> Nothing runs until you click a button.</div>
+<div class="page-sub">{{ t('dashboard.sub') }}</div>
 {% endblock %}
 
 {% block content %}
   <div class="text-small text-dim" style="margin-bottom: 10px;">
-    <strong>Current paper strategy:</strong>
+    <strong>{{ t('dashboard.current_strategy') }}:</strong>
     {% if active_paper_strategy_entry %}{{ active_paper_strategy_entry.display_name }}{% else %}{{ strategy_selection.active_paper_strategy }}{% endif %}
-    · <strong>1-minute trigger required</strong> (ICT/SMC intraday) ·
-    <a href="{{ url_for('strategies') }}">Strategy Control Center</a>
+    · <strong>{{ t('dashboard.trigger_line') }}</strong>
+    <a href="{{ ret(url_for('strategies')) }}">Strategy Control Center</a>
   </div>
   <div class="card" style="margin-bottom: 16px; border: 1px solid var(--border, #2a2a2e);">
-    <div class="card-title">Report center (UI-first)</div>
+    <div class="card-title">{{ t('dashboard.report_center_title') }}</div>
     <p class="text-small text-dim" style="margin:0 0 8px 0;">
-      Full paper, research, backtest, and edge artifacts: <a href="/reports"><strong>Reports</strong></a>.
+      {{ t('dashboard.report_center_p') }} <a href="{{ ret('/reports') }}"><strong>{{ t('dashboard.open_reports') }}</strong></a>.
       Email is optional; same reports stay on disk and in the UI if mail is off.
     </p>
     <div class="text-small">
@@ -24,20 +24,20 @@
     </div>
   </div>
   <div class="section">
-    <h2>Today’s safety &amp; readiness</h2>
+    <h2>{{ t('dashboard.today_safety') }}</h2>
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
       <div class="card">
-        <div class="card-title">1 · Is the engine safe today?</div>
+        <div class="card-title">{{ t('dashboard.card1') }}</div>
         <div class="card-value">{% if ux.safety_headline %}{{ ux.safety_headline }}{% else %}—{% endif %}</div>
         <div class="card-sub text-small">{{ ux.safety_detail or '—' }}</div>
       </div>
       <div class="card">
-        <div class="card-title">2 · Trade readiness (research view)</div>
+        <div class="card-title">{{ t('dashboard.card2') }}</div>
         <div class="card-value">{{ ux.trade_readiness_headline or '—' }}</div>
         <div class="card-sub text-small">{{ ux.trade_readiness_detail or '—' }}</div>
       </div>
       <div class="card">
-        <div class="card-title">3 · Today’s test budget (paper)</div>
+        <div class="card-title">{{ t('dashboard.card3') }}</div>
         <div class="card-sub text-small">
           Per trade cap: {% if paper_sizing_ledger.get('max_notional_per_order_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('max_notional_per_order_usd', 0)) }}{% else %}—{% endif %} ·
           Daily cap: {% if paper_sizing_ledger.get('max_daily_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('max_daily_notional_usd', 0)) }}{% else %}—{% endif %}<br/>
@@ -58,7 +58,7 @@
         {% endif %}
       </div>
       <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">5 · Next step</div>
+        <div class="card-title">{{ t('dashboard.next_step') }}</div>
         <div class="card-value text-small">{{ ux.next_action or '—' }}</div>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
@@ -108,7 +108,7 @@
         <p class="text-dim text-small" style="margin:8px 0 0 0;"><a href="/paper">Paper</a> · <a href="/reports">Reports</a> · Same 8h UI timeout as the engine.</p>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">9 · Automatic Paper Trading Engine (ICT/SMC)</div>
+        <div class="card-title">{{ t('dashboard.automatic_engine') }}</div>
         <p class="text-dim text-small" style="margin:0 0 8px 0;"><strong>Mode: PAPER ONLY</strong> — LIMIT brackets with stop/target. No market orders, no live trading. Morning <strong>09:45–11:30</strong> NY · Full session new entries <strong>09:45–15:30</strong> NY (wind-down per config). Engine uses the same gates as <code>run-automatic-paper-engine</code> (does <strong>not</strong> require legacy <code>READY_FOR_PAPER_TEST</code>).</p>
         <div class="card-value text-small" style="margin-bottom:6px;">
           {% if automatic_paper_engine and automatic_paper_engine.get('ok') %}

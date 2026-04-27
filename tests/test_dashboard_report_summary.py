@@ -9,8 +9,8 @@ REPO = Path(__file__).resolve().parent.parent
 
 def test_dashboard_template_report_center_link() -> None:
     t = (REPO / "bot_ui" / "templates" / "dashboard.html").read_text(encoding="utf-8")
-    assert "Report center" in t
-    assert 'href="/reports"' in t
+    assert "dashboard.report_center_title" in t
+    assert "ret('/reports')" in t
     assert "Email is optional" in t or "optional" in t.lower()
 
 

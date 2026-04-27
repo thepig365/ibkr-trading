@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Ticker edge profiles{% endblock %}
+{% block title %}{{ t('page.edge_t') }}{% endblock %}
 {% block subtitle %}<div class="page-sub">Per-ticker edge (strategy-selected). Read from disk; this page does not connect to TWS. Buttons enqueue allowlisted CLIs (no <code>--fetch</code> by default — use your own date range in args).</div>{% endblock %}
 
 {% block content %}

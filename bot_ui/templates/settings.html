@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Settings{% endblock %}
-{% block subtitle %}<div class="page-sub">Read-only view of UI safety configuration. Editing settings still goes through <span class="text-mono">config/*.yaml</span>.</div>{% endblock %}
+{% block title %}{{ t('page.settings') }}{% endblock %}
+{% block subtitle %}<div class="page-sub">{{ t('settings.sub') }} <span class="text-mono">config/*.yaml</span></div>{% endblock %}
 
 {% block content %}
   <div class="section">
-    <h2>Safety</h2>
+    <h2>{{ t('settings.h2_safety') }}</h2>
     <table>
       <tbody>
         <tr><th>Paper-only by construction</th><td><span class="pill good">YES</span></td></tr>
@@ -18,7 +18,7 @@
   </div>
 
   <div class="section">
-    <h2>Allowlisted UI commands</h2>
+    <h2>{{ t('settings.h2_allowlist') }}</h2>
     <table>
       <thead><tr><th>Command</th><th>Description</th></tr></thead>
       <tbody>
@@ -45,7 +45,7 @@
   </div>
 
   <div class="section">
-    <h2>Background Auto Runner (macOS)</h2>
+    <h2>{{ t('settings.bg_runner') }}</h2>
     <p class="text-dim text-small" style="margin-top:0;">
       <strong>Cursor is not required</strong> to stay open. With launchd installed, <strong>Terminal does not need to stay open</strong> for the scheduled job.
       <strong>TWS paper must remain open/logged in</strong> and the <strong>Mac should not sleep</strong> if you expect background runs. UI only checks whether the user LaunchAgents plist file exists; it does not run <code>launchctl</code>.
@@ -65,7 +65,7 @@
   </div>
 
   <div class="section">
-    <h2>Telegram Command Listener (getUpdates)</h2>
+    <h2>{{ t('settings.tg_listener') }} (getUpdates)</h2>
     <p class="text-dim text-small" style="margin-top:0;">
       <strong>Push</strong> (engine → Telegram) uses the same bot token as <strong>inbound commands</strong>, but someone must run
       <code class="text-mono">getUpdates</code> polling so you can type <code class="text-mono">/status</code> in Telegram and get a reply.
@@ -86,7 +86,7 @@
   </div>
 
   <div class="section">
-    <h2>Runtime flags</h2>
+    <h2>{{ t('settings.h2_runtime') }}</h2>
     <table>
       <tbody>
         <tr><th>Kill switch</th><td>{% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}</td></tr>

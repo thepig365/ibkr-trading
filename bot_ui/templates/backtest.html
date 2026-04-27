@@ -1,7 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Backtest{% endblock %}
-{% block subtitle %}<div class="page-sub">RESEARCH-ONLY VIEW. This page reads files written by <code>python -m bot.cli backtest-intraday-smc</code> /
-<code>backtest-intraday-smc-watchlist</code>. It never connects to TWS or imports the IBKR client. Buttons run safe, allowlisted CLI commands only — no orders are placed, no live trading.</div>{% endblock %}
+{% block title %}{{ t('page.backtest') }}{% endblock %}
+{% block subtitle %}<div class="page-sub">{{ t('backtest.sub') }} <code>backtest-intraday-smc*</code></div>{% endblock %}
 
 {% block content %}
   {% set bt = backtest %}
@@ -9,7 +8,7 @@
     <strong>Active backtest model:</strong>
     {% if active_backtest_entry %}{{ active_backtest_entry.display_name }}{% else %}{{ strategy_selection.active_backtest_strategy }}{% endif %}
     <span class="text-mono text-dim">({{ strategy_selection.active_backtest_strategy }})</span>
-    · <a class="text-small" href="{{ url_for('strategies') }}">Strategy Control Center</a>
+    · <a class="text-small" href="{{ ret(url_for('strategies')) }}">Strategy Control Center</a>
     {% if active_backtest_entry and not active_backtest_entry.backtest_enabled %}
       <p class="text-dim text-small" style="margin:8px 0 0 0;">Backtest is <strong>not available</strong> for this model in this build. Choose <strong>ICT/SMC Intraday</strong> in the control center to use the intraday backtest engine.</p>
     {% elif not backtest_effective_ict %}
@@ -18,7 +17,7 @@
   </div>
 
   <div class="section flash" style="border-color: var(--border); max-width: 64rem;" id="data-coverage">
-    <h2>Data needed for this backtest</h2>
+    <h2>{{ t('backtest.data_needed') }}</h2>
     <p class="text-dim text-small" style="margin-top:0;">
       Backtests use <strong>local 1-minute</strong> candle data under <code>data/candles/{SYMBOL}/1min/</code>.
       If a ticker has <strong>no or partial</strong> files for your date range, the engine <strong>skips</strong> that name — a basket result may look like “only one symbol ran”.
@@ -26,7 +25,7 @@
     </p>
     <div class="text-small" style="margin:12px 0; padding:12px; border:1px solid var(--border); border-radius:6px; max-width:52rem;">
       <p style="margin:0 0 8px 0;">
-        <strong>Local cache &amp; Git —</strong>
+        <strong>{{ t('backtest.local_cache') }} —</strong>
         Fetched 1-minute candle data is <strong>cached locally</strong> so future backtests can run faster.
         These files stay on this machine under <code>data/candles/</code> and are <strong>ignored by Git</strong>; they are <strong>not uploaded to GitHub</strong>.
       </p>
@@ -75,7 +74,7 @@
     <p class="text-dim text-small">No preview available.</p>
     {% endif %}
 
-    <h3 class="text-small" style="margin:16px 0 6px 0;">Check coverage (local files only)</h3>
+    <h3 class="text-small" style="margin:16px 0 6px 0;">{{ t('backtest.check_coverage') }} (local files)</h3>
     <form id="form-candle-coverage" action="{{ url_for('api_run_command') }}" method="post" class="form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 8px 12px; max-width: 760px;">
       <input type="hidden" name="command" value="candle-coverage" />
       <input type="hidden" name="return_to" value="/backtest" />
@@ -106,7 +105,7 @@
         <input type="text" id="cc-end" pattern="^\d{4}-\d{2}-\d{2}$" />
       </label>
       <div style="grid-column:1/-1;">
-        <button type="submit" class="btn">Check Data Coverage</button>
+        <button type="submit" class="btn">{{ t('backtest.btn_check_coverage') }}</button>
         <span class="text-dim text-small">Does not connect to IBKR.</span>
       </div>
     </form>
@@ -223,7 +222,7 @@
         </span>
       </label>
       <div style="grid-column:1/-1;">
-        <button type="submit" class="btn" style="font-weight:600;">Fetch Missing Data &amp; Run Backtest</button>
+        <button type="submit" class="btn" style="font-weight:600;">{{ t('backtest.btn_fetch_run') }}</button>
         <span class="text-dim text-small">May connect to IBKR for history only; never places orders.</span>
       </div>
     </form>

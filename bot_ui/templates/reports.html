@@ -1,20 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Reports{% endblock %}
+{% block title %}{{ t('page.reports') }}{% endblock %}
 {% block subtitle %}
 <div class="page-sub">
-  <strong>Primary report center</strong> — full paper, research, backtest, and edge artifacts live here (read from disk).
-  <strong>No broker when this page loads.</strong>
-  Email is <em>optional</em>; Telegram is for short alerts only.
-  <a href="{{ url_for('dashboard') }}">Dashboard</a> ·
-  <a href="/paper">Paper</a> ·
-  <a href="/journal">Journal</a> ·
-  <a href="/research">Research</a>
+  {{ t('reports.sub') }}
+  <a href="{{ ret(url_for('dashboard')) }}">Dashboard</a> ·
+  <a href="{{ ret('/paper') }}">Paper</a> ·
+  <a href="{{ ret('/journal') }}">Journal</a> ·
+  <a href="{{ ret('/research') }}">Research</a>
 </div>
 {% endblock %}
 
 {% block content %}
   <div class="section">
-    <h2>Today’s report summary</h2>
+    <h2>{{ t('reports.todays_summary') }}</h2>
     <p class="text-dim text-small" style="margin:0 0 12px 0;">
       Files under <code class="text-mono">data/reports/</code>, <code class="text-mono">data/research/</code>, and related paths — <strong>gitignored</strong> for large outputs. Open files in your editor for the full markdown/JSON.
     </p>
@@ -94,8 +92,8 @@
   </div>
 
   <div class="section">
-    <h2>Regenerate reports (safe CLI)</h2>
-    <p class="text-dim text-small">Buttons run allowlisted commands only. Does not connect IBKR unless a command explicitly requires it.</p>
+    <h2>{{ t('reports.regen') }}</h2>
+    <p class="text-dim text-small">{{ t('safety.ui_no_ibkr') }} · Allowlisted commands only.</p>
     <div class="form-row flex-wrap" style="gap:6px;">
       {% with command='paper-daily-report', args='--latest', label='Generate daily report', return_to='/reports', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='paper-weekly-report', args='--latest', label='Generate weekly report', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}

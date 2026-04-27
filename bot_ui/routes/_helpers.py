@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import Request
 
+from ..i18n import append_lang_to_path, get_locale, lang_switch_href, t as translate
 from ..services.command_queue import CommandResult
 from ..services.state_store import StateStore
 
@@ -29,6 +30,17 @@ def base_context(
     state: StateStore = request.app.state.state_store
     safety = state.safety_view()
     root = request.app.state.project_root
+    locale = get_locale(request)
+
+    def t(key: str, **kwargs: str | float) -> str:  # noqa: ANN401
+        return translate(key, locale, **kwargs)
+
+    def ret(path: str) -> str:
+        return append_lang_to_path(path, locale)
+
+    def lang_href(target: str) -> str:
+        return lang_switch_href(request, target)
+
     return {
         "request": request,
         "active": active,
@@ -42,6 +54,11 @@ def base_context(
         "doc_manual": "docs/strategy-lab-user-manual.md",
         "doc_checklist": "docs/daily-operation-checklist.md",
         "doc_troubleshooting": "docs/troubleshooting.md",
+        "locale": locale,
+        "html_lang": "zh" if locale == "zh" else "en",
+        "t": t,
+        "ret": ret,
+        "lang_href": lang_href,
     }
 
 

@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .i18n import COOKIE_NAME, SUPPORTED
 from .services.command_queue import CommandQueue, get_command_queue
 from .services.state_store import StateStore, get_state_store
 
@@ -72,6 +73,22 @@ def create_app(
     static_dir = PACKAGE_DIR / "static"
     if static_dir.is_dir():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    @app.middleware("http")
+    async def _lang_cookie_middleware(request: Request, call_next: Any) -> Any:
+        """Set strategy_lab_lang cookie when ?lang=en|zh is present (display only)."""
+        response = await call_next(request)
+        lang = (request.query_params.get("lang") or "").strip().lower()
+        if lang in SUPPORTED:
+            response.set_cookie(
+                COOKIE_NAME,
+                lang,
+                max_age=365 * 24 * 3600,
+                httponly=False,
+                samesite="lax",
+                path="/",
+            )
+        return response
 
     # Lazy import routers to keep top-level imports tiny and to avoid
     # any chance of circular imports across the routes/services layers.

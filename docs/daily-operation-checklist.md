@@ -5,6 +5,8 @@
 
 **macOS 推荐首选：** 在仓库根目录**双击** **`Strategy Lab.command`**（一键：若 UI 已在跑则只打开 Dashboard，否则启动后打开）；收工可双击 `Stop Strategy Lab.command`；诊断用 `Strategy Lab Doctor.command`。说明见 `docs/mac-launchers.md`。`Start Strategy Lab.command` / `Open Strategy Lab.command` 为可选旧版。（终端下仍可用 `./scripts/start_strategy_lab_ui.sh` 等。）
 
+- **（可选）界面语言**：侧栏 **EN / 中文**，或地址栏加 `?lang=zh` / `?lang=en`（会记住 cookie `strategy_lab_lang`）。**默认英文**；中文为操作标签汉化，技术字段可仍为英文。不影响交易与引擎逻辑。
+
 ### 纯 UI 日流程（与 `docs/strategy-lab-user-manual.md` §3.1 一致）
 
 - [ ] 1. **`Strategy Lab.command`**（或 `start_strategy_lab_ui.sh`）  

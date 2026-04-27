@@ -1,0 +1,230 @@
+"""Minimal EN/zh UI labels for Strategy Lab (display-only, no business logic)."""
+
+from __future__ import annotations
+
+from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse
+
+from fastapi import Request
+
+COOKIE_NAME = "strategy_lab_lang"
+SUPPORTED = frozenset({"en", "zh"})
+
+# key -> {en: str, zh: str}
+M: dict[str, dict[str, str]] = {
+    # base / nav
+    "app.title_suffix": {"en": "— Strategy Lab (Local)", "zh": "— Strategy Lab（本地）"},
+    "brand.sub": {"en": "Local · Paper Only", "zh": "本地 · 仅纸面"},
+    "nav.dashboard": {"en": "Dashboard", "zh": "控制台"},
+    "nav.research": {"en": "Research", "zh": "研究"},
+    "nav.watchlist": {"en": "Watchlist", "zh": "自选股"},
+    "nav.signals": {"en": "Signals", "zh": "信号"},
+    "nav.backtest": {"en": "Backtest", "zh": "回测"},
+    "nav.edge": {"en": "Edge", "zh": "Edge"},
+    "nav.paper": {"en": "Paper Trading", "zh": "纸面交易"},
+    "nav.journal": {"en": "Journal", "zh": "日志"},
+    "nav.reports": {"en": "Reports", "zh": "报告中心"},
+    "nav.logs": {"en": "Logs", "zh": "运行日志"},
+    "nav.strategies": {"en": "Strategies", "zh": "策略中心"},
+    "nav.settings": {"en": "Settings / Doctor", "zh": "设置 / 诊断"},
+    "help.repo": {"en": "Help (repo)", "zh": "帮助（仓库文档）"},
+    "help.open_ide": {"en": "Open in IDE or editor.", "zh": "在 IDE 或编辑器中打开。"},
+    "lang.en": {"en": "EN", "zh": "EN"},
+    "lang.zh": {"en": "中文", "zh": "中文"},
+    "footer.line": {
+        "en": "Strategy Lab UI · bound to {host}:{port} · Project: {root} · This UI never connects to TWS at startup, never places orders.",
+        "zh": "Strategy Lab UI · 绑定 {host}:{port} · 项目: {root} · 本页加载不会连接 TWS，不会下单。",
+    },
+    "badges.account": {"en": "ACCOUNT", "zh": "账户"},
+    "badges.paper_only": {"en": "PAPER ONLY", "zh": "仅纸面"},
+    "badges.backend": {"en": "BACKEND", "zh": "后端"},
+    "safety.paper_only_line": {
+        "en": "Paper only. Live trading remains disabled.",
+        "zh": "仅纸面交易。实盘交易仍然禁用。",
+    },
+    "safety.news_edge": {
+        "en": "News and Edge do not trigger trades.",
+        "zh": "新闻与 Edge 评分不会直接触发交易。",
+    },
+    "safety.trade_requires": {
+        "en": "Trading requires ICT/SMC readiness and 1-minute trigger.",
+        "zh": "交易必须满足 ICT/SMC 就绪条件与 1 分钟触发。",
+    },
+    "safety.ui_no_ibkr": {
+        "en": "UI rendering does not connect to IBKR.",
+        "zh": "页面加载本身不会连接 IBKR。",
+    },
+    # dashboard
+    "page.dashboard": {"en": "Dashboard", "zh": "控制台"},
+    "dashboard.sub": {
+        "en": "Your day at a glance — everything here is from saved files or your last approved safe action (button). No broker connection when this page loads. Nothing runs until you click a button.",
+        "zh": "今日一览 — 数据来自已保存文件或你上次点击的「已批准安全操作」。本页加载时不连接经纪商。未点击按钮前不会执行任何操作。",
+    },
+    "dashboard.current_strategy": {"en": "Current paper strategy", "zh": "当前纸面策略"},
+    "dashboard.trigger_line": {
+        "en": "1-minute trigger required (ICT/SMC intraday)",
+        "zh": "需要 1 分钟触发（ICT/SMC 日内）",
+    },
+    "dashboard.report_center_title": {"en": "Report center (UI-first)", "zh": "报告中心（UI 优先）"},
+    "dashboard.report_center_p": {
+        "en": "Full paper, research, backtest, and edge artifacts:",
+        "zh": "纸面、研究、回测、Edge 等产物：",
+    },
+    "dashboard.open_reports": {"en": "Open Reports", "zh": "打开报告中心"},
+    "dashboard.today_safety": {"en": "Today’s safety & readiness", "zh": "今日安全与就绪"},
+    "dashboard.card1": {"en": "1 · Is the engine safe today?", "zh": "1 · 今日引擎是否安全？"},
+    "dashboard.card2": {"en": "2 · Trade readiness (research view)", "zh": "2 · 交易就绪（研究视角）"},
+    "dashboard.card3": {"en": "3 · Today’s test budget (paper)", "zh": "3 · 今日测试预算（纸面）"},
+    "dashboard.next_step": {"en": "5 · Next step", "zh": "5 · 下一步"},
+    "dashboard.automatic_engine": {
+        "en": "9 · Automatic Paper Trading Engine (ICT/SMC)",
+        "zh": "9 · 自动纸面交易引擎（ICT/SMC）",
+    },
+    "dashboard.paper_safety": {"en": "Paper safety", "zh": "纸面安全"},
+    # paper
+    "page.paper": {"en": "Paper Trading", "zh": "纸面交易"},
+    "paper.sub": {
+        "en": "PAPER ONLY / paper account. See whether a paper test is allowed, your test budget, and the intraday paper switch — without placing orders. Toggles only affect local flag files read by a separate automatic run process.",
+        "zh": "仅纸面账户。可查看是否允许纸面测试、测试预算与日内纸开关—不会下单。开关只影响由独立自动进程读取的本地标志文件。",
+    },
+    "paper.strategy_flash": {"en": "Paper trading strategy", "zh": "纸面交易策略"},
+    "paper.check_readiness": {
+        "en": "Check Automatic Engine Readiness",
+        "zh": "检查自动引擎就绪状态",
+    },
+    "paper.start_morning": {"en": "Start Morning Paper Engine", "zh": "启动早盘纸面引擎"},
+    "paper.start_full": {"en": "Start Full-Day Paper Engine", "zh": "启动全日纸面引擎"},
+    "paper.engine_title": {
+        "en": "Automatic Paper Trading Engine (ICT/SMC — dashboard controls)",
+        "zh": "自动纸面交易引擎（ICT/SMC — 在控制台区操作）",
+    },
+    "paper.h2_automatic_engine": {"en": "Automatic Paper Trading Engine", "zh": "自动纸面交易引擎"},
+    "paper.btn_check_engine": {
+        "en": "Check Automatic Engine Readiness",
+        "zh": "检查自动引擎就绪状态",
+    },
+    "paper.btn_morning_engine": {"en": "Start Morning Paper Engine", "zh": "启动早盘纸面引擎"},
+    "paper.btn_full_engine": {"en": "Start Full-Day Paper Engine", "zh": "启动全日纸面引擎"},
+    "paper.kill_emergency": {"en": "Emergency stop (kill switch)", "zh": "紧急停止（kill switch）"},
+    "paper.resume_kill": {"en": "Resume (remove kill switch)", "zh": "恢复（解除 kill switch）"},
+    # reports
+    "page.reports": {"en": "Reports", "zh": "报告"},
+    "reports.sub": {
+        "en": "Primary report center — full paper, research, backtest, and edge artifacts live here (read from disk). No broker when this page loads. Email is optional; Telegram is for short alerts only.",
+        "zh": "主报告台 — 纸面、研究、回测、Edge 产物在此只读。本页不连经纪商。邮件可选；Telegram 仅短讯。",
+    },
+    "reports.todays_summary": {"en": "Today’s report summary", "zh": "今日报告摘要"},
+    "reports.paper_reports": {"en": "Paper trading reports", "zh": "纸面交易报告"},
+    "reports.backtest_edge": {"en": "Backtest & Edge reports", "zh": "回测与 Edge 报告"},
+    "reports.telegram_email": {"en": "Telegram & email delivery", "zh": "Telegram 与邮件投递状态"},
+    "reports.regen": {"en": "Regenerate reports (safe CLI)", "zh": "重新生成报告（安全 CLI）"},
+    # backtest
+    "page.backtest": {"en": "Backtest", "zh": "回测"},
+    "backtest.sub": {
+        "en": "RESEARCH-ONLY VIEW. This page reads files from backtest CLI. It never connects to TWS. Buttons run allowlisted CLI only — no orders, no live trading.",
+        "zh": "仅研究展示。本页读取回测 CLI 落盘，不连 TWS。按钮仅白名单 CLI — 不下单、不启用实盘。",
+    },
+    "backtest.data_needed": {"en": "Data needed for this backtest", "zh": "本回测所需数据"},
+    "backtest.check_coverage": {"en": "Check Data Coverage", "zh": "检查数据覆盖"},
+    "backtest.fetch_run": {
+        "en": "Fetch missing data & run backtest",
+        "zh": "拉取缺失数据并运行回测",
+    },
+    "backtest.btn_check_coverage": {"en": "Check Data Coverage", "zh": "检查数据覆盖"},
+    "backtest.btn_fetch_run": {
+        "en": "Fetch Missing Data & Run Backtest",
+        "zh": "拉取缺失数据并运行回测",
+    },
+    "backtest.local_cache": {"en": "Local cache & Git", "zh": "本地缓存与 Git"},
+    # settings
+    "page.settings": {"en": "Settings", "zh": "设置"},
+    "settings.sub": {
+        "en": "Read-only view of safety configuration. Editing still uses config/*.yaml.",
+        "zh": "只读安全与配置。编辑仍走 config/*.yaml。",
+    },
+    "settings.bg_runner": {"en": "Background Auto Runner (macOS)", "zh": "后台自动运行器（macOS）"},
+    "settings.tg_listener": {"en": "Telegram Command Listener", "zh": "Telegram 命令监听器"},
+    "settings.data_email": {"en": "Telegram, email & news", "zh": "数据与 Telegram / 邮件 / 新闻"},
+    "settings.h2_safety": {"en": "Safety", "zh": "安全"},
+    "settings.h2_allowlist": {"en": "Allowlisted UI commands", "zh": "已允许的 UI 命令"},
+    "settings.h2_runtime": {"en": "Runtime flags", "zh": "运行态标志"},
+    # other page titles
+    "page.journal": {"en": "Journal", "zh": "交易日志"},
+    "page.research_p": {"en": "Research", "zh": "研究"},
+    "page.strategies_p": {"en": "Strategies", "zh": "策略"},
+    "page.edge_p": {"en": "Edge", "zh": "Edge"},
+    "page.signals_p": {"en": "Signals", "zh": "信号"},
+    "page.watchlist_p": {"en": "Watchlist", "zh": "自选股"},
+    "page.logs_p": {"en": "Logs", "zh": "运行日志"},
+    "page.journal_t": {"en": "Trade Journal", "zh": "交易流水"},
+    "page.edge_t": {"en": "Ticker edge profiles", "zh": "标的 Edge 画像"},
+    "page.strategies_t": {"en": "Strategies — Control Center", "zh": "策略中心"},
+    "page.notfound": {"en": "Not Found", "zh": "未找到"},
+}
+
+
+def get_locale(request: Request) -> str:
+    q = (request.query_params.get("lang") or "").strip().lower()
+    if q in SUPPORTED:
+        return q
+    c = (request.cookies.get(COOKIE_NAME) or "").strip().lower()
+    if c in SUPPORTED:
+        return c
+    return "en"
+
+
+def t(key: str, locale: str, **kwargs: str | float) -> str:
+    loc = locale if locale in SUPPORTED else "en"
+    entry = M.get(key)
+    if not entry:
+        return key
+    text = entry.get(loc) or entry.get("en") or key
+    if kwargs:
+        try:
+            return text.format(**kwargs)
+        except (KeyError, ValueError):
+            return text
+    return text
+
+
+def _normalize_href_to_path(href: Any) -> str:
+    """Starlette `url_for` can return a URL; templates also pass /path str."""
+    if href is None:
+        return "/"
+    if hasattr(href, "path"):
+        p = (href.path or "/").rstrip() or "/"
+        q = getattr(href, "query", None)
+        if not q:
+            return p
+        if isinstance(q, (bytes, bytearray)):
+            q = q.decode("utf-8", errors="replace")
+        return f"{p}?{q}"
+    t = str(href).strip()
+    if t.startswith("http://") or t.startswith("https://"):
+        u = urlparse(t)
+        out = (u.path or "/") or "/"
+        return f"{out}?{u.query}" if u.query else out
+    return t
+
+
+def append_lang_to_path(path: Any, loc: str) -> str:
+    """Ensure path (may include ?query) has lang= for forms and redirects."""
+    path = _normalize_href_to_path(path)
+    if not path.startswith("/"):
+        path = "/" + path
+    if "?" in path:
+        base, qstr = path.split("?", 1)
+        q = dict(parse_qsl(qstr, keep_blank_values=True))
+    else:
+        base, q = path, {}
+    q["lang"] = loc if loc in SUPPORTED else "en"
+    return base + "?" + urlencode(q)
+
+
+def lang_switch_href(request: Request, target_lang: str) -> str:
+    if target_lang not in SUPPORTED:
+        target_lang = "en"
+    path = request.url.path or "/"
+    q = dict(request.query_params)
+    q["lang"] = target_lang
+    return path + "?" + urlencode(q)

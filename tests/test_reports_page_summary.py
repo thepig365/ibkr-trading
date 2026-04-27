@@ -53,8 +53,8 @@ def test_report_hub_context_reads_latest_paper_json(tmp_path: Path) -> None:
 
 def test_reports_template_primary_hub() -> None:
     t = (REPO / "bot_ui" / "templates" / "reports.html").read_text(encoding="utf-8")
-    assert "Primary report center" in t or "primary report" in t.lower()
-    assert "Today’s report summary" in t
+    assert "reports.sub" in t
+    assert "reports.todays_summary" in t
     assert "Delivery status (optional)" in t
     assert "Email is optional" in t
     assert "Paper trading detail" in t

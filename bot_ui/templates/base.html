@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ html_lang }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}Strategy Lab{% endblock %} — Strategy Lab (Local)</title>
+  <title>{% block title %}Strategy Lab{% endblock %}{{ t('app.title_suffix') }}</title>
   <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}" />
 </head>
 <body>
@@ -11,28 +11,33 @@
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-title">Strategy Lab</div>
-        <div class="brand-sub">Local · Paper Only</div>
+        <div class="brand-sub">{{ t('brand.sub') }}</div>
       </div>
       <ul class="nav">
-        <li><a href="{{ url_for('dashboard') }}" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a></li>
-        <li><a href="{{ url_for('research') }}" class="{% if active=='research' %}active{% endif %}">Research</a></li>
-        <li><a href="{{ url_for('watchlist_page') }}" class="{% if active=='watchlist' %}active{% endif %}">Watchlist</a></li>
-        <li><a href="{{ url_for('signals_page') }}" class="{% if active=='signals' %}active{% endif %}">Signals</a></li>
-        <li><a href="{{ url_for('backtest_page') }}" class="{% if active=='backtest' %}active{% endif %}">Backtest</a></li>
-        <li><a href="{{ url_for('edge_page') }}" class="{% if active=='edge' %}active{% endif %}">Edge</a></li>
-        <li><a href="{{ url_for('paper_page') }}" class="{% if active=='paper' %}active{% endif %}">Paper Trading</a></li>
-        <li><a href="{{ url_for('journal_page') }}" class="{% if active == 'journal' %}active{% endif %}">Journal</a></li>
-        <li><a href="{{ url_for('reports_page') }}" class="{% if active=='reports' %}active{% endif %}">Reports</a></li>
-        <li><a href="{{ url_for('logs_page') }}" class="{% if active=='logs' %}active{% endif %}">Logs</a></li>
-        <li><a href="{{ url_for('strategies') }}" class="{% if active=='strategies' %}active{% endif %}">Strategies</a></li>
-        <li><a href="{{ url_for('settings_page') }}" class="{% if active=='settings' %}active{% endif %}">Settings / Doctor</a></li>
+        <li><a href="{{ ret(url_for('dashboard')) }}" class="{% if active=='dashboard' %}active{% endif %}">{{ t('nav.dashboard') }}</a></li>
+        <li><a href="{{ ret(url_for('research')) }}" class="{% if active=='research' %}active{% endif %}">{{ t('nav.research') }}</a></li>
+        <li><a href="{{ ret(url_for('watchlist_page')) }}" class="{% if active=='watchlist' %}active{% endif %}">{{ t('nav.watchlist') }}</a></li>
+        <li><a href="{{ ret(url_for('signals_page')) }}" class="{% if active=='signals' %}active{% endif %}">{{ t('nav.signals') }}</a></li>
+        <li><a href="{{ ret(url_for('backtest_page')) }}" class="{% if active=='backtest' %}active{% endif %}">{{ t('nav.backtest') }}</a></li>
+        <li><a href="{{ ret(url_for('edge_page')) }}" class="{% if active=='edge' %}active{% endif %}">{{ t('nav.edge') }}</a></li>
+        <li><a href="{{ ret(url_for('paper_page')) }}" class="{% if active=='paper' %}active{% endif %}">{{ t('nav.paper') }}</a></li>
+        <li><a href="{{ ret(url_for('journal_page')) }}" class="{% if active == 'journal' %}active{% endif %}">{{ t('nav.journal') }}</a></li>
+        <li><a href="{{ ret(url_for('reports_page')) }}" class="{% if active=='reports' %}active{% endif %}">{{ t('nav.reports') }}</a></li>
+        <li><a href="{{ ret(url_for('logs_page')) }}" class="{% if active=='logs' %}active{% endif %}">{{ t('nav.logs') }}</a></li>
+        <li><a href="{{ ret(url_for('strategies')) }}" class="{% if active=='strategies' %}active{% endif %}">{{ t('nav.strategies') }}</a></li>
+        <li><a href="{{ ret(url_for('settings_page')) }}" class="{% if active=='settings' %}active{% endif %}">{{ t('nav.settings') }}</a></li>
       </ul>
-      <div class="nav-help text-small text-dim" style="margin-top:1rem;padding:0 0.5rem;">
-        <div class="text-mono" style="font-size:0.8rem;">Help (repo)</div>
+      <div class="lang-switch text-small" style="margin-top:1rem;padding:0 0.5rem;">
+        <a href="{{ lang_href('en') }}" class="{% if locale == 'en' %}lang-active{% endif %}">{{ t('lang.en') }}</a>
+        <span class="text-dim"> · </span>
+        <a href="{{ lang_href('zh') }}" class="{% if locale == 'zh' %}lang-active{% endif %}">{{ t('lang.zh') }}</a>
+      </div>
+      <div class="nav-help text-small text-dim" style="margin-top:0.75rem;padding:0 0.5rem;">
+        <div class="text-mono" style="font-size:0.8rem;">{{ t('help.repo') }}</div>
         <div><span class="text-mono">{{ doc_manual }}</span></div>
         <div><span class="text-mono">{{ doc_checklist }}</span></div>
         <div><span class="text-mono">{{ doc_troubleshooting }}</span></div>
-        <div class="text-dim" style="margin-top:0.25rem;">Open in IDE or editor.</div>
+        <div class="text-dim" style="margin-top:0.25rem;">{{ t('help.open_ide') }}</div>
       </div>
     </aside>
     <main class="main">
@@ -43,14 +48,20 @@
         </div>
         <div class="badges">
           <span class="badge {% if safety.ibkr_account_mode_env == 'paper' %}good{% else %}bad{% endif %}">
-            ACCOUNT: {{ safety.ibkr_account_mode_env|upper }}
+            {{ t('badges.account') }}: {{ safety.ibkr_account_mode_env|upper }}
           </span>
-          <span class="badge good">PAPER ONLY</span>
+          <span class="badge good">{{ t('badges.paper_only') }}</span>
           <span class="badge {% if backend == 'local' %}neutral{% else %}warn{% endif %}">
-            BACKEND: {{ backend|upper }}
+            {{ t('badges.backend') }}: {{ backend|upper }}
           </span>
         </div>
       </div>
+      <p class="text-dim text-small i18n-safety" style="margin:0 0 8px 0; max-width: 52rem; line-height:1.4;">
+        {{ t('safety.paper_only_line') }}
+        · {{ t('safety.ui_no_ibkr') }}
+        · {{ t('safety.news_edge') }}
+        · {{ t('safety.trade_requires') }}
+      </p>
 
       {% if flash %}
         <div class="flash {{ flash.kind }}">{{ flash.message }}</div>
@@ -59,9 +70,7 @@
       {% block content %}{% endblock %}
 
       <div class="footer">
-        Strategy Lab UI · bound to <span class="text-mono">{{ ui_host }}:{{ ui_port }}</span>
-        · Project: <span class="text-mono">{{ project_root_short }}</span>
-        · This UI never connects to TWS at startup, never places orders.
+        {{ t('footer.line', host=ui_host, port=ui_port, root=project_root_short) }}
       </div>
     </main>
   </div>

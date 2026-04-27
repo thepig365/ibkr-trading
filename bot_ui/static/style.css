@@ -32,6 +32,9 @@ html, body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+.lang-switch a { opacity: 0.75; }
+.lang-switch a.lang-active { font-weight: 600; opacity: 1; color: var(--text); }
+
 .layout {
   display: grid;
   grid-template-columns: 220px 1fr;

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Paper Trading{% endblock %}
-{% block subtitle %}<div class="page-sub"><strong>PAPER ONLY</strong> / paper account. See whether a <em>paper test</em> is allowed, your <strong>test budget</strong>, and the <strong>intraday paper switch</strong> — without placing orders. Toggles only affect local flag files read by a separate automatic run process.</div>{% endblock %}
+{% block title %}{{ t('page.paper') }}{% endblock %}
+{% block subtitle %}<div class="page-sub">{{ t('paper.sub') }}</div>{% endblock %}
 
 {% block content %}
   <div class="section flash" style="border-color: var(--border); max-width: 60rem;">
-    <strong>Paper trading strategy:</strong>
+    <strong>{{ t('paper.strategy_flash') }}:</strong>
     {% if active_paper_entry %}{{ active_paper_entry.display_name }}{% else %}{{ strategy_selection.active_paper_strategy }}{% endif %}
     <span class="text-mono text-dim">({{ strategy_selection.active_paper_strategy }})</span>
-    · <a class="text-small" href="{{ url_for('strategies') }}">Strategy Control Center</a>
+    · <a class="text-small" href="{{ ret(url_for('strategies')) }}">Strategy Control Center</a>
     <p class="text-small" style="margin:8px 0 0 0;">Trades still require a valid <strong>ICT/SMC</strong> setup and a <strong>1-minute trigger</strong>, plus all paper safety gates. Chanlun/ORB and other future models stay <strong>paper-off</strong> here until their own invariants and tests are complete.</p>
   </div>
   <div class="grid">
@@ -96,15 +96,15 @@
       </div>
       <div class="card-sub text-small">
         Canonical path: <code>{{ runtime.kill_switch_path or 'data/KILL_SWITCH' }}</code>
-        — same file read by the auto-paper loop and Telegram <code>/kill</code> / <code>/resume</code>.
+        — same file read by the auto-paper loop; Telegram <code>/resume</code> may clear; use UI for kill.
       </div>
       <form action="{{ url_for('toggle_kill_switch') }}" method="post" class="form-row mt-12">
         {% if runtime.kill_switch_active %}
           <input type="hidden" name="enable" value="off" />
-          <button type="submit" class="btn warn">Resume (remove kill switch)</button>
+          <button type="submit" class="btn warn">{{ t('paper.resume_kill') }}</button>
         {% else %}
           <input type="hidden" name="enable" value="on" />
-          <button type="submit" class="btn danger">Emergency stop (kill switch)</button>
+          <button type="submit" class="btn danger">{{ t('paper.kill_emergency') }}</button>
         {% endif %}
       </form>
     </div>
@@ -220,7 +220,7 @@ bash scripts/uninstall_full_auto_paper_launchd.sh</pre>
   </div>
 
   <div class="section">
-    <h2>Automatic Paper Trading Engine</h2>
+    <h2>{{ t('paper.h2_automatic_engine') }}</h2>
     <p class="text-dim text-small" style="margin:0 0 12px 0;">
       <strong>Mode: PAPER ONLY</strong> · Active strategy: <strong>ICT/SMC Intraday</strong> (<code>ict_smc_intraday_v1</code>) · US cash session.
       Morning: <strong>09:45–11:30</strong> New York · Full session (new entries): <strong>09:45–15:30</strong> NY; after <strong>15:30</strong> the loop idles (no new brackets). Telegram: meaningful events only (orders, incomplete brackets, caps, start/stop) — not every no-signal cycle.
@@ -247,11 +247,11 @@ bash scripts/uninstall_full_auto_paper_launchd.sh</pre>
         <ul class="text-small" style="margin:8px 0 0 1rem;">{% for b in engb[:8] %}<li>{{ b }}</li>{% endfor %}</ul>
         {% endif %}
         <div class="form-row mt-12" style="flex-wrap:wrap; gap:8px;">
-          {% with command='automatic-paper-engine-readiness', label='Check Automatic Engine Readiness', return_to='/paper', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='automatic-paper-engine-readiness', label=t('paper.btn_check_engine'), return_to='/paper', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
           {% with command='intraday-paper-on', label='Turn Paper Runtime ON', return_to='/paper' %}{% include "_command_form.html" %}{% endwith %}
           {% with command='intraday-paper-off', label='Turn Paper Runtime OFF', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
-          {% with command='run-automatic-paper-engine', label='Start Morning Paper Engine', return_to='/paper', btn_class='warn', args='--session morning --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
-          {% with command='run-automatic-paper-engine', label='Start Full-Day Paper Engine', return_to='/paper', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-automatic-paper-engine', label=t('paper.btn_morning_engine'), return_to='/paper', btn_class='warn', args='--session morning --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-automatic-paper-engine', label=t('paper.btn_full_engine'), return_to='/paper', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
         </div>
         <p class="text-dim text-small" style="margin:10px 0 0 0;">Emergency stop: <strong>Kill switch</strong> in the card above, or <code>intraday-paper-off</code>. Reports: <a href="/reports">/reports</a> · <a href="{{ url_for('journal_page') }}">Journal</a>. Inbox bracket rows marked <em>Incomplete</em> = urgent. UI timeout for engine start is 8h (subprocess); prefer terminal for overnight operations.</p>
       </div>

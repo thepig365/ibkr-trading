@@ -19,4 +19,4 @@ def test_reports_shows_telegram_section_in_template() -> None:
     assert "Telegram" in t and "news-monitor-readiness" in t
     assert "email-config-status" in t
     assert "report_hub" in t
-    assert "Primary report center" in t
+    assert "reports.sub" in t
