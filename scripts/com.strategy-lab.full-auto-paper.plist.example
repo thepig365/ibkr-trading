@@ -1,37 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  Example launchd template — NOT installed automatically.
-  Edit WorkingDirectory and path to match your clone, then:
-    cp scripts/com.strategy-lab.full-auto-paper.plist.example ~/Library/LaunchAgents/com.strategy-lab.full-auto-paper.plist
-    launchctl load ~/Library/LaunchAgents/com.strategy-lab.full-auto-paper.plist
-  TWS must be logged into PAPER and API enabled before the supervisor can trade.
--->
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.strategy-lab.full-auto-paper</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/bin/env</string>
-    <string>bash</string>
-    <string>-lc</string>
-    <string>cd /ABS/PATH/TO/ibkr-trading-bot &amp;&amp; exec python3 -m bot.cli run-full-auto-paper-supervisor --session full --telegram --report-on-exit</string>
-  </array>
-  <key>WorkingDirectory</key>
-  <string>/ABS/PATH/TO/ibkr-trading-bot</string>
-  <key>RunAtLoad</key>
-  <false/>
-  <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>8</integer>
-    <key>Minute</key>
-    <integer>15</integer>
-  </dict>
-  <key>StandardOutPath</key>
-  <string>/tmp/strategy-lab-full-auto-paper.log</string>
-  <key>StandardErrorPath</key>
-  <string>/tmp/strategy-lab-full-auto-paper.err</string>
-</dict>
-</plist>
+<!-- Deprecated alias: use com.strategy-lab.full-auto-paper.plist (same content, __REPO_ROOT__ placeholder). -->
+<!-- Install: bash scripts/install_full_auto_paper_launchd.sh -->

@@ -31,6 +31,12 @@
 3. 端口/Client ID 是否与 `config` 与 `docs/ibkr-setup.md` 一致。  
 4. 仍失败：在终端用 `strategy_lab_doctor.sh` 或同文档排查；**不要**在 UI 里关 TWS 的 Order 保护。
 
+## launchd 装了但似乎没有跑 / 日志为空
+
+- **先查**：`bash scripts/status_full_auto_paper_launchd.sh`；看 `logs/launchd_full_auto.out.log` 与 `logs/full_auto_paper_supervisor.log`。  
+- **确认 TWS 纸面 + API 端口** 与 `IBKR_PORT` 一致；监督器在阻塞时会尝试 Telegram（若已配置），**不**在 UI 里执行 `launchctl`。  
+- **单实例锁**：若已有一份监督器在跑，新实例会**跳过**并在 supervisor 日志里写 `skip: another instance holds the lock`（防重复进程）。
+
 ## Full Auto Paper Supervisor：未开 TWS / 一直 blocked
 
 - **若已配置 Telegram**：监督器在**平日美东约 08:30–16:30** 且门控失败时，可能发一条**去重后的阻塞告警**（例如 TWS 未在配置端口监听）；**不会**替你在本机启动 TWS。  

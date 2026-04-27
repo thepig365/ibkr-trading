@@ -26,6 +26,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH, build_full_auto_paper_readiness
+from bot.launchd_full_auto_ui import build_background_runner_ui_context
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
@@ -129,6 +130,22 @@ def paper_page(request: Request) -> HTMLResponse:
     ctx["full_auto_supervisor_state"] = _read_json_optional(
         cfg.absolute(FULL_AUTO_STATE_RELPATH)
     )
+    try:
+        ctx["background_runner"] = build_background_runner_ui_context(root)
+    except (OSError, TypeError, ValueError):
+        r = root
+        ctx["background_runner"] = {
+            "launchd_plist_in_user_dir": False,
+            "launchd_plist_path_user": str(
+                Path.home() / "Library" / "LaunchAgents" / "com.strategy-lab.full-auto-paper.plist"
+            ),
+            "repo_scripts_plist": str(r / "scripts" / "com.strategy-lab.full-auto-paper.plist"),
+            "log_appended_supervisor": str(r / "logs" / "full_auto_paper_supervisor.log"),
+            "log_launchd_stdout": str(r / "logs" / "launchd_full_auto.out.log"),
+            "log_launchd_stderr": str(r / "logs" / "launchd_full_auto.err.log"),
+            "lock_file": str(r / "data" / "runtime" / "full_auto_paper_supervisor.lock"),
+            "last_supervisor_state": {},
+        }
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

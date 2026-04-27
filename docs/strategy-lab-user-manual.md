@@ -78,6 +78,16 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **UI**：Dashboard / Paper 的 **Full Auto Paper Supervisor** 卡片为**只读文件快照** + 白名单按钮（**Dry Run** / **Start**）；页面加载**不**建立 IBKR API 连接（TWS 端口是否开放以你上次监督器落盘或 CLI 为准）。
 - **状态文件**（默认 gitignore）：`data/runtime/full_auto_paper_supervisor_state.json`；阻塞去重：`data/runtime/full_auto_blocker_dedup.json`。
 
+#### 后台运行（macOS launchd，无需一直开 Cursor / Terminal）
+
+- **目标**：安装后由 `launchd` 周期调用 `scripts/run_full_auto_paper_supervisor.sh`，**不必**一直开着 Cursor；安装完成后也**不必**一直开着 Terminal 窗口（作业由 launchd 调度）。**TWS 纸面账户必须保持登录**，**Mac 建议禁止睡眠或使用常开机器**。  
+- **稳定 CLI**（与干跑一致）：`python3 -m bot.cli full-auto-paper-readiness --json`；`python3 -m bot.cli run-full-auto-paper-supervisor --dry-run --json`。另有一套只读门控：`automatic-paper-engine-readiness` / `run-automatic-paper-engine`（内层引擎；监督器优先用 `run-full-auto-paper-supervisor`）。  
+- **安装**（本机终端执行，勿在仓库内自动安装）：`bash scripts/install_full_auto_paper_launchd.sh`  
+- **状态**：`bash scripts/status_full_auto_paper_launchd.sh`（含日志尾、7497 探测、只读 readiness）  
+- **卸载**：`bash scripts/uninstall_full_auto_paper_launchd.sh`（仅移除 LaunchAgents plist，**不删** `data/` / 报告）  
+- **日志路径**（gitignore）：`logs/full_auto_paper_supervisor.log`（脚本追加）、`logs/launchd_full_auto.out.log`、`logs/launchd_full_auto.err.log`  
+- **plist 模板**：`scripts/com.strategy-lab.full-auto-paper.plist`（`__REPO_ROOT__` 由安装脚本替换）。**实盘仍禁用**；Telegram 仅短讯，全文在 **Reports / Journal**。
+
 ### 2.5 自动纸面日内循环与 Automatic Paper Engine
 
 - **底层循环**：`run-auto-paper-intraday-loop` 是在终端**长时间轮询**、反复调用与单次 `auto-paper-intraday-smc` 同一条执行链路的 **Worker/CLI 流程**；用于盘中自动重复「扫描/门控/尝试发纸面括号」。  

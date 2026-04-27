@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template: __REPO_ROOT__ is replaced by scripts/install_full_auto_paper_launchd.sh
+  Paper only. Do not commit installed copies to LaunchAgents. Install manually.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.strategy-lab.full-auto-paper</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO_ROOT__/scripts/run_full_auto_paper_supervisor.sh</string>
+  </array>
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/logs/launchd_full_auto.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/logs/launchd_full_auto.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>IBKR_ACCOUNT_MODE</key>
+    <string>paper</string>
+  </dict>
+</dict>
+</plist>

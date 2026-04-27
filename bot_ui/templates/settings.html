@@ -45,6 +45,24 @@
   </div>
 
   <div class="section">
+    <h2>Background Auto Runner (macOS)</h2>
+    <p class="text-dim text-small" style="margin-top:0;">
+      <strong>Cursor is not required</strong> to stay open. With launchd installed, <strong>Terminal does not need to stay open</strong> for the scheduled job.
+      <strong>TWS paper must remain open/logged in</strong> and the <strong>Mac should not sleep</strong> if you expect background runs. UI only checks whether the user LaunchAgents plist file exists; it does not run <code>launchctl</code>.
+    </p>
+    <table>
+      <tbody>
+        <tr><th>launchd plist in ~/Library/LaunchAgents</th><td>{% if background_runner.launchd_plist_in_user_dir %}<span class="pill good">file present</span>{% else %}<span class="pill warn">not installed</span>{% endif %}</td></tr>
+        <tr><th>User plist path</th><td class="text-mono text-small">{{ background_runner.launchd_plist_path_user }}</td></tr>
+        <tr><th>Supervisor log (append)</th><td class="text-mono text-small">{{ background_runner.log_appended_supervisor }}</td></tr>
+        <tr><th>launchd out / err</th><td class="text-mono text-small">{{ background_runner.log_launchd_stdout }} · {{ background_runner.log_launchd_stderr }}</td></tr>
+        <tr><th>last supervisor state (file)</th><td class="text-mono text-small">phase: {{ (background_runner.last_supervisor_state or {}).get('supervisor_phase', '—') }} · last blocker: {{ (background_runner.last_supervisor_state or {}).get('last_blocker', '—') }}</td></tr>
+      </tbody>
+    </table>
+    <p class="text-dim text-small">Install (Terminal): <code class="text-mono">bash scripts/install_full_auto_paper_launchd.sh</code> · Status: <code class="text-mono">bash scripts/status_full_auto_paper_launchd.sh</code> · Uninstall: <code class="text-mono">bash scripts/uninstall_full_auto_paper_launchd.sh</code></p>
+  </div>
+
+  <div class="section">
     <h2>Runtime flags</h2>
     <table>
       <tbody>

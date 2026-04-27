@@ -195,6 +195,27 @@
       </div>
       <p class="text-dim text-small" style="margin:10px 0 0 0;">Kill switch: card above. Links: <a href="/dashboard">Dashboard</a> · <a href="/reports">Reports</a>. Prefer terminal for all-day supervisor; UI timeout matches long engine runs.</p>
     </div>
+    <div class="card mt-12" style="max-width:52rem;">
+      <div class="card-title">Background Auto Runner (macOS launchd)</div>
+      <p class="text-dim text-small" style="margin:0 0 8px 0;">
+        <strong>Cursor does not need to stay open.</strong> After you install launchd on the Mac, you do <strong>not</strong> need to keep Terminal open for the job to be scheduled.
+        <strong>TWS (paper) must stay logged in</strong> and the <strong>Mac must stay awake</strong> (disable sleep or use a desk machine). Full reports stay in <a href="/reports">Reports</a> / Journal. <strong>Paper only — live trading remains disabled.</strong>
+      </p>
+      <ul class="text-small text-dim" style="margin:0 0 8px 1.1rem;">
+        <li>launchd plist in <code>~/Library/LaunchAgents/</code>: {% if background_runner and background_runner.get('launchd_plist_in_user_dir') %}<span class="pill good">present</span>{% else %}<span class="pill warn">not installed</span>{% endif %} (file check only; load state not probed from UI)</li>
+        <li>Repo template: <code class="text-mono text-small">{{ background_runner.repo_scripts_plist if background_runner else '—' }}</code></li>
+        <li>Supervisor log (append): <code class="text-mono text-small">{{ background_runner.log_appended_supervisor if background_runner else '—' }}</code></li>
+        <li>launchd stdout/stderr: <code class="text-mono text-small">{{ background_runner.log_launchd_stdout if background_runner else '—' }}</code> · <code class="text-mono text-small">{{ background_runner.log_launchd_stderr if background_runner else '—' }}</code></li>
+        <li>Lock file: <code class="text-mono text-small">{{ background_runner.lock_file if background_runner else '—' }}</code></li>
+        <li>TWS last known (supervisor state): <code>{{ (background_runner.last_supervisor_state or {}).get('tws_listening_last', '—') }}</code></li>
+      </ul>
+      <div class="card-sub text-small">Install / uninstall (run in Terminal on the Mac; not executed from this page):</div>
+      <pre class="text-mono text-small" style="overflow:auto;">bash scripts/install_full_auto_paper_launchd.sh
+bash scripts/uninstall_full_auto_paper_launchd.sh</pre>
+      <div class="form-row mt-8" style="flex-wrap:wrap; gap:8px;">
+        {% with command='full-auto-paper-readiness', label='Check Background Runner Readiness', return_to='/paper', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+    </div>
   </div>
 
   <div class="section">

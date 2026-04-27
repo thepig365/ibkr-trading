@@ -23,6 +23,9 @@ backend-swap, not a rewrite.
   include **Full Auto Paper** use a UI-safe path without IBKR API probes; optional
   TCP to localhost for TWS is **not** used on page render—run
   `full-auto-paper-readiness` in a terminal for live checks.)
+- **macOS background**: Optional `launchd` job (see `scripts/install_full_auto_paper_launchd.sh`)
+  runs the **full-auto paper supervisor** script on an interval; it does not change
+  the UI safety model (no live trading, no UI-driven `launchctl`).
 - **The UI never places an order directly.** It can only enqueue an
   *allowlisted CLI command* (e.g. `paper-reconcile`, `scan-mtf-smc-watchlist`).
   The actual broker calls only happen inside the existing `bot/` modules
