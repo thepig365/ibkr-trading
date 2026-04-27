@@ -10,7 +10,9 @@ from fastapi.responses import HTMLResponse
 from bot.config import load_config
 from bot.data_lifecycle import data_dir_line, data_status
 from bot.premarket.storage import find_latest_premarket_brief
+from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.report_email_status import load_report_email_status
+from bot.reports.telegram_report_dedup import read_state
 
 from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
@@ -59,6 +61,11 @@ def reports_page(request: Request) -> HTMLResponse:
 
     cfg = load_config(project_root=root)
     ctx["reports_config"] = cfg.settings.reports
+    ctx["news_reporting"] = cfg.settings.news_reporting
+    ctx["news_monitor"] = build_news_monitor_readiness(root, cfg)
+    ctx["market_news_state"] = read_state(
+        root / cfg.settings.news_reporting.state_relpath
+    )
     resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
     ctx["report_email"] = load_report_email_status(
         root,

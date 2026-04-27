@@ -64,6 +64,20 @@
   </div>
 
   <div class="section">
+    <h2>Market-moving news monitor</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px 0;">Heuristic score on Finnhub/FMP REST headlines. <strong>No automatic Telegram from this page load.</strong> No “no news” spam. <strong>Does not trigger trades</strong> — ICT/SMC + 1m still required. Hourly RTH: use cron/launchd with <code>market-news-check</code> (see <code>news-monitor-readiness</code>).</p>
+    <div class="card" style="max-width: 48rem; margin-bottom: 12px;">
+      <div class="card-title">Readiness (file + env)</div>
+      <div class="card-sub text-small">Ready: <strong>{{ news_monitor.readiness or '—' }}</strong> · min score: {{ news_monitor.min_market_moving_score }} · interval (min): {{ news_monitor.check_interval_minutes }} · <code>send_no_news_messages={{ news_monitor.send_no_news_messages }}</code></div>
+      <div class="card-sub text-small">Last check Telegram status: <code>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</code> · items scored: {{ (market_news_state.last_result or {}).get('items_scored', '—') }}</div>
+    </div>
+    <div class="form-row flex-wrap" style="gap:6px;">
+      {% with command='news-monitor-readiness', label='News monitor readiness', return_to='/research', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='market-news-check', args='--core-basket --market-moving-only --dry-run --json', label='Dry-run market news check', return_to='/research', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
+  </div>
+
+  <div class="section">
     <h2>Pre-Market Brief (US session context)</h2>
     <p class="text-small">Designed to run about <strong>1 hour before the US open</strong> (e.g. <code>08:30 America/New_York</code> in your own scheduler). It combines the <strong>manual macro calendar</strong> with <strong>optional</strong> Finnhubs/FMP news API keys. <strong>Never places trades</strong> — for context and watchlist risk only. Trades still need ICT/SMC + 1m trigger.</p>
     {% if premarket_brief %}

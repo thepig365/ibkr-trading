@@ -144,6 +144,16 @@
           {% endfor %}
         </div>
       </div>
+      <div class="card">
+        <div class="card-title">Market-moving news (last CLI)</div>
+        <div class="card-sub text-small text-mono">
+          Telegram env: {% if news_monitor.telegram_configured %}<span class="pill good">ok</span>{% else %}<span class="pill warn">missing</span>{% endif %}
+          · no-news spam: <strong>off</strong> (<code>send_no_news_messages={{ news_monitor.send_no_news_messages }}</code>)<br/>
+          last status: <code>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</code>
+          · scored: {{ (market_news_state.last_result or {}).get('items_scored', '—') }}
+        </div>
+        <div class="text-dim text-small">Does not trigger trades. <a href="/research">Research → monitor</a></div>
+      </div>
     </div>
     {% if last_paper_reconcile_stdout %}
     <div class="mt-12">

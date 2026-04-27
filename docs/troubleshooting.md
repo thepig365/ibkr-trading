@@ -61,6 +61,13 @@
 - **推荐步骤打印**：`python3 -m bot.cli eod-paper-checklist`（只读）。  
 - **缺邮件凭证**：`paper-daily-report --email` 会 **跳过发信、不崩**；`report_email_status` 常见为 `skipped_missing_credentials`。
 
+## Telegram 未收到市场新闻
+
+- **先干跑**：`python3 -m bot.cli market-news-check --core-basket --market-moving-only --dry-run --json` 看 `providers` 是否为 `skipped_missing_credentials`（未配 Finnhub/FMP 等 key）。  
+- **无达标标题**：`items_scored` 可能 >0 但 `best` 低于 `min_market_moving_score`（默认 70）— **不发送、非故障**。  
+- **去重**：同标题在 24h 内第二次 → `telegram_status` = `skipped_duplicate`。  
+- **勿期待「无新闻」提示**：`send_no_news_messages` 为 false 时，无合格新闻 = **完全静默**。
+
 ---
 
 ## UI 起不来

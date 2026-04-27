@@ -37,6 +37,14 @@ schedule:
       # Operate as: python3 -m bot.cli premarket-brief --today --email
       telegram: false
 
+    # RTH market-moving headlines (disabled — not wired to apscheduler; use cron/launchd hourly)
+    market_moving_news_check:
+      enabled: false
+      time: "10:30"
+      days: ["mon", "tue", "wed", "thu", "fri"]
+      command: "market-news-check --core-basket --market-moving-only --telegram"
+      telegram: false
+
     opening_smc_review:
       enabled: true
       time: "09:45"

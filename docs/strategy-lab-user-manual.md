@@ -113,6 +113,22 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 5. 阅读 **backtest-report** / 最新 summary。  
 6. 到 **Edge** 做 **Build Edge Profile**。
 
+### 2.7 报告分发：Telegram、邮件、全文在 UI
+
+| 内容 | 典型 Telegram | 典型 Email / 全文 | 仅 UI 文件 |
+|------|----------------|-------------------|------------|
+| 盘前简报 | 可 `--telegram` 短讯 | 可 `--email`；缺凭证不崩 | 本地 JSON/MD |
+| 纸面日/周报告 | 已有中文短 digest（`paper-daily-report --telegram`） | Resend + `REPORT_*` 环境；`ileonzh@gmail.com` 在 `config/settings.yaml` 的 `reports.email_to` | `data/reports/paper/` |
+| 重大市场新闻（heuristic） | 仅**达标且未去重**时一条 HTML 摘要 | 默认关（`news_reporting.email_enabled: false`） | `market-news-check` 的 JSON 状态在 `data/runtime/` |
+| 回测 / Edge | 不在此自动狂发；可选手动 `--telegram` | 可选、非默认 | 报告路径在 **Reports** 页 |
+
+- **不刷屏**：`news_reporting.send_no_news_messages: false` → **没有可发送的重大新闻时，Telegram 不发任何「无新闻」消息**。  
+- **去重**：`data/runtime/telegram_report_dedup.json`（由 CLI 维护；目录已 gitignore）。  
+- **读就绪**：`python3 -m bot.cli news-monitor-readiness --json`（不拉第三方）。  
+- **手动查新闻（Finnhub/FMP，env key）**：`python3 -m bot.cli market-news-check --core-basket --market-moving-only --dry-run`；默认 **dry-run 不发 Telegram**；需发送时用 `--no-dry-run` 且配置 `TELEGRAM_*`。  
+- **新闻不触发交易**：与盘前/研究相同，**不能**替代 ICT/SMC + 1 分钟触发。  
+- **环境变量名（不写入仓库）**：`TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`、`RESEND_API_KEY`、`REPORT_EMAIL_FROM`、`REPORT_EMAIL_TO`、以及各新闻 REST：`FINNHUB_API_KEY`、`FMP_API_KEY`、`BENZINGA_API_KEY`、`POLYGON_API_KEY`。
+
 ---
 
 ## 3. 每天如何使用（摘要）

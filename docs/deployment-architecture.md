@@ -174,6 +174,8 @@ UI command runner allowlist additions for v2:
 - `edge-profile-report` (read-only latest `data/edge_profiles/*-edge-profiles.json`)
 - `auto-loop-readiness` (read-only; optional `--json` / `--probe-ibkr`; does not start the intraday auto loop)
 - `eod-paper-checklist` (read-only; prints recommended EOD command sequence; no orders, no email)
+- `news-monitor-readiness` (read-only; env + config for market-news monitor; no provider fetch)
+- `market-news-check` (Finnhub/FMP REST when keys present; default `--dry-run` avoids Telegram; never trades)
 
 All other CLI subcommands (especially `auto-paper-mtf`, `place-order`,
 `run-auto-paper-mtf-loop`, `telegram-listen`, `run-scheduler`) remain

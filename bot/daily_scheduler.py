@@ -60,6 +60,8 @@ _KNOWN_REPORT_COMMANDS: frozenset[str] = frozenset({
     "reconcile",
     "open-orders",
     "test-telegram",
+    "market-news-check",
+    "news-monitor-readiness",
 })
 
 

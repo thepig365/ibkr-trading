@@ -13,8 +13,10 @@ from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
 from bot.premarket.storage import find_latest_premarket_brief
+from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
+from bot.reports.telegram_report_dedup import read_state
 from bot.ux.dashboard_context import DashboardUX
 
 from ..strategy_lab_context import get_catalog_and_selection
@@ -79,6 +81,8 @@ def dashboard(request: Request) -> HTMLResponse:
         root, resend_key_present=resend_ok, from_addr=report_from
     )
     premarket = find_latest_premarket_brief(root)
+    mnews = read_state(root / cfg.settings.news_reporting.state_relpath)
+    nmon = build_news_monitor_readiness(root, cfg)
     cat, ssel = get_catalog_and_selection(root)
     paper_s_entry = cat.strategies.get(ssel.active_paper_strategy)
     ux = DashboardUX.from_runtime(
@@ -125,6 +129,8 @@ def dashboard(request: Request) -> HTMLResponse:
             "strategy_selection": ssel,
             "active_paper_strategy_entry": paper_s_entry,
             "auto_loop_readiness": auto_loop_readiness,
+            "market_news_state": mnews,
+            "news_monitor": nmon,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)

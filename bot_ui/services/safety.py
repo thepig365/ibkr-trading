@@ -71,6 +71,8 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Read-only checklist before run-auto-paper-intraday-loop; optional --json / --probe-ibkr."
     ),
     "eod-paper-checklist": "Print read-only EOD paper review CLI sequence (no orders, no IBKR, no email).",
+    "news-monitor-readiness": "Read-only news monitor env/config snapshot (no provider fetch, no orders).",
+    "market-news-check": "Score market headlines (Finnhub/FMP); optional Telegram; never places trades.",
     "strategy-lab-engine-status": (
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
     ),
@@ -122,7 +124,8 @@ FORBIDDEN_ARG_TOKENS: frozenset[str] = frozenset(
         # Prompt 13F: intraday paper controls share the command runner;
         # belt-and-suspenders against an operator typing a live/market
         # token in the UI custom-args field.
-        "--market",
+        # Note: do not add bare "--market" — it substring-matches
+        # --market-moving-only (market-news-check).
         "--market-order",
         "--mkt",
         "--enable-live",
@@ -1202,6 +1205,95 @@ def validate_eod_paper_checklist_args(args: tuple[str, ...]) -> tuple[bool, str]
     return True, ""
 
 
+_NEWS_MON_READ_FLAGS = frozenset({"--json"})
+
+
+def validate_news_monitor_readiness_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("news-monitor-readiness", args)
+    if not ok:
+        return ok, err
+    for t in args:
+        if t not in _NEWS_MON_READ_FLAGS:
+            return False, f"news-monitor-readiness: only --json or empty, got {t!r}."
+    if args.count("--json") > 1:
+        return False, "news-monitor-readiness: duplicate --json."
+    return True, ""
+
+
+_MARKET_NEWS_FLAGS = frozenset(
+    {
+        "--symbols",
+        "--watchlist",
+        "--core-basket",
+        "--no-core-basket",
+        "--market-moving-only",
+        "--all-scored",
+        "--lookback-minutes",
+        "--min-score",
+        "--telegram",
+        "--no-telegram",
+        "--email",
+        "--no-email",
+        "--dry-run",
+        "--no-dry-run",
+        "--json",
+    }
+)
+
+
+def validate_market_news_check_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("market-news-check", args)
+    if not ok:
+        return ok, err
+    if "--telegram" in args and "--no-telegram" in args:
+        return False, "market-news-check: --telegram and --no-telegram are exclusive."
+    if "--email" in args and "--no-email" in args:
+        return False, "market-news-check: --email and --no-email are exclusive."
+    if "--dry-run" in args and "--no-dry-run" in args:
+        return False, "market-news-check: --dry-run and --no-dry-run are exclusive."
+    n_source = 0
+    if "--core-basket" in args:
+        n_source += 1
+    if "--watchlist" in args:
+        n_source += 1
+    if "--symbols" in args:
+        n_source += 1
+    if n_source > 1:
+        return False, "market-news-check: at most one of --core-basket, --watchlist, --symbols."
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t in _MARKET_NEWS_FLAGS and t not in {
+            "--symbols",
+            "--watchlist",
+            "--lookback-minutes",
+            "--min-score",
+        }:
+            if t in {"--core-basket", "--market-moving-only", "--all-scored", "--telegram", "--email", "--dry-run", "--no-dry-run", "--json", "--no-telegram", "--no-email", "--no-core-basket"}:
+                i += 1
+                continue
+            return False, f"market-news-check: unknown flag {t!r}."
+        if t in {"--symbols", "--watchlist", "--lookback-minutes", "--min-score"}:
+            if i + 1 >= len(args):
+                return False, f"market-news-check: {t} needs a value."
+            i += 2
+            continue
+        if t in {"--core-basket", "--json", "--telegram", "--email", "--dry-run", "--no-dry-run", "--market-moving-only", "--all-scored", "--no-telegram", "--no-email", "--no-core-basket"}:
+            i += 1
+            continue
+        return False, f"market-news-check: unexpected token {t!r}."
+    if "--watchlist" in args:
+        w_idx = args.index("--watchlist")
+        if w_idx + 1 < len(args) and args[w_idx + 1] != "latest":
+            return False, "market-news-check: only --watchlist latest is allowed from UI."
+    if "--no-dry-run" in args and "--telegram" in args:
+        return (
+            False,
+            "market-news-check: from UI, do not use --no-dry-run with --telegram; use --dry-run only.",
+        )
+    return True, ""
+
+
 def validate_paper_activation_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
     ok, err = _check_no_forbidden("paper-activation-status", args)
     if not ok:
@@ -1519,6 +1611,10 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_auto_loop_readiness_args(args)
     if command == "eod-paper-checklist":
         return validate_eod_paper_checklist_args(args)
+    if command == "news-monitor-readiness":
+        return validate_news_monitor_readiness_args(args)
+    if command == "market-news-check":
+        return validate_market_news_check_args(args)
     if command == "write-paper-local-config":
         return validate_write_paper_local_config_args(args)
     if command in {"intraday-paper-on", "intraday-paper-off"}:

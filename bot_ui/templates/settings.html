@@ -72,6 +72,20 @@
   </div>
 
   <div class="section">
+    <h2>Telegram, email &amp; news reporting (env + config)</h2>
+    <table>
+      <tbody>
+        <tr><th>Telegram (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)</th><td>{% if telegram_env_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">missing</span>{% endif %}</td></tr>
+        <tr><th>Resend (RESEND_API_KEY + REPORT_EMAIL_FROM)</th><td>{% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">skipped_missing_credentials</span>{% endif %}</td></tr>
+        <tr><th>News REST keys (any of Finnhub/FMP/Benzinga/Polygon)</th><td>{% if news_api_any %}<span class="pill good">at least one</span>{% else %}<span class="pill warn">none</span>{% endif %}</td></tr>
+        <tr><th>reports.telegram_enabled</th><td class="text-mono">{{ reports_config.telegram_enabled }}</td></tr>
+        <tr><th>news_reporting.send_no_news_messages</th><td class="text-mono">{{ news_reporting.send_no_news_messages }} (default false = no spam)</td></tr>
+        <tr><th>report email_to (config)</th><td class="text-mono">{{ reports_config.email_to }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
     <h2>Data &amp; email (read-only + safe CLI)</h2>
     <p class="text-dim text-small">Report recipient (config): <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code> ·
       email UI flag: {{ reports_config.email_enabled }} ·

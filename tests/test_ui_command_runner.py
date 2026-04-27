@@ -134,6 +134,13 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "premarket-brief": ("--latest",),
     "auto-loop-readiness": (),
     "eod-paper-checklist": (),
+    "news-monitor-readiness": (),
+    "market-news-check": (
+        "--core-basket",
+        "--market-moving-only",
+        "--dry-run",
+        "--json",
+    ),
     "candle-coverage": (
         "--core-basket",
         "--start",

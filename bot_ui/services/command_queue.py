@@ -131,6 +131,9 @@ def validate_request(request: CommandRequest) -> tuple[bool, str]:
         if "\n" in arg or "\r" in arg:
             return False, "Newlines are not allowed in command arguments."
         lowered = arg.strip().lower()
+        # Exact match only: substring checks would block --market-moving-only.
+        if lowered == "--market":
+            return False, "Argument --market is forbidden (market order risk)."
         for tok in FORBIDDEN_ARG_TOKENS:
             if tok in lowered:
                 return False, f"Argument contains forbidden token {tok!r}."

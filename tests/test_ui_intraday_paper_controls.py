@@ -289,7 +289,7 @@ def test_forbidden_arg_tokens_include_market_and_live_extensions() -> None:
     must_have = {
         "--live",
         "--enable-live-trading",
-        "--market",
+        "--market-order",
         "--mkt",
         "--place-order",
         "--buy",

@@ -16,9 +16,35 @@
     <p class="text-dim text-small mt-12">
       Email defaults: <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code> ·
       enabled: {{ reports_config.email_enabled }} ·
+      telegram: {{ reports_config.telegram_enabled }} ·
       persistence: {{ reports_config.persistence_mode }} ·
       local cache (h): {{ reports_config.keep_local_reports_hours }}
     </p>
+  </div>
+
+  <div class="section">
+    <h2>Telegram &amp; email delivery</h2>
+    <p class="text-small text-dim" style="margin:0 0 12px 0;">Status from <strong>config + env + last CLI run</strong> (page load does <strong>not</strong> call providers or Telegram).</p>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card">
+        <div class="card-title">Telegram</div>
+        <div class="card-sub text-small">Configured: {% if news_monitor.telegram_configured %}<span class="pill good">yes</span>{% else %}<span class="pill warn">missing env</span>{% endif %} · <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code></div>
+        <div class="card-sub text-small">Last <code>market-news-check</code> status: <strong>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</strong></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Email (Resend)</div>
+        <div class="card-sub text-small">{% if report_email.resend_configured %}<span class="pill good">RESEND + FROM set</span>{% else %}<span class="pill warn">skipped_missing_credentials</span>{% endif %}</div>
+        <div class="card-sub text-small">Target in config: <code>{{ reports_config.email_to }}</code> · also <code>REPORT_EMAIL_TO</code> in env if used by CLI</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Dedup + state files</div>
+        <div class="card-sub text-mono text-small">{{ news_reporting.dedup_store_relpath }} · {{ news_reporting.state_relpath }}</div>
+        <div class="text-dim text-small">No-news silence: <code>send_no_news_messages={{ news_reporting.send_no_news_messages }}</code></div>
+      </div>
+    </div>
+    <div class="form-row flex-wrap mt-12" style="gap:6px;">
+      {% with command='news-monitor-readiness', label='Check news monitor readiness', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+    </div>
   </div>
 
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">

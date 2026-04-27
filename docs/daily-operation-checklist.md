@@ -26,6 +26,8 @@
 
 **收市（EOD，纸面）** — 需要 TWS 时依次：`open-orders` → `portfolio` → `paper-reconcile` → `paper-daily-report --latest --email`；只读打印推荐顺序：`python3 -m bot.cli eod-paper-checklist`。
 
+**重大新闻（可选，不刷屏）** — 配置 Finnhub/FMP 等 key 后：`python3 -m bot.cli news-monitor-readiness --json` 查看是否就绪；`python3 -m bot.cli market-news-check --core-basket --market-moving-only --dry-run --json` 干跑。默认 **不** 发「无新闻」；RTH 每小时可在外部 **cron/launchd** 调用（勿在仓库内静默开守护进程，除非你已自行配置调度）。
+
 ## 第一次端到端纸面验证（E2E）
 
 > 与 `docs/strategy-lab-user-manual.md` 中 **§6.1** 同序；这里作清单勾选用。

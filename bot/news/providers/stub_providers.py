@@ -8,7 +8,7 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from .base import NewsHeadline, ProviderCallResult

@@ -4623,6 +4623,149 @@ def eod_paper_checklist_cmd() -> None:
     raise typer.Exit(0)
 
 
+@app.command("news-monitor-readiness")
+def news_monitor_readiness_cmd(
+    as_json: bool = typer.Option(False, "--json", help="Machine-readable output."),
+) -> None:
+    """Read-only: env + config for market-moving news monitor. Does not fetch news."""
+    from .reports.news_monitor_readiness import (  # noqa: PLC0415
+        build_news_monitor_readiness,
+    )
+
+    cfg, _journal = _bootstrap()
+    payload = build_news_monitor_readiness(cfg.project_root, cfg)
+    if as_json:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="news-monitor-readiness",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
+
+
+@app.command("market-news-check")
+def market_news_check_cmd(
+    symbols: str | None = typer.Option(
+        None, "--symbols", help="Comma-separated tickers, e.g. AAPL,NVDA",
+    ),
+    watchlist: str | None = typer.Option(
+        None,
+        "--watchlist",
+        help="Use `latest` to load the newest *-dynamic-watchlist.json",
+    ),
+    core_basket: bool = typer.Option(
+        False, "--core-basket", help="15-name core coverage basket (local cache / lab).",
+    ),
+    market_moving_only: bool = typer.Option(
+        True,
+        "--market-moving-only/--all-scored",
+        help="Only consider items at or above min score (default on).",
+    ),
+    lookback_minutes: int = typer.Option(90, "--lookback-minutes", min=1),
+    min_score: int | None = typer.Option(
+        None, "--min-score", help="Override config news_reporting.min_market_moving_score",
+    ),
+    telegram: bool = typer.Option(
+        False,
+        "--telegram",
+        help="Send a short HTML Telegram if not --dry-run and creds present.",
+    ),
+    email: bool = typer.Option(
+        False,
+        "--email",
+        help="Reserved; email for breaking news is off by default in config.",
+    ),
+    dry_run: bool = typer.Option(
+        True,
+        "--dry-run/--no-dry-run",
+        help="Default --dry-run: never send Telegram. Use --no-dry-run to allow send.",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="JSON only to stdout."),
+) -> None:
+    """Score recent headlines (Finnhub/FMP) for market-moving keywords. Never trades."""
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from .backtests.candle_coverage import (  # noqa: PLC0415
+        CORE_BASKET,
+        load_latest_watchlist_symbols,
+    )
+    from .reports.market_news_check import run_market_news_check  # noqa: PLC0415
+
+    cfg, journal = _bootstrap()
+    root = _Path(cfg.project_root)
+    nsrc = int(bool(symbols and symbols.strip())) + int(
+        bool((watchlist or "").strip())
+    ) + int(bool(core_basket))
+    if nsrc != 1:
+        err = "specify exactly one of --symbols, --watchlist latest, or --core-basket"
+        if as_json:
+            console.print_json(data={"error": err})
+        else:
+            console.print(f"[red]market-news-check: {err}[/red]")
+        raise typer.Exit(1)
+    if (watchlist or "").strip() and (watchlist or "").strip().lower() != "latest":
+        if as_json:
+            console.print_json(
+                data={"error": "only --watchlist latest is supported", "value": watchlist}
+            )
+        else:
+            console.print("[red]market-news-check: only --watchlist latest.[/red]")
+        raise typer.Exit(1)
+
+    sym_list: list[str] = []
+    if core_basket:
+        sym_list = list(CORE_BASKET)
+    elif (watchlist or "").strip().lower() == "latest":
+        sym_list, _p, err = load_latest_watchlist_symbols(root)
+        if err is not None:
+            if as_json:
+                console.print_json(data={"error": err, "symbols": []})
+            else:
+                console.print(f"[red]{err}[/red]")
+            raise typer.Exit(1)
+    else:
+        sym_list = [s.strip().upper() for s in (symbols or "").split(",") if s.strip()]
+    if not sym_list:
+        if as_json:
+            console.print_json(data={"error": "no symbols", "symbols": []})
+        else:
+            console.print("[red]market-news-check: no symbols resolved.[/red]")
+        raise typer.Exit(1)
+
+    nr = cfg.settings.news_reporting
+    thr = int(min_score) if min_score is not None else int(nr.min_market_moving_score)
+    if not market_moving_only:
+        pass  # min_score still applies for Telegram winner
+
+    result = run_market_news_check(
+        root,
+        cfg,
+        journal,
+        symbols=sym_list,
+        market_moving_only=bool(market_moving_only),
+        lookback_minutes=lookback_minutes,
+        min_score=thr,
+        want_telegram=bool(telegram),
+        want_email=bool(email),
+        dry_run=bool(dry_run),
+    )
+    if as_json:
+        console.print_json(data=result)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(result, indent=2, ensure_ascii=False, default=str)[:8000],
+                title="market-news-check",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # 13I: Local paper activation (settings.local + runtime; PAPER, bracket only).
 # ---------------------------------------------------------------------------

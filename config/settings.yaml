@@ -164,9 +164,25 @@ market_regime:
 reports:
   email_to: "ileonzh@gmail.com"
   email_enabled: true
+  telegram_enabled: true
   persistence_mode: "ephemeral"
   keep_local_reports_hours: 24
   keep_charts_days: 7
+
+# Market-moving news (env only: TELEGRAM_*, BENZINGA_*, FINNHUB_*, FMP_*, POLYGON_*)
+news_reporting:
+  enabled: true
+  timezone: "America/New_York"
+  hourly_market_news_check: true
+  check_interval_minutes: 60
+  send_no_news_messages: false
+  dedup_window_hours: 24
+  market_moving_only: true
+  telegram_enabled: true
+  email_enabled: false
+  min_market_moving_score: 70
+  dedup_store_relpath: "data/runtime/telegram_report_dedup.json"
+  state_relpath: "data/runtime/market_news_check_state.json"
 
 # Pre-market brief (human-readable; optional email; never places trades)
 premarket_brief:

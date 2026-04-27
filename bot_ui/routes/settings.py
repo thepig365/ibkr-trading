@@ -27,6 +27,10 @@ def settings_page(request: Request) -> HTMLResponse:
     root = request.app.state.project_root
     cfg = load_config(project_root=root)
     resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
+    t_ok = bool(
+        (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
+        and (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
+    )
     ctx = base_context(request, active="settings")
     ctx.update(
         {
@@ -36,6 +40,17 @@ def settings_page(request: Request) -> HTMLResponse:
             "runtime": st.runtime_flags(),
             "recent_results": request.app.state.command_queue.list_recent(limit=6),
             "reports_config": cfg.settings.reports,
+            "news_reporting": cfg.settings.news_reporting,
+            "telegram_env_configured": t_ok,
+            "news_api_any": any(
+                bool((os.environ.get(k) or "").strip())
+                for k in (
+                    "FINNHUB_API_KEY",
+                    "FMP_API_KEY",
+                    "BENZINGA_API_KEY",
+                    "POLYGON_API_KEY",
+                )
+            ),
             "data_disk": data_status(root),
             "data_dir_line": data_dir_line,
             "report_email": load_report_email_status(

@@ -363,11 +363,37 @@ class PremarketBriefConfig(BaseModel):
     timezone: str = "America/New_York"
 
 
+class NewsReportingConfig(BaseModel):
+    """Market-moving news checks (read-only; never triggers trades). Secrets via env only."""
+
+    enabled: bool = True
+    timezone: str = "America/New_York"
+    hourly_market_news_check: bool = True
+    check_interval_minutes: int = 60
+    send_no_news_messages: bool = False
+    dedup_window_hours: int = 24
+    market_moving_only: bool = True
+    telegram_enabled: bool = True
+    email_enabled: bool = False
+    min_market_moving_score: int = 70
+    dedup_store_relpath: str = "data/runtime/telegram_report_dedup.json"
+    state_relpath: str = "data/runtime/market_news_check_state.json"
+
+    @field_validator("min_market_moving_score")
+    @classmethod
+    def _score_range(cls, v: int) -> int:
+        n = int(v)
+        if not 0 <= n <= 100:
+            raise ValueError("min_market_moving_score must be 0..100")
+        return n
+
+
 class ReportsConfig(BaseModel):
     """Report delivery and local retention (Strategy Lab; never weakens live-trading safety)."""
 
     email_to: str = "ileonzh@gmail.com"
     email_enabled: bool = True
+    telegram_enabled: bool = True
     persistence_mode: str = "ephemeral"  # ephemeral | keep_local
     keep_local_reports_hours: int = 24
     keep_charts_days: int = 7
@@ -397,6 +423,7 @@ class Settings(BaseModel):
     smc_timeframes: SmcTimeframesConfig = Field(default_factory=SmcTimeframesConfig)
     reports: ReportsConfig = Field(default_factory=ReportsConfig)
     premarket_brief: PremarketBriefConfig = Field(default_factory=PremarketBriefConfig)
+    news_reporting: NewsReportingConfig = Field(default_factory=NewsReportingConfig)
 
 
 class AppConfig(BaseModel):
