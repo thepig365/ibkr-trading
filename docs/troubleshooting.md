@@ -30,7 +30,8 @@
 - 运行 `python3 -m bot.cli email-config-status --json`（**只输出布尔与缺项名**）与 `news-monitor-readiness --json`：看 `missing_fields`（如 `RESEND_API_KEY`、`REPORT_EMAIL_FROM`、或收件人）。  
 - 收件人可由 **`reports.email_to`**（`config/settings.yaml`）满足，不必再设 `REPORT_EMAIL_TO`。  
 - `.env` 必须从**仓库根**加载；若 `dotenv_load_warning` 非空，说明解析阶段出错（类型名见输出，**不含**密钥原文）。  
-- Gmail 作发件人需在 Resend 控制台完成域名验证；`from_address_may_need_resend_verification` 为提示，**不**等于配置无效。
+- Gmail 作发件人需在 Resend 控制台完成域名验证；`from_address_may_need_resend_verification` 为提示，**不**等于配置无效。  
+- Resend **HTTP 403** 且响应里含 **1010**：常见为缺 **User-Agent** 或访问策略；本仓库请求已带 `User-Agent: StrategyLab/1.0 ...`。若仍 403/1010，查 Resend 控制台与网络策略。
 
 ## 多标的回测只跑了一两只（其余被跳过）
 

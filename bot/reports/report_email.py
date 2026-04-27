@@ -11,9 +11,14 @@ from dataclasses import dataclass
 from typing import Any
 
 
+RESEND_API_URL = "https://api.resend.com/emails"
+# Resend requires a non-empty User-Agent; missing it yields HTTP 403 error code 1010.
+RESEND_USER_AGENT = "StrategyLab/1.0 (+https://local.strategy-lab)"
+
+
 @dataclass
 class SendOutcome:
-    status: str  # sent | skipped_missing_credentials | failed
+    status: str  # sent | skipped_missing_credentials | failed | failed_user_agent_or_resend_access_denied
     detail: str = ""
 
 
@@ -30,6 +35,25 @@ def _to_addr(configured: str) -> str:
     if env:
         return env
     return (configured or "ileonzh@gmail.com").strip()
+
+
+def _resend_request_headers(api_key: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": RESEND_USER_AGENT,
+    }
+
+
+def _http_error_outcome(exc: urllib.error.HTTPError) -> SendOutcome:
+    body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+    if int(exc.code) == 403 and "1010" in body:
+        return SendOutcome(
+            "failed_user_agent_or_resend_access_denied",
+            "Resend rejected the request with 403/1010. This is commonly caused by "
+            "missing User-Agent or access policy.",
+        )
+    return SendOutcome("failed", f"HTTP {exc.code}: {body[:200]}")
 
 
 def send_report_email(
@@ -55,10 +79,10 @@ def send_report_email(
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(  # noqa: S310 - fixed URL, controlled JSON
-        "https://api.resend.com/emails",
+        RESEND_API_URL,
         data=data,
         method="POST",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        headers=_resend_request_headers(key),
     )
     try:
         with urllib.request.urlopen(req, timeout=30, context=ssl.create_default_context()) as resp:
@@ -66,8 +90,7 @@ def send_report_email(
             if 200 <= int(resp.status) < 300:
                 return SendOutcome("sent", raw[:200])
     except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
-        return SendOutcome("failed", f"HTTP {exc.code}: {body[:200]}")
+        return _http_error_outcome(exc)
     except OSError as exc:
         return SendOutcome("failed", str(exc)[:200])
     return SendOutcome("failed", "unknown")
