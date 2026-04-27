@@ -1,12 +1,90 @@
 {% extends "base.html" %}
 {% block title %}Reports{% endblock %}
 {% block subtitle %}
-<div class="page-sub">What happened in reports on disk — <strong>read-only</strong>. No broker when the page loads. Buttons are <em>approved safe actions</em> to regenerate files.</div>
+<div class="page-sub">
+  <strong>Primary report center</strong> — full paper, research, backtest, and edge artifacts live here (read from disk).
+  <strong>No broker when this page loads.</strong>
+  Email is <em>optional</em>; Telegram is for short alerts only.
+  <a href="{{ url_for('dashboard') }}">Dashboard</a> ·
+  <a href="/paper">Paper</a> ·
+  <a href="/journal">Journal</a> ·
+  <a href="/research">Research</a>
+</div>
 {% endblock %}
 
 {% block content %}
   <div class="section">
-    <h2>Safe actions</h2>
+    <h2>Today’s report summary</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px 0;">
+      Files under <code class="text-mono">data/reports/</code>, <code class="text-mono">data/research/</code>, and related paths — <strong>gitignored</strong> for large outputs. Open files in your editor for the full markdown/JSON.
+    </p>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+      <div class="card">
+        <div class="card-title">Pre-Market brief</div>
+        {% if premarket_brief %}
+          <div class="text-small"><strong>{{ premarket_brief.date_ny }}</strong> · {{ premarket_brief.market_tone }}</div>
+          <ul class="text-small text-dim">{% for h in (premarket_brief.headlines or [])[:2] %}<li>{{ h.title }}{% if h.symbol %} ({{ h.symbol }}){% endif %}</li>{% else %}<li>—</li>{% endfor %}</ul>
+        {% else %}
+          <div class="text-dim text-small">No brief on disk — use <a href="/research">Research</a> to generate.</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Market-moving news (last CLI)</div>
+        <div class="text-small text-mono">status: {{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</div>
+        <div class="text-small">items scored: {{ (market_news_state.last_result or {}).get('items_scored', '—') }}</div>
+        <p class="text-dim text-small" style="margin:8px 0 0 0;">No market-moving news ⇒ <strong>no</strong> Telegram/email notification (silence rule).</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Paper daily (latest JSON)</div>
+        {% if report_hub.hub_paper_daily %}
+          <div class="text-small">date: <strong>{{ report_hub.hub_paper_daily.date }}</strong> · data: {{ report_hub.hub_paper_daily.data_status or '—' }}</div>
+          <div class="text-small">to broker: {{ report_hub.hub_paper_daily.submitted_to_broker_count or 0 }} · complete brackets: {{ report_hub.hub_paper_daily.complete_bracket_count or 0 }} · skipped: {{ report_hub.hub_paper_daily.skipped_count or 0 }}</div>
+          <div class="text-small text-dim">budget used: ${{ report_hub.hub_paper_daily.submitted_notional_total or 0 }} · remaining: ${{ report_hub.hub_paper_daily.daily_remaining_notional_usd or '—' }}</div>
+        {% else %}
+          <div class="text-dim text-small">No daily paper JSON yet — run <em>Generate daily report</em> below.</div>
+        {% endif %}
+        {% if report_hub.hub_paper_daily_json_relpath %}<div class="text-mono text-small mt-8"><code>{{ report_hub.hub_paper_daily_json_relpath }}</code></div>{% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Paper weekly</div>
+        {% if report_hub.hub_paper_weekly %}
+          <div class="text-small">{{ report_hub.hub_paper_weekly.week_start }} → {{ report_hub.hub_paper_weekly.week_end }}</div>
+          <div class="text-small">orders: {{ report_hub.hub_paper_weekly.total_paper_orders or '—' }} · complete brackets: {{ report_hub.hub_paper_weekly.total_complete_brackets or '—' }}</div>
+        {% else %}
+          <div class="text-dim text-small">No weekly JSON yet.</div>
+        {% endif %}
+        {% if report_hub.hub_paper_weekly_relpath %}<div class="text-mono text-small mt-8"><code>{{ report_hub.hub_paper_weekly_relpath }}</code></div>{% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Backtest (latest summary)</div>
+        {% if report_hub.hub_backtest %}
+          <div class="text-small">trades: {{ report_hub.hub_backtest.total_trades or '—' }} · win rate: {{ report_hub.hub_backtest.win_rate or '—' }} · total R: {{ report_hub.hub_backtest.total_r or '—' }}</div>
+          <div class="text-small">PF: {{ report_hub.hub_backtest.profit_factor or '—' }} · max DD: {{ report_hub.hub_backtest.max_drawdown or '—' }}</div>
+          {% if report_hub.hub_backtest.symbols %}<div class="text-dim text-small">{{ (report_hub.hub_backtest.symbols[:8])|join(', ') }}{% if report_hub.hub_backtest.symbols|length > 8 %}…{% endif %}</div>{% endif %}
+        {% else %}
+          <div class="text-dim text-small">No backtest summary on disk.</div>
+        {% endif %}
+        {% if report_hub.hub_backtest_relpath %}<div class="text-mono text-small mt-8"><code>{{ report_hub.hub_backtest_relpath }}</code></div>{% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Edge profiles (top rows)</div>
+        {% if report_hub.hub_edge_top and report_hub.hub_edge_top|length > 0 %}
+          <ul class="text-small" style="margin:0;padding-left:18px;">
+            {% for row in report_hub.hub_edge_top %}
+              <li><strong>{{ row.symbol }}</strong> · {{ row.recommended_mode or '—' }}{% if row.confidence is not none %} · conf {{ row.confidence }}{% endif %}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-dim text-small">No edge JSON or empty profiles.</div>
+        {% endif %}
+        {% if report_hub.hub_edge_relpath %}<div class="text-mono text-small mt-8"><code>{{ report_hub.hub_edge_relpath }}</code></div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Regenerate reports (safe CLI)</h2>
+    <p class="text-dim text-small">Buttons run allowlisted commands only. Does not connect IBKR unless a command explicitly requires it.</p>
     <div class="form-row flex-wrap" style="gap:6px;">
       {% with command='paper-daily-report', args='--latest', label='Generate daily report', return_to='/reports', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='paper-weekly-report', args='--latest', label='Generate weekly report', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
@@ -14,131 +92,164 @@
       {% with command='backtest-report', args='--latest', label='Backtest report (latest)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
     </div>
     <p class="text-dim text-small mt-12">
-      Email defaults: <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code> ·
-      enabled: {{ reports_config.email_enabled }} ·
-      telegram: {{ reports_config.telegram_enabled }} ·
-      persistence: {{ reports_config.persistence_mode }} ·
-      local cache (h): {{ reports_config.keep_local_reports_hours }}
+      Config: <code>reports.email_enabled</code> = {{ reports_config.email_enabled }} (email is optional; reports stay on this page).
+      · <code>reports.telegram_enabled</code> = {{ reports_config.telegram_enabled }}
+      · local cache (h): {{ reports_config.keep_local_reports_hours }}
     </p>
   </div>
 
   <div class="section">
-    <h2>Telegram &amp; email delivery</h2>
-    <p class="text-small text-dim" style="margin:0 0 12px 0;">Status from <strong>config + env + last CLI run</strong> (page load does <strong>not</strong> call providers or Telegram).</p>
+    <h2>Paper trading detail</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card">
+        <div class="card-title">Daily / weekly paths</div>
+        <div class="card-sub text-small text-mono">
+          {% if paper_reports and paper_reports.daily_json %}<div>daily JSON: {{ paper_reports.daily_json }}</div>{% else %}<div class="text-dim">No daily JSON</div>{% endif %}
+          {% if paper_reports and paper_reports.daily_md %}<div>daily MD: {{ paper_reports.daily_md }}</div>{% endif %}
+          {% if paper_reports and paper_reports.weekly_json %}<div>weekly JSON: {{ paper_reports.weekly_json }}</div>{% else %}<div class="text-dim">No weekly JSON</div>{% endif %}
+          {% if paper_reports and paper_reports.weekly_md %}<div>weekly MD: {{ paper_reports.weekly_md }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">First paper pass snapshot</div>
+        {% if first_paper and first_paper|length > 0 %}
+          <p class="text-small">Snapshot on disk. <a href="/paper">Open Paper</a> for the full first-pass view (no raw JSON dump here).</p>
+        {% else %}
+          <div class="text-dim text-small">No snapshot on disk.</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Bracket / reconcile (from latest daily JSON)</div>
+        {% if report_hub.hub_paper_daily %}
+          <div class="text-small">reconcile: <code>{{ report_hub.hub_paper_daily.reconcile_status or '—' }}</code></div>
+          <div class="text-small">unprotected warning: {{ report_hub.hub_paper_daily.unprotected_position_warning }}</div>
+          <div class="text-small">incomplete brackets: {{ report_hub.hub_paper_daily.incomplete_bracket_count or 0 }}</div>
+        {% else %}
+          <span class="text-dim text-small">Generate a daily report to populate.</span>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Paper orders audit (latest file)</div>
+        <div class="card-sub text-small text-mono">{% if paper_audit_hint %}<code>{{ paper_audit_hint }}</code>{% else %}<span class="text-dim">—</span>{% endif %}</div>
+        <div class="text-dim text-small mt-8">Full trade story: <a href="/journal">Journal</a> · <a href="/paper">Paper</a></div>
+      </div>
+    </div>
+    {% if report_hub.hub_paper_daily_md_excerpt %}
+    <div class="mt-12">
+      <h3 class="text-small">Daily report — markdown preview (head)</h3>
+      <pre class="code text-small" style="max-height:220px;overflow:auto;">{{ report_hub.hub_paper_daily_md_excerpt }}</pre>
+    </div>
+    {% endif %}
+    {% if report_hub.hub_paper_weekly_md_excerpt %}
+    <div class="mt-12">
+      <h3 class="text-small">Weekly report — markdown preview (head)</h3>
+      <pre class="code text-small" style="max-height:200px;overflow:auto;">{{ report_hub.hub_paper_weekly_md_excerpt }}</pre>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Backtest &amp; edge (files + summary)</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card">
+        <div class="card-title">Backtest (state + path)</div>
+        <div class="card-sub text-small text-mono">
+          {% if backtest and not backtest.is_empty and backtest.summary_path %}<code>{{ backtest.summary_path }}</code>{% else %}<span class="text-dim">—</span>{% endif %}
+          {% if backtest_json_path %}<br/>latest glob: <code>{{ backtest_json_path }}</code>{% endif %}
+        </div>
+        <div class="text-dim text-small mt-8"><a href="/backtest">Open Backtest page</a> for runs and charts (user-clicked actions only).</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Edge rows (catalog)</div>
+        {% if edge_rows and edge_rows|length > 0 %}
+          <ul class="text-small" style="margin:0;padding-left:18px;">
+            {% for row in edge_rows %}
+              <li><strong>{{ row.symbol }}</strong> · {{ row.recommended_mode or '—' }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-dim text-small">—</div>
+        {% endif %}
+        <div class="text-dim text-small mt-8"><a href="/edge">Edge lab</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Research &amp; scan</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card">
+        <div class="card-title">Research report</div>
+        {% if research and not research.is_empty %}
+          <div class="text-small">date: {{ research.date or '—' }}</div>
+          <div class="text-mono text-small"><code>{{ research.report_path or '—' }}</code></div>
+        {% else %}
+          <div class="text-dim text-small">No research JSON on disk.</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <div class="card-title">Intraday scan summary</div>
+        <div class="card-sub text-small text-mono">
+          {% if intraday and intraday.file_path %}<code>{{ intraday.file_path }}</code><br/>date: {{ intraday.date }}{% else %}<span class="text-dim">—</span>{% endif %}
+        </div>
+        {% if scan_json_path %}<div class="text-mono text-small mt-8">latest: <code>{{ scan_json_path }}</code></div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Delivery status (optional)</h2>
+    <p class="text-small text-dim" style="margin:0 0 12px 0;">
+      <strong>Email is optional</strong> — configure Resend later. <strong>All reports remain on this page</strong> even if email is skipped or fails.
+      Telegram is for <strong>short alerts</strong> only; full review is here.
+      Status is from config + env + last CLI (no provider calls on page load).
+    </p>
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
       <div class="card">
         <div class="card-title">Telegram</div>
-        <div class="card-sub text-small">Configured: {% if news_monitor.telegram_configured %}<span class="pill good">yes</span>{% else %}<span class="pill warn">missing env</span>{% endif %} · <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code></div>
-        <div class="card-sub text-small">Last <code>market-news-check</code> status: <strong>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</strong></div>
+        <div class="card-sub text-small">Configured: {% if news_monitor.telegram_configured %}<span class="pill good">yes</span>{% else %}<span class="pill warn">missing env</span>{% endif %}</div>
+        <div class="card-sub text-small">Last <code>market-news-check</code>: <strong>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</strong></div>
       </div>
       <div class="card">
         <div class="card-title">Email (Resend)</div>
-        <div class="card-sub text-small">{% if report_email.resend_configured %}<span class="pill good">ready to send (key + from + recipient)</span>{% else %}<span class="pill warn">incomplete</span>{% endif %}{% if report_email.missing_fields %} · missing: {% for f in report_email.missing_fields %}<code>{{ f }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</div>
-        {% if report_email.from_address_may_need_resend_verification %}<div class="card-sub text-small">From uses Gmail: verify sender in Resend if delivery fails (not a config block here).</div>{% endif %}
-        <div class="card-sub text-small">Target in config: <code>{{ reports_config.email_to }}</code> · override with <code>REPORT_EMAIL_TO</code> in env if needed</div>
+        <div class="card-sub text-small">
+          {% if report_email.resend_configured %}<span class="pill good">ready (optional)</span>{% else %}<span class="pill neutral">skipped / not required for UI</span>{% endif %}
+          {% if report_email.missing_fields %}· missing: {% for f in report_email.missing_fields %}<code>{{ f }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+        </div>
+        {% if report_email.from_address_may_need_resend_verification %}<div class="card-sub text-small">Gmail sender: verify in Resend if you enable email later.</div>{% endif %}
       </div>
       <div class="card">
-        <div class="card-title">Dedup + state files</div>
-        <div class="card-sub text-mono text-small">{{ news_reporting.dedup_store_relpath }} · {{ news_reporting.state_relpath }}</div>
-        <div class="text-dim text-small">No-news silence: <code>send_no_news_messages={{ news_reporting.send_no_news_messages }}</code></div>
+        <div class="card-title">Logged email attempts</div>
+        <div class="card-sub text-small text-mono">
+          {% for k, info in (report_email.by_report or {}).items() %}
+            <div><strong>{{ k }}</strong> · {{ info.status }}{% if info.at_utc %} · {{ info.at_utc[:19] }}Z{% endif %}</div>
+          {% else %}
+            <span class="text-dim">None logged — fine for UI-first workflow.</span>
+          {% endfor %}
+        </div>
       </div>
     </div>
     <div class="form-row flex-wrap mt-12" style="gap:6px;">
-      {% with command='news-monitor-readiness', label='Check news monitor readiness', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='news-monitor-readiness', args='--json', label='News monitor readiness', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='email-config-status', args='--json', label='Email config status', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
     </div>
   </div>
 
-  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-    <div class="card">
-      <div class="card-title">Pre-Market Brief (latest file)</div>
-      <div class="card-sub text-small text-mono">
-        {% if premarket_brief %}
-          date: {{ premarket_brief.date_ny }} · tone: {{ premarket_brief.market_tone }}<br/>
-          providers: {{ premarket_brief.provider_status or {} }}
-        {% else %}
-          <span class="text-dim">— generate from Research page</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Paper daily / weekly (13M)</div>
-      <div class="card-sub text-small text-mono">
-        {% if paper_reports and paper_reports.daily_json %}<div>JSON: {{ paper_reports.daily_json }}</div>{% else %}<div class="text-dim">No daily JSON yet</div>{% endif %}
-        {% if paper_reports and paper_reports.daily_md %}<div>MD: {{ paper_reports.daily_md }}</div>{% endif %}
-        {% if paper_reports and paper_reports.weekly_json %}<div>Weekly JSON: {{ paper_reports.weekly_json }}</div>{% else %}<div class="text-dim">No weekly JSON yet</div>{% endif %}
-        {% if paper_reports and paper_reports.weekly_md %}<div>Weekly MD: {{ paper_reports.weekly_md }}</div>{% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Report email status</div>
-      <div class="card-sub text-small text-mono">
-        resend: {% if report_email.resend_configured %}<span class="pill good">fully configured</span>{% else %}<span class="pill warn">skipped — {{ report_email.missing_fields|join(', ') or 'incomplete' }}</span>{% endif %}
-        · from: <code>{{ report_email.from_env or '—' }}</code><br/>
-        {% for k, info in (report_email.by_report or {}).items() %}
-          <div><strong>{{ k }}</strong> · {{ info.status }}{% if info.at_utc %} · {{ info.at_utc[:19] }}Z{% endif %}{% if info.to_addr %} → {{ info.to_addr }}{% endif %}{% if info.detail %}: {{ info.detail }}{% endif %}</div>
-        {% else %}
-        <span class="text-dim">No report emails logged yet. Run CLI with <code>--email</code> or enable <code>reports.email_enabled</code>.</span>
-        {% endfor %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Research</div>
-      <div class="card-sub text-small">
-        {% if research and not research.is_empty %}
-          date: {{ research.date or '—' }}<br/>path: <code>{{ research.report_path or '—' }}</code>
-        {% else %}
-          <span class="text-dim">No research report on disk</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Intraday scan summary</div>
-      <div class="card-sub text-small text-mono">
-        {% if intraday and intraday.file_path %}<code>{{ intraday.file_path }}</code><br/>date: {{ intraday.date }}{% else %}<span class="text-dim">—</span>{% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Backtest</div>
-      <div class="card-sub text-small text-mono">
-        {% if backtest and not backtest.is_empty and backtest.summary_path %}
-          <code>{{ backtest.summary_path }}</code>
-        {% else %}
-          <span class="text-dim">—</span>
-        {% endif %}
-        {% if backtest_json_path %}<br/>latest: <code>{{ backtest_json_path }}</code>{% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Edge profiles</div>
-      <div class="card-sub text-small text-mono">
-        {% if edge_json_path %}<code>{{ edge_json_path }}</code>{% else %}<span class="text-dim">—</span>{% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Paper orders audit</div>
-      <div class="card-sub text-small text-mono">
-        {% if paper_audit_hint %}<code>{{ paper_audit_hint }}</code>{% else %}<span class="text-dim">—</span>{% endif %}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Data on disk (bytes)</div>
-      <p class="text-dim" style="margin:0 0 8px 0; font-size:0.88rem;">
-        Candle cache and backtest outputs are local only and gitignored. Paper audit &amp; runtime are protected. Same table as <a href="/settings">Settings → Data &amp; email</a>.
-      </p>
-      <div class="card-sub text-small" style="font-family: var(--font-mono, ui-monospace, monospace);">
-        {% for d in data_disk.dirs %}
-          {% set cap = data_dir_line(d.relpath) %}
-          <div style="margin-bottom:6px;">
-            <span class="text-mono">{{ d.relpath }}</span>
-            <span class="text-dim" style="font-size:0.8rem; display:block;">{{ cap[0] }}</span>
-            {{ "{:,}".format(d.bytes) }} B · {{ d.file_count }} files
-          </div>
-        {% else %}
-        <span class="text-dim">—</span>
-        {% endfor %}
-        <div class="mt-8"><strong>Total</strong>: {{ "{:,}".format(data_disk.total_bytes) }} B</div>
-      </div>
+  <div class="section">
+    <h2>Data on disk</h2>
+    <p class="text-dim text-small">Same breakdown as <a href="/settings">Settings → Data</a>. No IBKR on load.</p>
+    <div class="card-sub text-small" style="font-family: var(--font-mono, ui-monospace, monospace);">
+      {% for d in data_disk.dirs %}
+        {% set cap = data_dir_line(d.relpath) %}
+        <div style="margin-bottom:6px;">
+          <span class="text-mono">{{ d.relpath }}</span>
+          <span class="text-dim" style="font-size:0.8rem; display:block;">{{ cap[0] }}</span>
+          {{ "{:,}".format(d.bytes) }} B · {{ d.file_count }} files
+        </div>
+      {% else %}
+      <span class="text-dim">—</span>
+      {% endfor %}
+      <div class="mt-8"><strong>Total</strong>: {{ "{:,}".format(data_disk.total_bytes) }} B</div>
     </div>
   </div>
 

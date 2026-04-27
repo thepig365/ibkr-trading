@@ -5,6 +5,11 @@
 
 ---
 
+## 想看的报告在邮件里，但邮件没发 / Resend 未配
+
+- **正常**：**`/reports` 是主报告台**；日/周纸面报告、路径与摘要**不依赖**邮件。配置好 Resend 后 `--email` 才送邮箱；未配时**在 UI 与 `data/reports/paper/` 仍有全文**。  
+- Telegram 仅为**短讯**；完整回顾用 **Reports、Journal、Paper**。
+
 ## 完全用 UI 时 TWS 连不上
 
 1. 在 **Dashboard** 用 **IBKR Session Status** 看输出（**显式点按钮**后才会走 CLI）。  

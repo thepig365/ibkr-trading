@@ -29,7 +29,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |
 | Backtest | `/backtest` | ICT/SMC 日内回测配置与运行（引擎在 CLI/Worker） |
 | Edge | `/edge` | 标的级 edge 画像、排名与纸面门控（只读 + 白名单构建命令） |
-| Reports | `/reports` | 日/周/研究/回测/edge/扫描报告路径汇总与生成按钮（只通过白名单） |
+| Reports | `/reports` | **主报告台**：日/周/研究/回测/edge/盘前/新闻状态汇总；生成走白名单；**全文以 UI + 本地文件为准**，邮件为可选 |
 | Logs | `/logs` | 近期命令与事件（只读、脱敏） |
 | Settings / Doctor | `/settings` | 安全说明、白名单命令、运行时标志、诊断类按钮；**本手册链接** |
 
@@ -113,7 +113,12 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 5. 阅读 **backtest-report** / 最新 summary。  
 6. 到 **Edge** 做 **Build Edge Profile**。
 
-### 2.7 报告分发：Telegram、邮件、全文在 UI
+### 2.7 报告工作流：UI 优先，Telegram 短讯，邮件可选
+
+- **主路径**：在 **`/reports`** 阅读汇总、生成报告、看路径与摘要；**`data/reports/**` 等为本地文件（git 忽略大产物）**，不依赖邮件是否成功。  
+- **Telegram**：仅适合**短提醒**（如部分 digest、达标重大新闻摘要）。  
+- **Email（Resend）**：**可选**、可晚配；未配置或失败时，**仍可在 UI 与磁盘读完整内容**。  
+- 纸面收工后：先 **Reports / Journal / Paper** 检查，再视需要发邮件。  
 
 | 内容 | 典型 Telegram | 典型 Email / 全文 | 仅 UI 文件 |
 |------|----------------|-------------------|------------|

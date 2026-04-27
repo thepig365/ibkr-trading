@@ -19,12 +19,12 @@
 - [ ] 8. **Paper** — Readiness / Activation；**不**在无意向时点 First Paper Pass  
 - [ ] 9. 仅当准备好：`First Paper Pass` 一次受控试单（不启 loop）  
 - [ ] 10. **Journal** — 括号/帽/错码  
-- [ ] 11. **Reports** — Daily / Weekly 生成与路径；可选在 **Settings** / **Reports** 看各 **data/** 子目录占用的空间（`data/candles`、**`data/backtests`** 为本地回测用，git 忽略、不上传 GitHub；纸单审计/运行时目录勿手删）  
+- [ ] 11. **Reports（主报告台）** — 在 **`/reports`** 看「今日汇总」、纸面日/周、回测/edge、研究/盘前/新闻状态；**Daily / Weekly 生成**与路径以页面为准；**邮件不必需**。可选在 **Settings** / **Reports** 看各 **data/** 子目录占用的空间（`data/candles`、**`data/backtests`** 为本地回测用，git 忽略、不上传 GitHub；纸单审计/运行时目录勿手删）  
 - [ ] 12. 收工：**Intraday Paper OFF**（如曾打开）、Stop UI  
 
 **周回测**：**Backtest** 页用 core basket 快捷或自填多周窗口；**不下单**。
 
-**收市（EOD，纸面）** — 需要 TWS 时依次：`open-orders` → `portfolio` → `paper-reconcile` → `paper-daily-report --latest --email`；只读打印推荐顺序：`python3 -m bot.cli eod-paper-checklist`。
+**收市（EOD，纸面）** — 需要 TWS 时依次：`open-orders` → `portfolio` → `paper-reconcile` → `paper-daily-report --latest`（**`--email` 可选**；**先在 `/reports` 看本地报告**）；只读打印推荐顺序：`python3 -m bot.cli eod-paper-checklist`。
 
 **重大新闻（可选，不刷屏）** — 配置 Finnhub/FMP 等 key 后：`python3 -m bot.cli news-monitor-readiness --json` 查看是否就绪；`python3 -m bot.cli market-news-check --core-basket --market-moving-only --dry-run --json` 干跑。默认 **不** 发「无新闻」；RTH 每小时可在外部 **cron/launchd** 调用（勿在仓库内静默开守护进程，除非你已自行配置调度）。
 

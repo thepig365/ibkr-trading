@@ -11,6 +11,18 @@
     · <strong>1-minute trigger required</strong> (ICT/SMC intraday) ·
     <a href="{{ url_for('strategies') }}">Strategy Control Center</a>
   </div>
+  <div class="card" style="margin-bottom: 16px; border: 1px solid var(--border, #2a2a2e);">
+    <div class="card-title">Report center (UI-first)</div>
+    <p class="text-small text-dim" style="margin:0 0 8px 0;">
+      Full paper, research, backtest, and edge artifacts: <a href="/reports"><strong>Reports</strong></a>.
+      Email is optional; same reports stay on disk and in the UI if mail is off.
+    </p>
+    <div class="text-small">
+      Daily paper: {% if report_hub.hub_paper_daily %}<span class="pill good">{{ report_hub.hub_paper_daily.date }}</span> · to broker {{ report_hub.hub_paper_daily.submitted_to_broker_count or 0 }}{% else %}<span class="text-dim">no daily JSON yet</span>{% endif %}
+      · Backtest: {% if report_hub.hub_backtest %}<span class="pill neutral">summary on disk</span>{% else %}<span class="text-dim">—</span>{% endif %}
+      · News check: <code>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</code>
+    </div>
+  </div>
   <div class="section">
     <h2>Today’s safety &amp; readiness</h2>
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
@@ -40,7 +52,7 @@
           <div class="text-small">Date: <strong>{{ premarket_brief.date_ny }}</strong> · tone: {{ premarket_brief.market_tone }}</div>
           <div class="text-small mt-8">Top notes:</div>
           <ul class="text-small">{% for h in (premarket_brief.headlines or [])[:3] %}<li>{{ h.title }}{% if h.symbol %} ({{ h.symbol }}){% endif %}</li>{% else %}<li class="text-dim">—</li>{% endfor %}</ul>
-          <div class="text-dim text-small">Email: {% if report_email.by_report and 'premarket_brief' in report_email.by_report %}{{ report_email.by_report['premarket_brief'].status }}{% else %}not sent yet{% endif %}</div>
+          <div class="text-dim text-small">Optional email: {% if report_email.by_report and 'premarket_brief' in report_email.by_report %}{{ report_email.by_report['premarket_brief'].status }}{% else %}not sent — brief still on disk / <a href="/reports">Reports</a>{% endif %}</div>
         {% else %}
           <div class="text-dim text-small">No pre-market brief on disk yet. Use Research → <em>Generate Pre-Market Brief</em> or run <code>python -m bot.cli premarket-brief</code> (default ~08:30 NY in docs).</div>
         {% endif %}
@@ -132,15 +144,15 @@
         {% endif %}
       </div>
       <div class="card">
-        <div class="card-title">Report email (last run)</div>
+        <div class="card-title">Email (optional)</div>
         <div class="card-sub text-small text-mono">
-          default to: <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code><br/>
-          resend: {% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">incomplete ({{ report_email.missing_fields|join(', ') }})</span>{% endif %}
-          · from env: <code>{{ report_email.from_env or '—' }}</code><br/>
+          Full reports: <a href="/reports">Reports</a> — email not required.<br/>
+          Resend: {% if report_email.resend_configured %}<span class="pill good">ready</span>{% else %}<span class="pill neutral">skipped — OK for UI-only</span>{% endif %}
+          · from: <code>{{ report_email.from_env or '—' }}</code><br/>
           {% for k, info in (report_email.by_report or {}).items() %}
             <div><strong>{{ k }}</strong>: {{ info.status }}{% if info.at_utc %} @ {{ info.at_utc[:19] }}Z{% endif %}{% if info.to_addr %} → {{ info.to_addr }}{% endif %}</div>
           {% else %}
-            <span class="text-dim">No emailed reports recorded yet (run a report with --email).</span>
+            <span class="text-dim">No mail attempts logged — fine for UI-first workflow.</span>
           {% endfor %}
         </div>
       </div>

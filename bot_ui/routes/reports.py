@@ -11,6 +11,7 @@ from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.report_email_status import load_report_email_status
+from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.reports.telegram_report_dedup import read_state
 
 from ..strategy_lab_context import get_catalog_and_selection
@@ -92,5 +93,7 @@ def reports_page(request: Request) -> HTMLResponse:
                 ctx["paper_audit_hint"] = str(cands[-1].relative_to(root))
             except ValueError:
                 ctx["paper_audit_hint"] = str(cands[-1])
+
+    ctx["report_hub"] = build_report_hub_ui_context(root)
 
     return request.app.state.templates.TemplateResponse(request, "reports.html", ctx)
