@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Filled by install_telegram_command_listener_launchd.sh
+  __WRAPPER_SH__ __WORK_DIR__ __OUT_LOG__ __ERR_LOG__ __REPO_ROOT__
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.strategy-lab.telegram-listener</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>20</integer>
+  <key>WorkingDirectory</key>
+  <string>__WORK_DIR__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__WRAPPER_SH__</string>
+  </array>
+  <key>StandardOutPath</key>
+  <string>__OUT_LOG__</string>
+  <key>StandardErrorPath</key>
+  <string>__ERR_LOG__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>IBKR_ACCOUNT_MODE</key>
+    <string>paper</string>
+    <key>STRATEGY_LAB_REPO_DIR</key>
+    <string>__REPO_ROOT__</string>
+  </dict>
+</dict>
+</plist>

@@ -169,7 +169,7 @@ def test_post_run_command_rejects_shell_metachars_in_args(fake_cli_project: Path
 def test_kill_switch_toggle_creates_and_removes_file(project: Path) -> None:
     """UI must write to the canonical worker path ``data/KILL_SWITCH``,
     NOT ``data/runtime/KILL_SWITCH`` — otherwise the auto-paper loop and
-    Telegram /kill /resume would disagree with the UI on safety state.
+    If UI and the on-disk KILL file disagree, the loop would be inconsistent.
     """
     client = _client(project)
     target = project / "data" / "KILL_SWITCH"

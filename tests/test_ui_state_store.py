@@ -298,7 +298,7 @@ def test_paper_route_writes_canonical_kill_switch(tmp_project: Path) -> None:
     assert r.status_code == 303
     assert is_kill_switch_active(cfg) is True, (
         "UI POST must create the file at the worker's canonical path "
-        "data/KILL_SWITCH so the auto-paper loop and Telegram /kill agree."
+        "data/KILL_SWITCH so the auto-paper loop and the UI agree."
     )
     r = client.post(
         "/paper/runtime/kill-switch", data={"enable": "off"}, follow_redirects=False

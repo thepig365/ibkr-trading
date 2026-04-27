@@ -259,7 +259,8 @@ class RuntimeFlags:
     """Runtime toggles read from on-disk files.
 
     The kill switch lives at ``data/KILL_SWITCH`` (the canonical path used by
-    ``bot/auto_paper_mtf.is_kill_switch_active`` and Telegram /kill /resume).
+    ``bot/auto_paper_mtf.is_kill_switch_active``, the Paper UI, and the worker;
+    Telegram ``/resume`` can clear the file, but not ``/kill`` from chat).
     The MTF auto-paper toggle lives at ``data/runtime/mtf_auto_paper_enabled``
     (the canonical path used by ``bot/auto_paper_mtf`` and the auto-paper loop).
     The intraday auto-paper toggle (Prompt 13F) lives at

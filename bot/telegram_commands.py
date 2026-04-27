@@ -30,7 +30,7 @@ import os
 import re
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -40,6 +40,17 @@ import httpx
 from .config import AppConfig, load_config
 from .journal import Journal
 from .notifications import send_telegram_message
+from .telegram_listener_state import (
+    TelegramListenerFileState,
+    load_state,
+    save_state,
+    state_path_for,
+)
+from .telegram_tg_formatters import (
+    format_news_dry_telegram_zh,
+    format_reports_telegram_zh,
+    format_status_telegram_zh,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -221,26 +232,30 @@ class CommandResult:
 #   * a list of CLI argv sequences to run (in order)
 #   * a Chinese reply summary
 HELP_REPLY_ZH = (
-    "支持的命令：\n"
-    "/help       - 显示命令列表\n"
-    "/news       - 立即生成盘前/即时重大新闻报告（中文）\n"
-    "/regime     - 返回市场机制判断\n"
-    "/watchlist  - 动态 watchlist + TWS CSV/TXT 导出\n"
-    "/smc        - SMC 研究扫描（仅研究）\n"
-    "/review     - SMC 人工复核队列\n"
-    "/opening    - 完整 opening review 流程"
-    "（regime → watchlist → TWS 导出 → smc → review）\n"
-    "/status    - 返回 TWS / 最近报告 / scheduler 状态\n"
-    "/auto_mtf_status - MTF 纸面自动循环：KILL、runtime 开关、最近 FULL/订单\n"
-    "/auto_mtf_on    - 写 runtime 允许纸面提交（不启用 live）\n"
-    "/auto_mtf_off   - 写 runtime 禁止纸面提交（可覆盖配置里的 fully_automatic）\n"
-    "/kill          - 创建 KILL_SWITCH，阻止新纸面单\n"
-    "/resume        - 移除 KILL_SWITCH（纸面研究用）\n"
-    "/paper_orders  - 今日 orders.jsonl 尾部摘要\n"
-    "/loop_status   - LaunchAgent/循环状态线索\n"
-    "/heartbeat     - 最近循环心跳/周期时间\n"
-    "\n安全规则：所有命令仅用于研究和纸面门控，execution_allowed=false；"
-    "禁止 live/期权/短空等。"
+    "【Strategy Lab / Telegram 监听器 核心·只读】\n"
+    "/status  — 引擎 readiness、NY 时间、TWS、纸面、预算、对账、launchd 线索\n"
+    "/news   — 新闻监控状态（不自动拉全量 API；完整看 /reports）\n"
+    "/reports — 最新纸面日报/回测/edge 路径摘要\n"
+    "/help   — 本帮助\n"
+    "/ping   — 回复 pong\n"
+    "\n"
+    "以下勿在 Telegram 使用（已拒绝）：/starttrading /trade /buy /sell /live /market\n"
+    "Kill/暂停：请用 Strategy Lab Web UI 或本机终端；"
+    "Telegram 的 /stop /kill 不执行门控文件。\n"
+    "\n"
+    "研究类（需本机数据，仍 execution_allowed=false）：\n"
+    "/regime /watchlist /smc /review /opening /auto_mtf_status /paper_orders 等，"
+    "详见 docs/telegram-commands.md 。"
+)
+
+TELEGRAM_KILL_DISABLED_ZH = (
+    "杀机 / 暂停 请用 Strategy Lab UI 或本机终端设置；"
+    "Telegram 内暂未启用 /stop /kill 以误触。execution_allowed=false。"
+)
+
+# Slash-only commands that are always rejected in Telegram (no live / trade).
+_FORBIDDEN_SLASH: frozenset[str] = frozenset(
+    {"/starttrading", "/trade", "/buy", "/sell", "/live", "/market"}
 )
 
 
@@ -461,6 +476,15 @@ def _generic_reply_zh(command: str, exit_code: int, artifact: str = "") -> str:
     )
 
 
+def _command_head_token(raw: str) -> str:
+    if not (raw or "").strip():
+        return ""
+    first = (raw or "").strip().lower().split()[0]
+    if "@" in first:
+        first = first.split("@", 1)[0]
+    return first
+
+
 @dataclass
 class Dispatcher:
     """Dispatches allowed Telegram commands to the CLI."""
@@ -469,6 +493,8 @@ class Dispatcher:
     journal: Journal
     ci: CommandInterfaceConfig
     runner: Callable[[list[str]], tuple[int, str]] = _default_command_runner
+    file_state: TelegramListenerFileState | None = None
+    state_path: Path | None = None
 
     def run(self, command: str) -> CommandResult:
         """Run a single Telegram command. Returns a :class:`CommandResult`."""
@@ -481,6 +507,15 @@ class Dispatcher:
                 details="empty",
             )
 
+        head = _command_head_token(raw)
+        if head in _FORBIDDEN_SLASH:
+            return CommandResult(
+                command=raw,
+                status="rejected",
+                reply_zh="该命令在 Telegram 中禁用；请用 Web UI 做只读/纸面门控。",
+                details="forbidden slash command",
+            )
+
         # 1) Safety gate - any trade-like word rejects immediately.
         if is_unsafe_command(raw):
             return CommandResult(
@@ -490,9 +525,6 @@ class Dispatcher:
                 details="unsafe pattern matched",
             )
 
-        lower = raw.lower()
-        head = lower.split()[0]
-
         if head in {"/help", "help"}:
             return CommandResult(
                 command=raw,
@@ -500,26 +532,41 @@ class Dispatcher:
                 reply_zh=HELP_REPLY_ZH,
             )
 
+        if head in {"/ping", "ping"}:
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh="pong  ·  execution_allowed=false",
+            )
+
+        if head in {"/stop", "/kill"}:
+            return CommandResult(
+                command=raw,
+                status="rejected",
+                reply_zh=TELEGRAM_KILL_DISABLED_ZH,
+                details="kill disabled on telegram",
+            )
+
         if head in {"/status", "status"}:
             return CommandResult(
                 command=raw,
                 status="success",
-                reply_zh=_status_reply_zh(self.cfg),
+                reply_zh=format_status_telegram_zh(self.cfg, self.journal),
             )
 
         if head in {"/news", "news"}:
-            rc, _out = self.runner(["pre-open-news"])
-            if rc != 0:
-                return CommandResult(
-                    command=raw,
-                    status="failed",
-                    reply_zh=_generic_reply_zh("/news", rc),
-                    details=f"exit_code={rc}",
-                )
             return CommandResult(
                 command=raw,
                 status="success",
-                reply_zh=_news_reply_zh(self.cfg),
+                reply_zh=format_news_dry_telegram_zh(self.cfg),
+                details="news dry",
+            )
+
+        if head in {"/reports", "reports"}:
+            return CommandResult(
+                command=raw,
+                status="success",
+                reply_zh=format_reports_telegram_zh(self.cfg),
             )
 
         if head in {"/regime", "regime"}:
@@ -657,20 +704,6 @@ class Dispatcher:
                 details="mtf runtime off",
             )
 
-        if head in {"/kill", "kill"}:
-            kp = self.cfg.absolute("data/KILL_SWITCH")
-            kp.parent.mkdir(parents=True, exist_ok=True)
-            kp.write_text(
-                f"{datetime.now(timezone.utc).isoformat()} via telegram /kill\n",
-                encoding="utf-8",
-            )
-            return CommandResult(
-                command=raw,
-                status="success",
-                reply_zh="已创建 KILL_SWITCH；新纸面单将被阻止。",
-                details="kill switch",
-            )
-
         if head in {"/resume", "resume"}:
             kp = self.cfg.absolute("data/KILL_SWITCH")
             try:
@@ -713,10 +746,27 @@ class Dispatcher:
                 details="heartbeat",
             )
 
+        reply = "未知指令。/help 查看。execution_allowed=false"
+        st = self.file_state
+        sp = self.state_path
+        if st is not None and sp is not None:
+            now = time.time()
+            if (
+                st.unknown_last_text == raw
+                and (now - st.unknown_last_ts) < 120.0
+            ):
+                reply = "（同一条未知指令，省略重复帮助。）"
+            else:
+                st.unknown_last_text = raw
+                st.unknown_last_ts = now
+                try:
+                    save_state(sp, st)
+                except OSError:
+                    pass
         return CommandResult(
             command=raw,
             status="rejected",
-            reply_zh="未知指令。请输入 /help 查看支持列表。",
+            reply_zh=reply,
             details="unknown command",
         )
 
@@ -738,11 +788,15 @@ def deliver_reply(
     *,
     chat_id: str | None = None,
     journal: Journal | None = None,
+    dry_run: bool = False,
 ) -> int:
     """Send ``result.reply_zh`` to Telegram, splitting if too long.
 
     Returns the number of parts actually acknowledged.
     """
+    if dry_run:
+        result.parts_sent = 0
+        return 0
     parts = _split_for_telegram(result.reply_zh, limit=ci.max_message_length)
     acked = 0
     for part in parts:
@@ -756,7 +810,14 @@ def deliver_reply(
 # ---------------------------------------------------------------------------
 # Authorization + processing a single update
 # ---------------------------------------------------------------------------
-def is_authorized(ci: CommandInterfaceConfig, chat_id: str | int) -> bool:
+def is_authorized(
+    ci: CommandInterfaceConfig,
+    chat_id: str | int,
+    *,
+    allow_all: bool = False,
+) -> bool:
+    if allow_all:
+        return True
     if not ci.allowed_chat_ids:
         return False
     return str(chat_id) in set(ci.allowed_chat_ids)
@@ -770,11 +831,13 @@ def process_message(
     chat_id: str | int,
     text: str,
     dispatcher: Dispatcher | None = None,
+    dry_run: bool = False,
+    allow_all: bool = False,
 ) -> CommandResult:
     """Authorize, dispatch, log, and reply to a single incoming message."""
     dispatcher = dispatcher or Dispatcher(cfg=cfg, journal=journal, ci=ci)
 
-    if not is_authorized(ci, chat_id):
+    if not is_authorized(ci, chat_id, allow_all=allow_all):
         result = CommandResult(
             command=text or "",
             status="unauthorized",
@@ -802,11 +865,15 @@ def process_message(
             chat_id=chat_id, command=text,
             status=result.status, details=result.details,
         )
-        deliver_reply(cfg, ci, result, chat_id=str(chat_id), journal=journal)
+        deliver_reply(
+            cfg, ci, result, chat_id=str(chat_id), journal=journal, dry_run=dry_run
+        )
         return result
 
     result = dispatcher.run(text)
-    deliver_reply(cfg, ci, result, chat_id=str(chat_id), journal=journal)
+    deliver_reply(
+        cfg, ci, result, chat_id=str(chat_id), journal=journal, dry_run=dry_run
+    )
     log_command(
         cfg, ci,
         chat_id=chat_id, command=text,
@@ -819,16 +886,10 @@ def process_message(
 # ---------------------------------------------------------------------------
 # Polling loop
 # ---------------------------------------------------------------------------
-@dataclass
-class _PollState:
-    offset: int = 0
-    started_at: float = field(default_factory=time.time)
-
-
 def _fetch_updates(
     cfg: AppConfig,
     ci: CommandInterfaceConfig,
-    state: _PollState,
+    st: TelegramListenerFileState,
     *,
     http: Any = httpx,
     timeout: float = 30.0,
@@ -842,8 +903,8 @@ def _fetch_updates(
     params: dict[str, Any] = {
         "timeout": max(1, int(ci.polling_interval_seconds)),
     }
-    if state.offset:
-        params["offset"] = state.offset
+    if st.update_offset:
+        params["offset"] = st.update_offset
     try:
         resp = http.get(url, params=params, timeout=timeout)
     except Exception as exc:  # noqa: BLE001
@@ -876,28 +937,113 @@ def poll_once(
     cfg: AppConfig,
     journal: Journal,
     ci: CommandInterfaceConfig,
-    state: _PollState,
+    st: TelegramListenerFileState,
     *,
     http: Any = httpx,
     dispatcher: Dispatcher | None = None,
+    dry_run: bool = False,
+    allow_all: bool = False,
 ) -> list[CommandResult]:
     """Fetch one batch of updates and process them."""
-    updates = _fetch_updates(cfg, ci, state, http=http)
+    updates = _fetch_updates(cfg, ci, st, http=http)
     results: list[CommandResult] = []
-    dispatcher = dispatcher or Dispatcher(cfg=cfg, journal=journal, ci=ci)
+    if dispatcher is None:
+        st_path = state_path_for(cfg.project_root)
+        dispatcher = Dispatcher(
+            cfg=cfg,
+            journal=journal,
+            ci=ci,
+            file_state=st,
+            state_path=st_path,
+        )
     for update in updates:
         parsed = _extract_message(update)
         if not parsed:
             continue
         update_id, text, chat_id = parsed
-        state.offset = max(state.offset, update_id + 1)
+        st.update_offset = max(st.update_offset, update_id + 1)
         results.append(
             process_message(
                 cfg, journal, ci,
                 chat_id=chat_id, text=text, dispatcher=dispatcher,
+                dry_run=dry_run, allow_all=allow_all,
             )
         )
     return results
+
+
+def run_telegram_command_listener_main(
+    *,
+    once: bool = False,
+    json_mode: bool = False,
+    dry_run: bool = False,
+    poll_interval_seconds: int | None = None,
+    allow_all: bool = False,
+    http: Any = httpx,
+) -> list[dict[str, Any]] | dict[str, Any]:
+    """CLI entry for ``telegram-command-listener`` (offset persist + optional json)."""
+    if dry_run:
+        cfg = load_config()
+        st_path = state_path_for(cfg.project_root)
+        st0 = load_state(st_path)
+        return {
+            "dry_run": True,
+            "state_path": str(st_path),
+            "update_offset": st0.update_offset,
+            "token_configured": bool(cfg.telegram.bot_token),
+        }
+    cfg = load_config()
+    journal = Journal(cfg)
+    ci = load_command_config(cfg)
+    if poll_interval_seconds is not None and poll_interval_seconds > 0:
+        ci = CommandInterfaceConfig(
+            enabled=ci.enabled,
+            allowed_chat_ids=ci.allowed_chat_ids,
+            language=ci.language,
+            polling_interval_seconds=int(poll_interval_seconds),
+            reports_only=ci.reports_only,
+            execution_allowed=ci.execution_allowed,
+            max_message_length=ci.max_message_length,
+            log_dir=ci.log_dir,
+        )
+    if not ci.is_usable and not allow_all:
+        raise RuntimeError(
+            "command_interface disabled or no allowed chat ids; "
+            "set TELEGRAM_CHAT_ID or use --allow-all-chats (debug only)."
+        )
+    st_path = state_path_for(cfg.project_root)
+    st = load_state(st_path)
+    dispatcher = Dispatcher(
+        cfg=cfg, journal=journal, ci=ci, file_state=st, state_path=st_path,
+    )
+    it = 0
+    while True:
+        results = poll_once(
+            cfg, journal, ci, st, http=http, dispatcher=dispatcher, allow_all=allow_all
+        )
+        try:
+            save_state(st_path, st)
+        except OSError as exc:
+            logger.warning("listener state save: %s", exc)
+        row: dict[str, Any] = {
+            "iteration": it,
+            "n_results": len(results),
+            "update_offset": st.update_offset,
+            "results": [
+                {
+                    "command": r.command,
+                    "status": r.status,
+                    "details": r.details,
+                }
+                for r in results
+            ],
+        }
+        if json_mode:
+            print(json.dumps(row, ensure_ascii=False), flush=True)
+        it += 1
+        if once:
+            return row
+        time.sleep(max(1, int(ci.polling_interval_seconds)))
 
 
 def run_polling(
@@ -907,16 +1053,23 @@ def run_polling(
     max_iterations: int | None = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     http: Any = httpx,
+    poll_interval_seconds: int | None = None,
 ) -> None:
-    """Blocking polling loop for ``python -m bot.cli telegram-listen``.
-
-    Stops immediately when ``command_interface.enabled`` is false or
-    ``allowed_chat_ids`` resolves to an empty list. Pass
-    ``max_iterations`` in tests.
-    """
+    """Blocking polling loop for ``telegram-listen`` / ``telegram-command-listener``."""
     cfg = cfg or load_config()
     journal = journal or Journal(cfg)
     ci = load_command_config(cfg)
+    if poll_interval_seconds is not None and poll_interval_seconds > 0:
+        ci = CommandInterfaceConfig(
+            enabled=ci.enabled,
+            allowed_chat_ids=ci.allowed_chat_ids,
+            language=ci.language,
+            polling_interval_seconds=int(poll_interval_seconds),
+            reports_only=ci.reports_only,
+            execution_allowed=ci.execution_allowed,
+            max_message_length=ci.max_message_length,
+            log_dir=ci.log_dir,
+        )
     if not ci.is_usable:
         logger.warning(
             "telegram command interface disabled or no allowed_chat_ids; "
@@ -924,11 +1077,18 @@ def run_polling(
         )
         return
 
-    state = _PollState()
-    dispatcher = Dispatcher(cfg=cfg, journal=journal, ci=ci)
+    st_path = state_path_for(cfg.project_root)
+    st = load_state(st_path)
+    dispatcher = Dispatcher(
+        cfg=cfg, journal=journal, ci=ci, file_state=st, state_path=st_path,
+    )
     it = 0
     while True:
-        poll_once(cfg, journal, ci, state, http=http, dispatcher=dispatcher)
+        poll_once(cfg, journal, ci, st, http=http, dispatcher=dispatcher)
+        try:
+            save_state(st_path, st)
+        except OSError as exc:
+            logger.warning("telegram listener state save failed: %s", exc)
         it += 1
         if max_iterations is not None and it >= max_iterations:
             return
@@ -940,12 +1100,17 @@ __all__ = [
     "CommandInterfaceConfig",
     "CommandResult",
     "Dispatcher",
+    "TelegramListenerFileState",
     "deliver_reply",
     "is_authorized",
     "is_unsafe_command",
     "load_command_config",
+    "load_state",
     "log_command",
     "poll_once",
     "process_message",
     "run_polling",
+    "run_telegram_command_listener_main",
+    "save_state",
+    "state_path_for",
 ]

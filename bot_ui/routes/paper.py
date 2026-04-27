@@ -8,7 +8,7 @@ Important: this page does NOT place orders. It exposes:
   as filesystem flags read by :mod:`bot.auto_paper_loop` and
   :mod:`bot.auto_paper_mtf` running in a separate process.
 
-Canonical paths (must match the worker / Telegram /kill /resume handlers):
+Canonical paths (must match the worker; Telegram does not set kill via /kill, use this UI or CLI file):
 
 * Kill switch  -> ``<project_root>/data/KILL_SWITCH``
 * MTF auto on  -> ``<project_root>/data/runtime/mtf_auto_paper_enabled``
@@ -172,8 +172,9 @@ def toggle_kill_switch(
     """Create or remove the canonical kill-switch file.
 
     Writes ``<project_root>/data/KILL_SWITCH`` — the same file checked by
-    :func:`bot.auto_paper_mtf.is_kill_switch_active` and by Telegram
-    ``/kill`` / ``/resume``. The UI never places or cancels orders here.
+    :func:`bot.auto_paper_mtf.is_kill_switch_active`. Telegram may use ``/resume``
+    if `data/KILL_SWITCH` exists; ``/kill`` is not used from Telegram (use this route).
+    The UI never places or cancels orders here.
     """
     project_root = request.app.state.project_root
     target = (project_root / KILL_SWITCH_RELPATH).resolve()

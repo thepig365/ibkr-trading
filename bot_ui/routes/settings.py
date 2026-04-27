@@ -12,6 +12,7 @@ from pathlib import Path
 from bot.config import load_config
 from bot.data_lifecycle import data_dir_line, data_status
 from bot.launchd_full_auto_ui import build_background_runner_ui_context
+from bot.telegram_listener_ui import build_telegram_listener_ui_context
 from bot.reports.email_config_status import build_email_config_status
 from bot.reports.report_email_status import load_report_email_status
 
@@ -36,6 +37,17 @@ def settings_page(request: Request) -> HTMLResponse:
         and (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
     )
     ctx = base_context(request, active="settings")
+    try:
+        tg_listener = build_telegram_listener_ui_context(root)
+    except (OSError, TypeError, ValueError):
+        tg_listener = {
+            "launchd_plist_installed": False,
+            "wrapper_installed": False,
+            "state_relpath": "data/runtime/telegram_command_listener_state.json",
+            "state_path": str(root / "data" / "runtime" / "telegram_command_listener_state.json"),
+            "update_offset": 0,
+            "running_hint": False,
+        }
     try:
         background_runner = build_background_runner_ui_context(root)
     except (OSError, TypeError, ValueError):
@@ -89,6 +101,7 @@ def settings_page(request: Request) -> HTMLResponse:
             "data_dir_line": data_dir_line,
             "report_email": load_report_email_status(root, email_status=ecs),
             "background_runner": background_runner,
+            "telegram_command_listener": tg_listener,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "settings.html", ctx)

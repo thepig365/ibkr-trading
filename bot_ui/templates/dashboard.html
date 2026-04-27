@@ -208,6 +208,15 @@
         </div>
         <div class="text-dim text-small">Does not trigger trades. <a href="/research">Research → monitor</a></div>
       </div>
+      <div class="card">
+        <div class="card-title">Telegram command listener</div>
+        <div class="card-sub text-small">
+          getUpdates polling (see <a href="/settings">/settings</a>): launchd
+          {% if telegram_command_listener_dash.launchd_plist_installed %}<span class="pill good">plist</span>{% else %}<span class="pill warn">no plist</span>{% endif %}
+          · {{ "likely running" if telegram_command_listener_dash.running_hint else "not in launchctl" }}
+          · offset {{ telegram_command_listener_dash.update_offset }}
+        </div>
+      </div>
     </div>
     {% if last_paper_reconcile_stdout %}
     <div class="mt-12">

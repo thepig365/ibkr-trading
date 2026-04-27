@@ -136,7 +136,7 @@ match exactly what `bot/auto_paper_mtf.py`, `bot/auto_paper_loop.py`, and
 
 | Purpose                       | Canonical path                                | Producers                                             | Consumers                                            |
 |-------------------------------|------------------------------------------------|-------------------------------------------------------|------------------------------------------------------|
-| Kill switch (file presence)   | `data/KILL_SWITCH`                             | UI POST `/paper/runtime/kill-switch`, Telegram `/kill`, `/resume` | `bot.auto_paper_mtf.is_kill_switch_active`, auto-paper loop |
+| Kill switch (file presence)   | `data/KILL_SWITCH`                             | UI POST `/paper/runtime/kill-switch`, Telegram `/resume` only (not `/kill`; use UI for on) | `bot.auto_paper_mtf.is_kill_switch_active`, auto-paper loop |
 | MTF auto-paper toggle         | `data/runtime/mtf_auto_paper_enabled`          | UI POST `/paper/runtime/mtf-auto`, Telegram `/auto_mtf_on`, `/auto_mtf_off` | `bot.auto_paper_mtf.is_runtime_mtf_auto_enabled` / `..._disabled_explicit` |
 | Loop snapshot (last cycle)    | `data/runtime/auto_paper_loop_state.json`      | `bot.auto_paper_loop.run_auto_paper_mtf_loop`         | UI dashboard / paper status cards (read-only)        |
 | Loop history (per-day JSONL)  | `data/auto_paper_loop/<YYYY-MM-DD>-loop.jsonl` | `bot.auto_paper_loop.run_auto_paper_mtf_loop`         | UI dashboard fallback                                |

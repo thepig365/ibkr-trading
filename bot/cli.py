@@ -5721,6 +5721,67 @@ def telegram_listen_cmd(
     raise typer.Exit(code=0)
 
 
+@app.command("telegram-command-listener")
+def telegram_command_listener_cmd(
+    once: bool = typer.Option(
+        False,
+        "--once",
+        help="Fetch one getUpdates batch, process, persist offset, then exit.",
+    ),
+    poll_interval_seconds: Optional[int] = typer.Option(
+        None,
+        "--poll-interval-seconds",
+        help="Override config/telegram.yaml polling_interval_seconds for long poll.",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print one JSON object per cycle to stdout (no secrets)."
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Do not contact Telegram; print listener state and exit.",
+    ),
+    allow_all_chats: bool = typer.Option(
+        False,
+        "--allow-all-chats",
+        help="DEBUG ONLY: process messages from any chat id (disables allowlist).",
+    ),
+) -> None:
+    """Long-poll Telegram getUpdates, dispatch read-only /status, /news, /reports, etc.
+
+    Persists update offset in data/runtime/telegram_command_listener_state.json.
+    """
+    from .telegram_commands import run_telegram_command_listener_main
+    from rich import print as rprint
+
+    try:
+        out = run_telegram_command_listener_main(
+            once=once,
+            json_mode=json_out,
+            dry_run=dry_run,
+            poll_interval_seconds=poll_interval_seconds,
+            allow_all=allow_all_chats,
+        )
+    except RuntimeError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(code=1)
+    if dry_run and isinstance(out, dict):
+        print(
+            json.dumps(out, ensure_ascii=False, indent=2 if json_out else None)
+        )
+        raise typer.Exit(0)
+    if once and isinstance(out, dict):
+        if not json_out:
+            console.print(
+                Panel.fit(
+                    json.dumps(out, ensure_ascii=False, indent=2),
+                    title="telegram-command-listener",
+                )
+            )
+        raise typer.Exit(0)
+    # Unbounded run never returns; once/dry only paths exit above.
+
+
 @app.command("telegram-test-command")
 def telegram_test_command_cmd(
     command: str = typer.Option(

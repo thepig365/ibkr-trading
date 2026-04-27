@@ -141,7 +141,9 @@ def test_telegram_auto_mtf_on_off_respects_gates(
     assert r0.status == "success"
 
 
-def test_telegram_kill_resume(tmp_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_telegram_kill_disabled_resume_still_unlinks_if_file_exists(
+    tmp_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from tests.test_telegram_commands import _FakeRunner, _setup_auth, _silence_outbound
 
     _setup_auth(monkeypatch)
@@ -155,10 +157,15 @@ def test_telegram_kill_resume(tmp_project: Path, monkeypatch: pytest.MonkeyPatch
         ci=ci,
         runner=_FakeRunner(),
     )
-    d.run("/kill")
-    assert (tmp_project / "data" / "KILL_SWITCH").is_file()
+    r_kill = d.run("/kill")
+    assert r_kill.status == "rejected"
+    assert "UI" in r_kill.reply_zh or "终端" in r_kill.reply_zh
+    assert not (tmp_project / "data" / "KILL_SWITCH").is_file()
+    ks = tmp_project / "data" / "KILL_SWITCH"
+    ks.parent.mkdir(parents=True, exist_ok=True)
+    ks.write_text("test\n", encoding="utf-8")
     d.run("/resume")
-    assert not (tmp_project / "data" / "KILL_SWITCH").exists()
+    assert not ks.exists()
 
 
 def test_launchd_template_no_secrets() -> None:

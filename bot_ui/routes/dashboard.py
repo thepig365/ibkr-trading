@@ -16,6 +16,7 @@ from bot.paper_activation import build_paper_activation_status
 from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
+from bot.telegram_listener_ui import build_telegram_listener_ui_context
 from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
@@ -96,6 +97,10 @@ def dashboard(request: Request) -> HTMLResponse:
     premarket = find_latest_premarket_brief(root)
     mnews = read_state(root / cfg.settings.news_reporting.state_relpath)
     nmon = build_news_monitor_readiness(root, cfg)
+    try:
+        tg_listener_dash = build_telegram_listener_ui_context(root)
+    except (OSError, TypeError, ValueError):
+        tg_listener_dash = {"launchd_plist_installed": False, "running_hint": False}
     cat, ssel = get_catalog_and_selection(root)
     paper_s_entry = cat.strategies.get(ssel.active_paper_strategy)
     ux = DashboardUX.from_runtime(
@@ -147,6 +152,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "market_news_state": mnews,
             "news_monitor": nmon,
             "report_hub": build_report_hub_ui_context(root),
+            "telegram_command_listener_dash": tg_listener_dash,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)

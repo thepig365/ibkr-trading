@@ -15,7 +15,6 @@ from bot.telegram_commands import (
     SAFETY_MESSAGE_ZH,
     CommandInterfaceConfig,
     Dispatcher,
-    _PollState,
     deliver_reply,
     is_authorized,
     is_unsafe_command,
@@ -24,6 +23,7 @@ from bot.telegram_commands import (
     poll_once,
     process_message,
 )
+from bot.telegram_listener_state import TelegramListenerFileState
 
 
 # ---------------------------------------------------------------------------
@@ -81,16 +81,15 @@ def test_help_lists_all_supported_commands(tmp_project: Path, monkeypatch) -> No
     result = dispatcher.run("/help")
 
     assert result.status == "success"
-    for cmd in ("/help", "/news", "/regime", "/watchlist", "/smc", "/review",
-                "/opening", "/status", "/auto_mtf_status", "/kill"):
+    for cmd in ("/help", "/news", "/regime", "/status", "/reports", "/ping"):
         assert cmd in result.reply_zh
-    assert "execution_allowed=false" in result.reply_zh
+    assert "未支持" in result.reply_zh or "勿在 Telegram" in result.reply_zh
 
 
 # ---------------------------------------------------------------------------
-# Test 2: /news runs pre-open-news and returns the Chinese full report
+# Test 2: /news returns dry market-news monitor status (no pre-open CLI)
 # ---------------------------------------------------------------------------
-def test_news_triggers_chinese_news_report(tmp_project: Path, monkeypatch) -> None:
+def test_news_dry_status_no_cli(tmp_project: Path, monkeypatch) -> None:
     _setup_auth(monkeypatch)
     _silence_outbound(monkeypatch)
 
@@ -98,30 +97,14 @@ def test_news_triggers_chinese_news_report(tmp_project: Path, monkeypatch) -> No
     journal = Journal(cfg)
     ci = load_command_config(cfg)
 
-    # Seed a fake pre_open_news JSON so /news can read the Chinese body.
-    pre_dir = tmp_project / "data" / "pre_open_news"
-    pre_dir.mkdir(parents=True, exist_ok=True)
-    body_zh = "【盘前重大市场新闻报告】2026-04-24\n一、市场机制判断\n- 市场状态：neutral"
-    (pre_dir / "2026-04-24.json").write_text(
-        json.dumps({
-            "date": "2026-04-24",
-            "language": "zh",
-            "telegram_report_language": "zh",
-            "full_chinese_report": body_zh,
-            "execution_allowed": False,
-            "research_only": True,
-        }, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
     runner = _FakeRunner(exit_code=0)
     dispatcher = Dispatcher(cfg=cfg, journal=journal, ci=ci, runner=runner)
     result = dispatcher.run("/news")
 
-    assert runner.calls == [["pre-open-news"]]
+    assert runner.calls == []
     assert result.status == "success"
-    assert "【盘前重大市场新闻报告】" in result.reply_zh
-    assert "一、市场机制判断" in result.reply_zh
+    assert "新闻" in result.reply_zh or "监控" in result.reply_zh
+    assert "拉取" in result.reply_zh or "不主动" in result.reply_zh
 
 
 # ---------------------------------------------------------------------------
@@ -420,13 +403,13 @@ def test_poll_once_dispatches_one_update(tmp_project: Path, monkeypatch) -> None
             return R()
 
     http = FakeHttp()
-    state = _PollState()
+    state = TelegramListenerFileState()
 
     results = poll_once(cfg, journal, ci, state, http=http, dispatcher=dispatcher)
 
     assert len(results) == 1
     assert results[0].status == "success"
-    assert state.offset == 11  # update_id + 1
+    assert state.update_offset == 11  # update_id + 1
     assert http.calls == 1
 
 
@@ -456,8 +439,10 @@ def test_poll_once_ignores_unauthorized_chat(
 
             return R()
 
-    results = poll_once(cfg, journal, ci, _PollState(), http=FakeHttp(),
-                        dispatcher=dispatcher)
+    results = poll_once(
+        cfg, journal, ci, TelegramListenerFileState(), http=FakeHttp(),
+        dispatcher=dispatcher
+    )
     assert len(results) == 1
     assert results[0].status == "unauthorized"
     assert runner.calls == []  # CLI never ran

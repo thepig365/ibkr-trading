@@ -17,20 +17,40 @@ See also:
 
 ---
 
+## Push vs command listener
+
+- **Outbound push** (engine → Telegram) works as soon as `TELEGRAM_BOT_TOKEN` and
+  `TELEGRAM_CHAT_ID` are set: the bot **sends** messages.
+- **Inbound commands** (`/status`, `/help`, …) require something to call Telegram’s
+  `getUpdates` API. Use `python -m bot.cli telegram-command-listener` (or install
+  the launchd job in `scripts/install_telegram_command_listener_launchd.sh`) so a
+  background process long-polls and replies. Offset is stored in
+  `data/runtime/telegram_command_listener_state.json`.
+
 ## Supported commands
 
-| Command       | Maps to CLI                                                                                            | Chinese reply                             |
-| ------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| `/help`       | _(in-process)_                                                                                         | Lists all supported commands              |
-| `/news`       | `pre-open-news`                                                                                        | Full Chinese pre-open / intraday briefing |
-| `/regime`     | `market-regime --ibkr`                                                                                 | Market regime + confidence + fallback     |
-| `/watchlist`  | `build-watchlist --ibkr --limit 50` + `export-tws-watchlist --latest --telegram`                       | Dynamic watchlist + TWS CSV/TXT exported  |
-| `/smc`        | `scan-smc-watchlist --source dynamic --timeframe daily --ibkr --chart --limit 20 --telegram`           | SMC research scan completed               |
-| `/review`     | `smc-review-queue --telegram --markdown --top 10 --include-charts`                                     | SMC human-review queue ready              |
-| `/opening`    | `market-regime → build-watchlist → export-tws-watchlist → scan-smc-watchlist → smc-review-queue`       | Opening review completed                  |
-| `/status`     | _(inspects on-disk state)_                                                                             | Last reports + scheduler status           |
+| Command       | Maps to CLI / logic                                                                                   | Chinese reply                             |
+| ------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `/help`       | _(in-process)_                                                                                        | Lists core + research commands            |
+| `/ping`       | _(in-process)_                                                                                        | `pong` + safety line                      |
+| `/status`     | Read-only: `full_auto_paper_readiness` + launchd hints (no orders)                                    | Engine / TWS / budget / readiness         |
+| `/news`       | Read-only: news monitor state on disk (does **not** run `pre-open-news` / live fetches)             | Provider count, last scored, state path   |
+| `/reports`    | Read-only: latest paper / backtest / edge paths under `data/reports` / `data/edge_profiles`        | Short path summary; open `/reports` in UI |
+| `/regime`     | `market-regime --ibkr`                                                                                | Market regime + confidence + fallback     |
+| `/watchlist`  | `build-watchlist --ibkr --limit 50` + `export-tws-watchlist --latest --telegram`                      | Dynamic watchlist + TWS CSV/TXT exported  |
+| `/smc`        | `scan-smc-watchlist --source dynamic --timeframe daily --ibkr --chart --limit 20 --telegram`          | SMC research scan completed               |
+| `/review`     | `smc-review-queue --telegram --markdown --top 10 --include-charts`                                    | SMC human-review queue ready              |
+| `/opening`    | `market-regime → build-watchlist → export-tws-watchlist → scan-smc-watchlist → smc-review-queue`      | Opening review completed                  |
 
-Every reply includes the literal line `execution_allowed=false`.
+`/stop` and `/kill` **do not** flip the on-disk kill switch from Telegram; use the
+Strategy Lab UI or a local terminal. `/resume` still removes `data/KILL_SWITCH` if
+you create it via UI/CLI.
+
+Unknown commands: short help; repeated same unknown text within ~120s is deduped
+to a one-line message.
+
+**Not supported in Telegram (rejected):** `/starttrading`, `/trade`, `/buy`, `/sell`,
+`/live`, `/market` (and the usual free-text safety patterns).
 
 ## Safety rules
 
@@ -46,9 +66,8 @@ The rejection reply is:
 
 > 该 Telegram bot 当前只允许研究报告和人工复核，不允许下单、平仓、自动交易或任何 live execution。execution_allowed=false。
 
-Unknown commands receive:
-
-> 未知指令。请输入 /help 查看支持列表。
+Unknown commands receive a short help line (deduped if the same text repeats within
+~120 seconds).
 
 Messages from a chat whose id is not in
 `telegram.command_interface.allowed_chat_ids` (or the resolved
@@ -82,7 +101,25 @@ Additional environment variables (from `.env`):
 
 ## CLI entry points
 
-Start polling in the foreground:
+**Preferred listener** (persists `getUpdates` offset, optional JSON lines):
+
+```bash
+python -m bot.cli telegram-command-listener
+python -m bot.cli telegram-command-listener --once --json
+python -m bot.cli telegram-command-listener --dry-run --json   # no network
+```
+
+Foreground helper script: `bash scripts/run_telegram_command_listener.sh`
+
+**macOS background (no Terminal):**
+
+```bash
+bash scripts/install_telegram_command_listener_launchd.sh
+bash scripts/status_telegram_command_listener_launchd.sh
+bash scripts/uninstall_telegram_command_listener_launchd.sh
+```
+
+Legacy alias (same underlying poll + state; fewer CLI flags):
 
 ```bash
 python -m bot.cli telegram-listen

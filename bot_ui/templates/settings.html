@@ -65,6 +65,27 @@
   </div>
 
   <div class="section">
+    <h2>Telegram Command Listener (getUpdates)</h2>
+    <p class="text-dim text-small" style="margin-top:0;">
+      <strong>Push</strong> (engine → Telegram) uses the same bot token as <strong>inbound commands</strong>, but someone must run
+      <code class="text-mono">getUpdates</code> polling so you can type <code class="text-mono">/status</code> in Telegram and get a reply.
+      This section is read-only: it checks plist files and local state only (no Telegram API from the browser).
+    </p>
+    <table>
+      <tbody>
+        <tr><th>Env TELEGRAM_* (push + commands)</th><td>{% if telegram_env_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">missing</span>{% endif %}</td></tr>
+        <tr><th>config command_interface (YAML)</th><td>see <code class="text-mono">config/telegram.yaml</code> (enabled + allowed chat)</td></tr>
+        <tr><th>State file (update offset)</th><td class="text-mono text-small">{{ telegram_command_listener.state_relpath }} — offset {{ telegram_command_listener.update_offset }} · {{ telegram_command_listener.state_path }}</td></tr>
+        <tr><th>launchd plist (listener)</th><td>{% if telegram_command_listener.launchd_plist_installed %}<span class="pill good">installed</span>{% else %}<span class="pill warn">not installed</span>{% endif %}</td></tr>
+        <tr><th>App Support wrapper</th><td>{% if telegram_command_listener.wrapper_installed %}<span class="pill good">present</span>{% else %}<span class="pill neutral">absent</span>{% endif %} <span class="text-mono text-small">{{ telegram_command_listener.wrapper_path }}</span></td></tr>
+        <tr><th>launchd row visible (heuristic)</th><td>{% if telegram_command_listener.running_hint %}<span class="pill good">likely running</span>{% else %}<span class="pill neutral">not listed or idle</span>{% endif %}</td></tr>
+      </tbody>
+    </table>
+    <p class="text-dim text-small" style="margin:8px 0 0 0;">Supported: <code class="text-mono">/status</code> <code class="text-mono">/news</code> <code class="text-mono">/reports</code> <code class="text-mono">/help</code> <code class="text-mono">/ping</code> — not: live/trade/buy/sell from Telegram.</p>
+    <p class="text-dim text-small">Foreground: <code class="text-mono">bash scripts/run_telegram_command_listener.sh</code> · Install: <code class="text-mono">bash scripts/install_telegram_command_listener_launchd.sh</code> · Status: <code class="text-mono">bash scripts/status_telegram_command_listener_launchd.sh</code> · Uninstall: <code class="text-mono">bash scripts/uninstall_telegram_command_listener_launchd.sh</code></p>
+  </div>
+
+  <div class="section">
     <h2>Runtime flags</h2>
     <table>
       <tbody>

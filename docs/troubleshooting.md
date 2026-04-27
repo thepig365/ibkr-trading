@@ -24,6 +24,13 @@
 - **正常**：**`/reports` 是主报告台**；日/周纸面报告、路径与摘要**不依赖**邮件。配置好 Resend 后 `--email` 才送邮箱；未配时**在 UI 与 `data/reports/paper/` 仍有全文**。  
 - Telegram 仅为**短讯**；完整回顾用 **Reports、Journal、Paper**。
 
+## Telegram 能收到引擎推送，但发 `/status` 没有回复
+
+- **原因**：**推送**用 `sendMessage`；**入站命令**需要某个进程在跑 **`getUpdates`** 长轮询。若未启动 `telegram-command-listener`（或相应 launchd），Telegram 上的命令不会有回复。  
+- **处理**：终端前台 `python3 -m bot.cli telegram-command-listener` 或 `bash scripts/run_telegram_command_listener.sh`；常开可走 **`bash scripts/install_telegram_command_listener_launchd.sh`**。  
+- **自查**：`python3 -m bot.cli telegram-command-listener --dry-run --json`（不联网，只看本地 `data/runtime/telegram_command_listener_state.json`）；`bash scripts/status_telegram_command_listener_launchd.sh`。  
+- **安全**：只处理 `config/telegram.yaml` 里 `allowed_chat_ids`（常解析为 `TELEGRAM_CHAT_ID`）的聊天。详见 `docs/telegram-commands.md`。
+
 ## 完全用 UI 时 TWS 连不上
 
 1. 在 **Dashboard** 用 **IBKR Session Status** 看输出（**显式点按钮**后才会走 CLI）。  
