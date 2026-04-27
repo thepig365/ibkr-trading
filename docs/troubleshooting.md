@@ -5,6 +5,20 @@
 
 ---
 
+## TWS 弹窗：「需要访问公网 api.ibkr.com，但当前网络已阻止」
+
+- **和本机 Socket API 不是一回事**：本 bot 的常规路径是 **`127.0.0.1:7497`（或你配置的 `IBKR_HOST`/`IBKR_PORT`）** 上运行的 TWS/IB Gateway，经 **TWS API（ib_async / ib_insync）** 通信。这**不依赖**你在浏览器里访问 `https://api.ibkr.com`。  
+- **弹窗更常关联网页 / Client Portal / 部分 TWS 内嵌功能**：若公司网络或防火墙 **拦截** 对 `api.ibkr.com` 的 **HTTPS**，TWS 里某些**需要连公网 IBKR 主机**的菜单或登录辅助功能会提示；**不一定**影响本地 7497 的 API。  
+- **自测本机 API 是否仍可用**（只读、不下单）：
+  1. `lsof -i :7497` 或看 TWS 是否 **Listen** 在预期端口。  
+  2. `python3 -m bot.cli ibkr-session-status` 应显示 `connected: true`、**paper** 账户。  
+  3. 再试 `open-orders`、`portfolio`、`paper-reconcile`。  
+- **自测公网是否被拦**（不提交凭证）：在终端对 `https://api.ibkr.com` 做 `curl -I --max-time 10` 或 `socket.getaddrinfo("api.ibkr.com", 443)`。若 DNS/HTTPS 失败，弹窗**可能属实**，需网络/DNS/防火墙/代理放行。  
+- **历史 K 经本地 API**：`fetch-candles --ibkr` 走 TWS 的 `reqHistoricalData`；**一般仍走 7497**。若拉历史失败，更常见是 **无历史行情订阅/权限、162/354 等信息码、时段无数据、节流**，**不一定**是 `api.ibkr.com` 被拦。以 CLI 与 `ibkr_session_status` 的报错/日志为准。  
+- **下单/路由**：纸面/实盘下单仍经 **TWS/网关**；与「本机 7497 是否连通」直接相关。若仅公网被拦、本地 API 正常，**策略里的下单路径通常仍可工作**（以你环境实测为准）。  
+
+---
+
 ## 想看的报告在邮件里，但邮件没发 / Resend 未配
 
 - **正常**：**`/reports` 是主报告台**；日/周纸面报告、路径与摘要**不依赖**邮件。配置好 Resend 后 `--email` 才送邮箱；未配时**在 UI 与 `data/reports/paper/` 仍有全文**。  
