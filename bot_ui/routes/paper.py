@@ -24,6 +24,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from bot.auto_loop_readiness import build_auto_loop_readiness
+from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
@@ -108,6 +109,12 @@ def paper_page(request: Request) -> HTMLResponse:
             "readiness_reason": "auto_loop_readiness: check failed (see logs)",
             "next_safe_action": "run_readiness_check",
         }
+    try:
+        ctx["automatic_paper_engine"] = build_automatic_paper_engine_preflight(
+            cfg, None, probe_ibkr=False
+        )
+    except (OSError, TypeError, ValueError):
+        ctx["automatic_paper_engine"] = {"ok": False, "blockers": ["preflight error"]}
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

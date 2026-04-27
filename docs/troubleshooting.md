@@ -69,13 +69,13 @@
 5. 研究层 **`auto_paper_allowed`** 为否**不一定**表示执行被挡：先查是否有 **per-symbol hard block**；宏观/VIX 多为软提醒（见 `docs/strategy-lab-user-manual.md` §6.2）。  
 6. 若已启用 **edge 门控**（`edge_profile_enabled`），在当次 `auto-paper-intraday` / Journal 的 `edge_audit` 中查看：`edge_profile_missing`、`edge_recommended_mode_watch_only`、`edge_recommended_mode_disabled`、`edge_strict_only_blocks_aggressive`、`edge_risk_multiplier_applied`。无 `data/edge_profiles/` 时 aggressive 可能默认被挡——先跑 `build-edge-profiles` 或只试 STRICT 小风险（见 `unknown_edge_policy`）。  
 
-## 准备「自动纸日内循环」前状态不对
+## 准备「自动纸日内循环 / Automatic Paper Engine」前状态不对
 
-1. 运行 **只读** 检查：`python3 -m bot.cli auto-loop-readiness` 或加 `--json`；Dashboard / Paper 的 **Check Auto Loop Readiness** 等价。  
-2. 看 `next_safe_action`：**Kill**、**对账**、**日预算**、**非 ICT 纸策略**、**paper activation 非 READY** 等都会让 `readiness` 为 **Not ready**。  
-3. 默认**不加** `--probe-ibkr`（不连 TWS）；只有需要券商侧只读对账提示时才加。  
-4. **不要**在 UI 里找「开始循环」——该 CLI **不在**白名单；有意烟测时只在终端、且遵守用户手册美东时间窗与帽位。  
-5. 收工后日报邮件：见清单里 `paper-daily-report --email`；本检查**不**代跑、**不**启动循环。
+1. **自动引擎**（`run-automatic-paper-engine`）专用只读门控：`python3 -m bot.cli automatic-paper-engine-readiness --json`（可选 `--probe-ibkr`）；**不**要求 `READY_FOR_PAPER_TEST`，但要求 **$10k/$100k 帽**、**ict_smc_intraday_v1**、`intraday_paper.enabled`、纸账户、Kill 关等（见 `bot/automatic_paper_preflight.py`）。  
+2. **旧版 60 分钟烟测读数**（与引擎可能不一致）：`python3 -m bot.cli auto-loop-readiness`；Dashboard 的 **Check Auto Loop Readiness** 同源；`paper_activation` **非 READY** 时此处常为 **Not ready**，但**不**一定阻止自动引擎（若 1 的门控全绿）。  
+3. 默认**不加** `--probe-ibkr`（不连 TWS）；需要券商对账结果时再加。  
+4. 在 **Dashboard / Paper** 的 **Automatic Paper Trading Engine** 可点 **Start Morning / Full-Day**（白名单子命令，子进程 8h 内超时）；`run-auto-paper-intraday-loop` 仍**不**在 UI 白名单。  
+5. 收工后：`--report-on-exit` 会写**本地**日报告；`paper-daily-report --email` 见清单。干跑：`run-automatic-paper-engine --dry-run --json`。
 
 ## Morning paper readiness 一直 Not ready
 

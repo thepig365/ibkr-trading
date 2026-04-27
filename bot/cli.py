@@ -4441,6 +4441,143 @@ def run_auto_paper_intraday_loop_cmd(
     raise typer.Exit(0)
 
 
+@app.command("automatic-paper-engine-readiness")
+def automatic_paper_engine_readiness_cmd(
+    as_json: bool = typer.Option(
+        True,
+        "--json/--no-json",
+        help="Print machine-readable preflight (default on).",
+    ),
+    probe_ibkr: bool = typer.Option(
+        False,
+        "--probe-ibkr",
+        help="Reconcile with broker; requires TWS and journal.",
+    ),
+) -> None:
+    """Read-only automatic paper engine gates (file + optional IBKR probe)."""
+    from .automatic_paper_preflight import (  # noqa: PLC0415
+        build_automatic_paper_engine_preflight,
+    )
+
+    cfg, journal = _bootstrap()
+    j = journal if probe_ibkr else None
+    payload = build_automatic_paper_engine_preflight(
+        cfg, j, probe_ibkr=probe_ibkr
+    )
+    if as_json:
+        console.print(
+            json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+        )
+    else:
+        st = "PASS" if payload.get("ok") else "BLOCKED"
+        bl = payload.get("blockers") or []
+        body = "\n".join(str(x) for x in bl) if bl else "(no blockers)"
+        console.print(
+            Panel.fit(
+                f"{st}\n{body}",
+                title="automatic-paper-engine-readiness",
+                style="green" if payload.get("ok") else "red",
+            )
+        )
+    raise typer.Exit(0 if payload.get("ok") else 2)
+
+
+@app.command("run-automatic-paper-engine")
+def run_automatic_paper_engine_cmd(
+    session: str = typer.Option(
+        "full",
+        "--session",
+        help="morning: 09:45–11:30 NY; full: 09:45–15:30 NY (new entries).",
+    ),
+    source: str = typer.Option("dynamic", "--source", help="static | dynamic | manual."),
+    limit: int = typer.Option(20, "--limit", min=1),
+    interval_seconds: int = typer.Option(60, "--sleep-seconds", min=5),
+    market_hours_only: bool = typer.Option(
+        True,
+        "--market-hours-only/--ignore-market-hours",
+    ),
+    telegram: bool = typer.Option(
+        False, "--telegram", help="Meaningful Telegram only (no per-cycle noise)."
+    ),
+    report_on_exit: bool = typer.Option(
+        True, "--report-on-exit/--no-report-on-exit"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Validate preflight and exit; no runtime ON; no loop."
+    ),
+    json_out: bool = typer.Option(False, "--json"),
+    max_cycles: Optional[int] = typer.Option(
+        None, "--max-cycles", help="Stop after this many pass iterations (smoke/CI)."
+    ),
+    once: bool = typer.Option(False, "--once", help="One pass and exit (alias for -max-cycles 1)."),
+    stop_after_minutes: Optional[float] = typer.Option(
+        None, "--stop-after-minutes", help="Stop the loop after N minutes."
+    ),
+    probe_ibkr: bool = typer.Option(
+        True, "--probe-ibkr/--no-probe-ibkr", help="Full preflight with broker (default on)."
+    ),
+    no_runtime: bool = typer.Option(
+        False, "--no-runtime-on", help="Do not write intraday runtime ON (engine may skip trades)."
+    ),
+) -> None:
+    """ICT/SMC automatic paper engine — PAPER only, LIMIT brackets, market-hours gated."""
+    from .automatic_paper_engine import (  # noqa: PLC0415
+        run_automatic_paper_engine,
+    )
+
+    sess = (session or "full").strip().lower()
+    if sess not in {"full", "morning"}:
+        console.print("[red]--session must be full|morning[/red]")
+        raise typer.Exit(2)
+    if source not in {"static", "dynamic", "manual"}:
+        console.print("[red]--source must be static|dynamic|manual[/red]")
+        raise typer.Exit(2)
+
+    eff_probe = bool(probe_ibkr) and not bool(dry_run)
+    m_cycles = int(max_cycles) if max_cycles is not None else None
+    if once and m_cycles is None:
+        m_cycles = 1
+
+    cfg, journal = _bootstrap()
+    out = run_automatic_paper_engine(
+        cfg,
+        journal,
+        session=sess,
+        source=source,
+        limit=limit,
+        interval_seconds=interval_seconds,
+        market_hours_only=market_hours_only,
+        telegram=telegram,
+        report_on_exit=report_on_exit and not dry_run,
+        dry_run=dry_run,
+        max_cycles=m_cycles,
+        once=False,
+        stop_after_minutes=stop_after_minutes,
+        turn_runtime_on=not no_runtime and not dry_run,
+        preflight_probe_ibkr=eff_probe,
+    )
+    if json_out or dry_run:
+        console.print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+    else:
+        if out.get("blockers"):
+            console.print(
+                Panel.fit(
+                    "\n".join(str(b) for b in out["blockers"]) or "blocked",
+                    title="run-automatic-paper-engine: BLOCKED",
+                    style="red",
+                )
+            )
+        else:
+            console.print(
+                Panel.fit(
+                    json.dumps(out, indent=2, ensure_ascii=False, default=str),
+                    title="run-automatic-paper-engine",
+                    style="cyan",
+                )
+            )
+    raise typer.Exit(0 if not out.get("blockers") else 2)
+
+
 @app.command("intraday-paper-status")
 def intraday_paper_status_cmd(
     as_json: bool = typer.Option(False, "--json"),

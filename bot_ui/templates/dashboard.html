@@ -90,6 +90,31 @@
         <div class="card-sub text-small" style="margin-top:4px;">Next: <strong class="text-mono">{{ auto_loop_readiness.get('morning_next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
         <div class="mt-8">{% with command='auto-loop-readiness', label='Check Morning Paper Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
       </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">8 · Automatic Paper Trading Engine (ICT/SMC)</div>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;"><strong>Mode: PAPER ONLY</strong> — LIMIT brackets with stop/target. No market orders, no live trading. Morning <strong>09:45–11:30</strong> NY · Full session new entries <strong>09:45–15:30</strong> NY (wind-down per config). Engine uses the same gates as <code>run-automatic-paper-engine</code> (does <strong>not</strong> require legacy <code>READY_FOR_PAPER_TEST</code>).</p>
+        <div class="card-value text-small" style="margin-bottom:6px;">
+          {% if automatic_paper_engine and automatic_paper_engine.get('ok') %}
+            <span class="pill good">Gates pass (file-level)</span>
+          {% else %}
+            <span class="pill warn">Blocked or incomplete</span>
+          {% endif %}
+        </div>
+        <ul class="text-small text-dim" style="margin:6px 0 8px 1.1rem;">
+          <li>Strategy: <code>ict_smc_intraday_v1</code> · 1m trigger + HTF/5m chain (enforced in execution)</li>
+          <li>Remaining budget: <strong>{% if paper_sizing_ledger.get('daily_remaining_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('daily_remaining_notional_usd', 0)) }}{% else %}—{% endif %}</strong> · Kill: {% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}</li>
+          <li>Loop reconcile hint: <code>{{ automatic_paper_engine.get('reconciliation_loop_state') or '—' if automatic_paper_engine else '—' }}</code></li>
+          <li>Blockers: {% set engb = automatic_paper_engine.get('blockers') if automatic_paper_engine else [] %}{% for b in engb[:4] %}<span class="pill warn">{{ b }}</span> {% else %}<span class="text-dim">—</span>{% endfor %}</li>
+        </ul>
+        <div class="form-row" style="flex-wrap:wrap; gap:8px;">
+          {% with command='automatic-paper-engine-readiness', label='Check Automatic Engine Readiness', return_to='/dashboard', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='intraday-paper-on', label='Turn Paper Runtime ON', return_to='/dashboard', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='intraday-paper-off', label='Turn Paper Runtime OFF', return_to='/dashboard', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-automatic-paper-engine', label='Start Morning Paper Engine', return_to='/dashboard', btn_class='warn', args='--session morning --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-automatic-paper-engine', label='Start Full-Day Paper Engine', return_to='/dashboard', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+        </div>
+        <p class="text-dim text-small" style="margin:8px 0 0 0;">Use <a href="/reports">Reports</a> &amp; Journal after a run. Emergency: Kill switch above or <code>intraday-paper-off</code>. Long runs may take hours; the UI extends timeout to 8h for this command.</p>
+      </div>
     </div>
   </div>
 

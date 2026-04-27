@@ -68,10 +68,13 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **Chanlun / ORB 等未来策略**：在列表中可见，但 **paper_enabled = false** 时，不能选为纸面策略；页面上有「未来 / 未就绪」类说明。  
 - **新策略何时能纸面**：在代码里**独立声明**纸面不变量、接入扫描器/回测/括号与安全测试后，再把 `paper_enabled` 与相关开关打开（由开发流程决定，不在这里自动放开）。
 
-### 2.5 自动纸面日内循环（含义与准备，**不**从 UI 启动）
+### 2.5 自动纸面日内循环与 Automatic Paper Engine
 
-- **含义**：`run-auto-paper-intraday-loop` 是在终端**长时间轮询**、反复调用与单次 `auto-paper-intraday-smc` 同一条执行链路的 **Worker/CLI 流程**；用于盘中自动重复「扫描/门控/尝试发纸面括号」。  
-- **为什么 UI 没有「开始循环」按钮**：该入口**故意**不放入白名单，避免在浏览器中误开长时间、可能占用 TWS 的进程；只读 **「Automatic paper loop readiness」** 卡片 + **Check Auto Loop Readiness** 按钮（运行只读子命令 `auto-loop-readiness`）用于在计划 **60 分钟烟测** 前自我检查。  
+- **底层循环**：`run-auto-paper-intraday-loop` 是在终端**长时间轮询**、反复调用与单次 `auto-paper-intraday-smc` 同一条执行链路的 **Worker/CLI 流程**；用于盘中自动重复「扫描/门控/尝试发纸面括号」。  
+- **推荐人机可读别名（同一循环 + 更严预检 + Telegram 少打扰）**：`run-automatic-paper-engine` —— 要求 **$10k / $100k** 与 **ict_smc_intraday_v1** 等**自动引擎专用门槛**；**不**依赖旧版 `READY_FOR_PAPER_TEST` 人工关卡（该标记仍影响 `auto-loop-readiness` 的「60 分钟烟测准备」读数）。  
+- **为什么仍保留 `run-auto-paper-intraday-loop` 名字**：向后兼容与脚本；新操作员优先记 **`run-automatic-paper-engine --session morning|full`**。  
+- **UI 控制（Strategy Lab）**：**Dashboard / Paper** 的 **Automatic Paper Trading Engine** 区块提供：只读门控、**Check Automatic Engine Readiness**（`automatic-paper-engine-readiness`）、**Turn Paper Runtime ON/OFF**、**Start Morning / Full-Day Paper Engine**（白名单子命令 `run-automatic-paper-engine`，子进程有延长超时，仍建议大段跑盘用**终端**）。`run-auto-paper-intraday-loop` 本身**不**在 UI 白名单。  
+- **旧读数**：**「Automatic paper loop readiness」** 卡片 + **Check Auto Loop Readiness**（`auto-loop-readiness`）仍反映含 `READY_FOR_PAPER_TEST` 的**另一套**准备度；与自动引擎门控**数值可能不一致**属预期。  
 - **美东 RTH 参考**（`America/New_York`；与 `trading.intraday_paper` 的字符串一致）：**09:30** 开盘；**不早于** `no_new_entries_before`（默认 **09:45**）、**不晚于** `no_new_entries_after`（默认 **15:30**）才考虑新入；`exit_open_positions_at` 默认 **15:55** 附近减仓/收口；**16:00** 收盘；**16:05–16:30** 为人工或外部调度跑日报/邮件的常见窗口（**不是**本循环自动代跑，除非你另有调度）。  
 - **如何检查是否可做烟测**：终端 `python3 -m bot.cli auto-loop-readiness` 或 `… --json`；Dashboard / Paper 上同一按钮。输出含 `readiness`、`next_safe_action`（如 `ready_for_60min_smoke`、`wait_for_daily_budget`、`kill_switch_active`、`fix_reconcile` 等）。`--probe-ibkr` 可选、默认关闭；只有显式加才会走对账/探针。  
 - **收市后报告（预期工程能力，不由此 prompt 代跑）**：停循环后，你可以按 `docs/daily-operation-checklist.md` 顺序在终端跑：`open-orders`、`portfolio`、`paper-reconcile`、`paper-daily-report --email`（以环境是否配置发信为准）。
@@ -85,7 +88,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 #### 美东早晨纸面窗口（计划中的烟测，**不**在 UI 启动循环）
 
 - **参考时间**（`America/New_York`）：市场 **09:30** 开盘；**不早于 09:45** 起算新单；**早晨专项窗口 09:45–11:30** 用于未来「上午段」自动纸循环烟测；全日循环仍可用默认 **09:45–15:30**（以 `intraday_paper` 配置为准）。  
-- **CLI（仅操作员在终端使用）**：`python3 -m bot.cli run-auto-paper-intraday-loop --session morning` —— **不在** Strategy Lab UI 白名单，**没有**「Start morning loop」按钮。  
+- **CLI**：`python3 -m bot.cli run-automatic-paper-engine --session morning --telegram --report-on-exit`（也支持 `--session full`）。等价旧命令：`run-auto-paper-intraday-loop`（**无**自动引擎的专用预检与 TG 行为）。**干跑**（不启 runtime、不循环）：`--dry-run --json`。  
 - **只读检查**：Dashboard / Paper 的 **Morning paper test readiness** 与 **Check Morning Paper Readiness**（与 `auto-loop-readiness` 同源 JSON）含 `morning_next_safe_action`（如 `ready_for_morning_smoke`、`wait_for_market_open`、`wait_for_daily_budget` 等）。  
 - **为何先早晨、后全日**：早晨段流量与窗口更短，适合验证括号与日志；通过后再计划更长时烟测。  
 

@@ -59,6 +59,9 @@ def run_auto_paper_intraday_loop(
     time_fn: Callable[[], float] = time.time,
     sleep_fn: Callable[[float], None] = time.sleep,
     session: str = "full",
+    telegram_style: str = "verbose",
+    max_cycles: int | None = None,
+    cycle_result_hook: Callable[[Any], None] | None = None,
 ) -> None:
     """Endless (or time-bounded) intraday paper loop.
 
@@ -84,9 +87,23 @@ def run_auto_paper_intraday_loop(
     hb_seconds = max(60.0, float(heartbeat_minutes) * 60.0)
 
     state_path = cfg.absolute(INTRADAY_LOOP_STATE_RELPATH)
+    style = (telegram_style or "verbose").strip().lower()
+    if style not in {"verbose", "engine"}:
+        style = "verbose"
+    sent_engine: set[str] = set()
+
+    def _dedup_key(kind: str, detail: str) -> str:
+        k = f"{kind}|{detail}"[:500]
+        if k in sent_engine:
+            return ""
+        sent_engine.add(k)
+        return k
+
     while end is None or time_fn() < end:
         cycle += 1
         if once and cycle > 1:
+            break
+        if max_cycles is not None and cycle > int(max_cycles):
             break
         runtime_on, runtime_explicit_off = is_intraday_paper_runtime_enabled(cfg)
         kill = _shared_is_kill_switch_active(cfg)
@@ -110,8 +127,9 @@ def run_auto_paper_intraday_loop(
             _log_loop(line, jlog)
             if telegram and cfg.telegram.is_configured:
                 try:
+                    label = "auto-paper intraday" if style == "verbose" else "paper engine"
                     send_telegram_message(
-                        "<pre>auto-paper intraday: KILL_SWITCH active, cycle skipped</pre>",
+                        f"<pre>{label}: KILL_SWITCH active, cycle skipped</pre>",
                         cfg=cfg,
                         journal=journal,
                     )
@@ -139,12 +157,13 @@ def run_auto_paper_intraday_loop(
                 continue
 
         try:
+            pass_telegram = bool(telegram) and style == "verbose"
             result = run_intraday_paper_pass(
                 cfg,
                 journal,
                 source=source,
                 limit=limit,
-                telegram=telegram,
+                telegram=pass_telegram,
                 chart=False,
             )
             line["orders_submitted"] = int(result.orders_submitted)
@@ -155,26 +174,86 @@ def run_auto_paper_intraday_loop(
             line["symbols_scanned"] = list(result.symbols_scanned)
             line["audit_log_path"] = result.audit_log_path
             line["state_file_path"] = result.state_file_path
+            if cycle_result_hook is not None:
+                cycle_result_hook(result)
             if telegram and cfg.telegram.is_configured:
                 now_ts = time_fn()
-                do_hb = (now_ts - last_hb) >= hb_seconds
-                if line["orders_submitted"] > 0 or do_hb:
-                    try:
-                        send_telegram_message(
-                            (
-                                f"<pre>intraday paper: cycle {cycle} "
-                                f"strict={line['strict_ready_count']} "
-                                f"aggr={line['aggressive_ready_count']} "
-                                f"orders={line['orders_submitted']} "
-                                f"reason={line['reason'] or '-'}</pre>"
-                            ),
-                            cfg=cfg,
-                            journal=journal,
-                        )
-                        if do_hb:
-                            last_hb = now_ts
-                    except Exception:  # noqa: BLE001
-                        logger.warning("intraday telegram digest failed", exc_info=True)
+                if style == "engine":
+                    if line["orders_submitted"] > 0:
+                        dk = _dedup_key("orders", f"{cycle}:{line['orders_submitted']}")
+                        if dk:
+                            try:
+                                send_telegram_message(
+                                    (
+                                        f"<pre>paper engine: order(s) accepted "
+                                        f"count={line['orders_submitted']} "
+                                        f"cycle={cycle} sym={line.get('reason', '')[:80]}</pre>"
+                                    ),
+                                    cfg=cfg,
+                                    journal=journal,
+                                )
+                            except Exception:  # noqa: BLE001
+                                logger.warning("engine TG orders failed", exc_info=True)
+                    for sub in list(result.submissions or []):
+                        stob = bool(getattr(sub, "submitted_to_broker", False))
+                        ok = bool(getattr(sub, "submitted", False))
+                        sym = str(getattr(sub, "symbol", "") or "")
+                        if stob and not ok:
+                            dk = _dedup_key("incomplete", f"{sym}:{getattr(sub, 'bracket_integrity', '')}")
+                            if dk:
+                                try:
+                                    send_telegram_message(
+                                        f"<pre>URGENT: paper bracket INCOMPLETE {sym!s} — verify TWS</pre>",
+                                        cfg=cfg,
+                                        journal=journal,
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    logger.warning("engine TG incomplete failed", exc_info=True)
+                        errs = list(getattr(sub, "broker_errors", []) or [])
+                        if errs:
+                            dk = _dedup_key("broker", f"{sym}:{errs[0]!s}"[:200])
+                            if dk:
+                                try:
+                                    send_telegram_message(
+                                        f"<pre>paper engine broker: {sym!s} {errs[0]!s}</pre>",
+                                        cfg=cfg,
+                                        journal=journal,
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    logger.warning("engine TG broker err failed", exc_info=True)
+                    reason_l = (line["reason"] or "").lower()
+                    if "notional" in reason_l and (
+                        "cap" in reason_l or "limit" in reason_l or "daily" in reason_l
+                    ):
+                        dk = _dedup_key("cap", line["reason"][:200])
+                        if dk:
+                            try:
+                                send_telegram_message(
+                                    f"<pre>paper engine: {line['reason'][:500]}</pre>",
+                                    cfg=cfg,
+                                    journal=journal,
+                                )
+                            except Exception:  # noqa: BLE001
+                                logger.warning("engine TG cap failed", exc_info=True)
+                else:
+                    do_hb = (now_ts - last_hb) >= hb_seconds
+                    if line["orders_submitted"] > 0 or do_hb:
+                        try:
+                            send_telegram_message(
+                                (
+                                    f"<pre>intraday paper: cycle {cycle} "
+                                    f"strict={line['strict_ready_count']} "
+                                    f"aggr={line['aggressive_ready_count']} "
+                                    f"orders={line['orders_submitted']} "
+                                    f"reason={line['reason'] or '-'}</pre>"
+                                ),
+                                cfg=cfg,
+                                journal=journal,
+                            )
+                            if do_hb:
+                                last_hb = now_ts
+                        except Exception:  # noqa: BLE001
+                            logger.warning("intraday telegram digest failed", exc_info=True)
         except KeyboardInterrupt:
             line["status"] = "interrupted"
             line["reason"] = "KeyboardInterrupt"

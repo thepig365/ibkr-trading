@@ -8,8 +8,8 @@
 ### 纯 UI 日流程（与 `docs/strategy-lab-user-manual.md` §3.1 一致）
 
 - [ ] 1. **`Strategy Lab.command`**（或 `start_strategy_lab_ui.sh`）  
-- [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算/当前**纸面策略**提示；如计划**日内自动纸循环烟测**（`run-auto-paper-intraday-loop`，仅终端）：先看 **Automatic paper loop readiness** 或 `python3 -m bot.cli auto-loop-readiness`（**不**在 UI 启动循环）  
-- [ ] 2a.（可选）**早晨纸面前向测试准备**：在 Dashboard / Paper 看 **Morning paper test readiness**（美东 **09:45–11:30** 为计划中的「上午段」窗口；**不**在 UI 启动 `run-auto-paper-intraday-loop`，也无「开始早晨循环」按钮）。  
+- [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算/当前**纸面策略**提示；若使用 **Automatic Paper Trading Engine**：先看 **Check Automatic Engine Readiness**（`automatic-paper-engine-readiness --json`）或 `run-automatic-paper-engine --dry-run --json`。旧版 **60 分钟烟测准备**读数仍用 **Automatic paper loop readiness** / `auto-loop-readiness`（含 `READY_FOR_PAPER_TEST`，与引擎门控可能不一致）。  
+- [ ] 2a.（可选）**早晨/全日纸面自动引擎**：Dashboard / Paper 的 **Start Morning / Full-Day Paper Engine**（白名单 `run-automatic-paper-engine`）；或终端 `python3 -m bot.cli run-automatic-paper-engine --session morning --telegram --report-on-exit`。底层仍与 `run-auto-paper-intraday-loop` 同执行链；**`run-auto-paper-intraday-loop` 本身**不在 UI 白名单。  
 - [ ] 2b. 如需切换 **scan / backtest / edge / paper** 的默认：打开 **/strategies**（Strategy Center），`data/runtime/selected_strategy.json` 不提交  
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist** — 构建表  

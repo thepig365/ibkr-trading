@@ -74,6 +74,8 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
     assert is_allowed("rm") is False
     assert is_allowed("portfolio") is True
     assert is_allowed("run-auto-paper-intraday-loop") is False
+    assert is_allowed("run-automatic-paper-engine") is True
+    assert is_allowed("automatic-paper-engine-readiness") is True
     assert is_allowed("") is False
 
 
@@ -133,6 +135,8 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "data-cleanup": ("--dry-run",),
     "premarket-brief": ("--latest",),
     "auto-loop-readiness": (),
+    "automatic-paper-engine-readiness": ("--json",),
+    "run-automatic-paper-engine": ("--session", "morning", "--dry-run", "--json"),
     "eod-paper-checklist": (),
     "news-monitor-readiness": (),
     "email-config-status": ("--json",),

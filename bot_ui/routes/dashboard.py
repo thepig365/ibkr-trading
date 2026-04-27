@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from bot.auto_loop_readiness import build_auto_loop_readiness
+from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
@@ -74,6 +75,12 @@ def dashboard(request: Request) -> HTMLResponse:
             "readiness_reason": "auto_loop_readiness: check failed (see logs)",
             "next_safe_action": "run_readiness_check",
         }
+    try:
+        automatic_paper_engine = build_automatic_paper_engine_preflight(
+            cfg, None, probe_ibkr=False
+        )
+    except (OSError, TypeError, ValueError):
+        automatic_paper_engine = {"ok": False, "blockers": ["preflight error"]}
 
     op_hints = load_operational_hints(root)
     report_email = load_report_email_status(
@@ -128,6 +135,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "strategy_selection": ssel,
             "active_paper_strategy_entry": paper_s_entry,
             "auto_loop_readiness": auto_loop_readiness,
+            "automatic_paper_engine": automatic_paper_engine,
             "market_news_state": mnews,
             "news_monitor": nmon,
             "report_hub": build_report_hub_ui_context(root),

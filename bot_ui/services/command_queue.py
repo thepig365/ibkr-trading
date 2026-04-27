@@ -208,6 +208,10 @@ class LocalCommandRunner:
         # for the subprocess environment.
         env["IBKR_ACCOUNT_MODE"] = "paper"
 
+        child_timeout: int | None = self.timeout_seconds
+        if request.command == "run-automatic-paper-engine" and "--dry-run" not in request.args:
+            # RTH can run several hours; cap at one trading day. Dry-run stays default.
+            child_timeout = max(self.timeout_seconds, 28_800)  # 8 hours
         t0 = time.monotonic()
         try:
             completed = subprocess.run(  # noqa: S603 - argv is fully validated above
@@ -216,7 +220,7 @@ class LocalCommandRunner:
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=self.timeout_seconds,
+                timeout=child_timeout,
                 check=False,
             )
             result.exit_code = int(completed.returncode)
@@ -228,7 +232,7 @@ class LocalCommandRunner:
                 -200_000:
             ]
             result.stderr = (
-                f"TIMEOUT after {self.timeout_seconds}s\n"
+                f"TIMEOUT after {child_timeout}s\n"
                 + (
                     (exc.stderr or b"") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
                 ).__str__()[-200_000:]

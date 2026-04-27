@@ -6,12 +6,11 @@ hard by :class:`bot_ui.services.command_queue.LocalCommandRunner`.
 
 Rules:
 
-* Only read-only inspection commands and PAPER-only research / scan /
-  reconcile commands are listed here.
-* No order placement command is on this list. The bracket placement
-  paths (``auto-paper-mtf``, ``run-auto-paper-mtf-loop``) are
-  intentionally **not** here so the UI can never trigger a write
-  through the broker, even by mistake.
+* Read-only commands and **PAPER-only** intraday/MTF flows are listed here.
+* MTF bracket commands (``auto-paper-mtf``, ``run-auto-paper-mtf-loop``) are
+  **not** allowlisted. ICT/SMC intraday paper paths (``auto-paper-intraday-smc``,
+  ``first-paper-pass``, ``run-automatic-paper-engine``) **are** allowlisted with
+  strict argument validation — they may submit **paper** LIMIT brackets only.
 * Adding a new command requires:
     1. Adding it to :data:`ALLOWED_COMMANDS`.
     2. Documenting it in ``docs/deployment-architecture.md``.
@@ -84,6 +83,12 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "intraday-paper-off": "Set data/runtime/intraday_auto_paper_enabled = 0 (no orders).",
     "paper-readiness-check": "Intraday paper pre-flight (optional --probe-ibkr / --scan).",
     "first-paper-pass": "One controlled pass: readiness then auto-paper-intraday-smc (no loop).",
+    "automatic-paper-engine-readiness": (
+        "Read-only gates for run-automatic-paper-engine; optional --probe-ibkr."
+    ),
+    "run-automatic-paper-engine": (
+        "ICT/SMC automatic paper session loop (PAPER LIMIT brackets; long-running; controlled flags)."
+    ),
     "paper-daily-report": "Generate data/reports/paper daily JSON+MD (file-based; no IBKR).",
     "paper-weekly-report": "Generate data/reports/paper weekly JSON+MD (file-based; no IBKR).",
     "data-status": "Show disk usage for local data/ categories (read-only).",
@@ -1197,6 +1202,129 @@ def validate_auto_loop_readiness_args(args: tuple[str, ...]) -> tuple[bool, str]
     return True, ""
 
 
+_AUTO_ENG_READINESS_FLAGS = frozenset({"--json", "--no-json", "--probe-ibkr"})
+
+
+def validate_automatic_paper_engine_readiness_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("automatic-paper-engine-readiness", args)
+    if not ok:
+        return ok, err
+    for t in args:
+        if t not in _AUTO_ENG_READINESS_FLAGS:
+            return False, f"automatic-paper-engine-readiness: unexpected token {t!r}."
+    if args.count("--json") > 1 or args.count("--no-json") > 1:
+        return False, "automatic-paper-engine-readiness: duplicate json flag."
+    if "--json" in args and "--no-json" in args:
+        return False, "automatic-paper-engine-readiness: --json and --no-json conflict."
+    if args.count("--probe-ibkr") > 1:
+        return False, "automatic-paper-engine-readiness: duplicate --probe-ibkr."
+    return True, ""
+
+
+def validate_run_automatic_paper_engine_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Strict allowlist for the long-running automatic paper engine CLI."""
+    ok, err = _check_no_forbidden("run-automatic-paper-engine", args)
+    if not ok:
+        return ok, err
+    i = 0
+    seen: dict[str, int] = {}
+    bools = frozenset(
+        {
+            "--telegram",
+            "--report-on-exit",
+            "--no-report-on-exit",
+            "--dry-run",
+            "--json",
+            "--once",
+            "--market-hours-only",
+            "--ignore-market-hours",
+            "--probe-ibkr",
+            "--no-probe-ibkr",
+            "--no-runtime-on",
+        }
+    )
+    while i < len(args):
+        t = args[i]
+        if t in bools:
+            seen[t] = seen.get(t, 0) + 1
+            if seen[t] > 1:
+                return False, f"run-automatic-paper-engine: duplicate {t!r}."
+            i += 1
+            continue
+        if t == "--session":
+            if i + 1 >= len(args):
+                return False, "run-automatic-paper-engine: --session needs a value."
+            v = args[i + 1].strip().lower()
+            if v not in {"morning", "full"}:
+                return False, "run-automatic-paper-engine: --session must be morning|full."
+            i += 2
+            continue
+        if t == "--source":
+            if i + 1 >= len(args):
+                return False, "run-automatic-paper-engine: --source needs a value."
+            v = args[i + 1].strip().lower()
+            if v not in {"static", "dynamic", "manual"}:
+                return False, "run-automatic-paper-engine: --source must be static|dynamic|manual."
+            i += 2
+            continue
+        if t == "--limit":
+            if i + 1 >= len(args):
+                return False, "run-automatic-paper-engine: --limit needs a value."
+            try:
+                n = int(args[i + 1])
+            except ValueError:
+                return False, "run-automatic-paper-engine: --limit must be int."
+            if not 1 <= n <= 500:
+                return False, "run-automatic-paper-engine: --limit out of range."
+            i += 2
+            continue
+        if t == "--sleep-seconds":
+            if i + 1 >= len(args):
+                return False, "run-automatic-paper-engine: --sleep-seconds needs a value."
+            try:
+                n = int(args[i + 1])
+            except ValueError:
+                return False, "run-automatic-paper-engine: --sleep-seconds must be int."
+            if not 5 <= n <= 3600:
+                return False, "run-automatic-paper-engine: --sleep-seconds out of range."
+            i += 2
+            continue
+        if t == "--max-cycles":
+            if i + 1 >= len(args):
+                return False, "run-automatic-paper-engine: --max-cycles needs a value."
+            try:
+                n = int(args[i + 1])
+            except ValueError:
+                return False, "run-automatic-paper-engine: --max-cycles must be int."
+            if not 1 <= n <= 50_000:
+                return False, "run-automatic-paper-engine: --max-cycles out of range."
+            i += 2
+            continue
+        if t == "--stop-after-minutes":
+            if i + 1 >= len(args):
+                return False, "run-automatic-paper-engine: --stop-after-minutes needs a value."
+            try:
+                n = float(args[i + 1])
+            except ValueError:
+                return False, "run-automatic-paper-engine: --stop-after-minutes must be a number."
+            if not 0.1 <= n <= 24 * 60:
+                return False, "run-automatic-paper-engine: --stop-after-minutes out of range."
+            i += 2
+            continue
+        return False, f"run-automatic-paper-engine: unexpected token {t!r}."
+    if "--report-on-exit" in seen and "--no-report-on-exit" in seen:
+        return False, "run-automatic-paper-engine: --report-on-exit conflicts with --no-report-on-exit."
+    if "--probe-ibkr" in seen and "--no-probe-ibkr" in seen:
+        return False, "run-automatic-paper-engine: --probe-ibkr conflicts with --no-probe-ibkr."
+    if "--market-hours-only" in seen and "--ignore-market-hours" in seen:
+        return False, "run-automatic-paper-engine: conflicting market-hours flags."
+    return True, ""
+
+
 def validate_eod_paper_checklist_args(args: tuple[str, ...]) -> tuple[bool, str]:
     ok, err = _check_no_forbidden("eod-paper-checklist", args)
     if not ok:
@@ -1622,6 +1750,10 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_paper_activation_status_args(args)
     if command == "auto-loop-readiness":
         return validate_auto_loop_readiness_args(args)
+    if command == "automatic-paper-engine-readiness":
+        return validate_automatic_paper_engine_readiness_args(args)
+    if command == "run-automatic-paper-engine":
+        return validate_run_automatic_paper_engine_args(args)
     if command == "eod-paper-checklist":
         return validate_eod_paper_checklist_args(args)
     if command == "news-monitor-readiness":

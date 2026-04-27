@@ -167,7 +167,46 @@
       <div class="card-sub text-small">Reason: {{ auto_loop_readiness.get('morning_readiness_reason') if auto_loop_readiness else '—' }}</div>
       <div class="card-sub text-small" style="margin-top:4px;">Next safe action: <strong class="text-mono">{{ auto_loop_readiness.get('morning_next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
       <div class="mt-8">{% with command='auto-loop-readiness', label='Check Morning Paper Readiness', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
-      <p class="text-dim text-small" style="margin:8px 0 0 0;">Future morning smoke uses the operator CLI with a <code>--session morning</code> flag (full command in user manual; not exposed as a control here).</p>
+      <p class="text-dim text-small" style="margin:8px 0 0 0;">You can also use <strong>Automatic Paper Trading Engine</strong> below (alias <code>run-automatic-paper-engine</code>) for the same morning window.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Automatic Paper Trading Engine</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px 0;">
+      <strong>Mode: PAPER ONLY</strong> · Active strategy: <strong>ICT/SMC Intraday</strong> (<code>ict_smc_intraday_v1</code>) · US cash session.
+      Morning: <strong>09:45–11:30</strong> New York · Full session (new entries): <strong>09:45–15:30</strong> NY; after <strong>15:30</strong> the loop idles (no new brackets). Telegram: meaningful events only (orders, incomplete brackets, caps, start/stop) — not every no-signal cycle.
+    </p>
+    <div class="grid">
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">Engine gates (file snapshot; no TWS on page load)</div>
+        <div class="card-value text-small" style="margin-bottom:6px;">
+          {% if automatic_paper_engine and automatic_paper_engine.get('ok') %}
+            <span class="pill good">OK</span>
+          {% else %}
+            <span class="pill warn">Not OK</span>
+          {% endif %}
+        </div>
+        <div class="card-sub text-small">
+          Daily remaining: <strong>{% if paper_sizing_ledger.get('daily_remaining_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('daily_remaining_notional_usd', 0)) }}{% else %}—{% endif %}</strong>
+          · Per-order cap $10k / daily $100k (config) · Kill: {% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">Reconcile (last loop file): <code>{{ automatic_paper_engine.get('reconciliation_loop_state') or '—' if automatic_paper_engine else '—' }}</code></div>
+        <div class="card-sub text-small">Intraday loop (latest): <code>{{ intraday_paper_loop.last_reason or intraday_paper_loop.last_status or '—' if intraday_paper_loop else '—' }}</code></div>
+        <div class="card-sub text-small">Telegram env: {% if automatic_paper_engine and automatic_paper_engine.get('telegram_configured') %}<span class="pill good">configured</span>{% else %}<span class="pill warn">not configured</span>{% endif %}</div>
+        {% set engb = automatic_paper_engine.get('blockers') if automatic_paper_engine else [] %}
+        {% if engb %}
+        <ul class="text-small" style="margin:8px 0 0 1rem;">{% for b in engb[:8] %}<li>{{ b }}</li>{% endfor %}</ul>
+        {% endif %}
+        <div class="form-row mt-12" style="flex-wrap:wrap; gap:8px;">
+          {% with command='automatic-paper-engine-readiness', label='Check Automatic Engine Readiness', return_to='/paper', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='intraday-paper-on', label='Turn Paper Runtime ON', return_to='/paper' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='intraday-paper-off', label='Turn Paper Runtime OFF', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-automatic-paper-engine', label='Start Morning Paper Engine', return_to='/paper', btn_class='warn', args='--session morning --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-automatic-paper-engine', label='Start Full-Day Paper Engine', return_to='/paper', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+        </div>
+        <p class="text-dim text-small" style="margin:10px 0 0 0;">Emergency stop: <strong>Kill switch</strong> in the card above, or <code>intraday-paper-off</code>. Reports: <a href="/reports">/reports</a> · <a href="{{ url_for('journal_page') }}">Journal</a>. Inbox bracket rows marked <em>Incomplete</em> = urgent. UI timeout for engine start is 8h (subprocess); prefer terminal for overnight operations.</p>
+      </div>
     </div>
   </div>
 

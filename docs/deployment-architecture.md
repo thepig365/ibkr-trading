@@ -173,11 +173,15 @@ UI command runner allowlist additions for v2:
 - `build-edge-profile` / `build-edge-profiles` (backtest from **local** 1m cache; optional `--fetch` for explicit IBKR candle fill)
 - `edge-profile-report` (read-only latest `data/edge_profiles/*-edge-profiles.json`)
 - `auto-loop-readiness` (read-only; optional `--json` / `--probe-ibkr`; does not start the intraday auto loop)
+- `automatic-paper-engine-readiness` (read-only file/optional `--probe-ibkr` gates for `run-automatic-paper-engine`)
+- `run-automatic-paper-engine` (ICT/SMC intraday automatic paper session; **not** `run-auto-paper-intraday-loop`; strict arg validation; subprocess timeout extended to 8h unless `--dry-run`)
 - `eod-paper-checklist` (read-only; prints recommended EOD command sequence; no orders, no email)
 - `news-monitor-readiness` (read-only; env + config for market-news monitor; no provider fetch)
 - `market-news-check` (Finnhub/FMP REST when keys present; default `--dry-run` avoids Telegram; never trades)
 
-All other CLI subcommands (especially `auto-paper-mtf`, `place-order`,
+`run-auto-paper-intraday-loop` remains **forbidden** in the UI (use
+`run-automatic-paper-engine` from the allowlist instead). All other
+CLI subcommands (especially `auto-paper-mtf`, `place-order`,
 `run-auto-paper-mtf-loop`, `telegram-listen`, `run-scheduler`) remain
 forbidden via `bot_ui.services.safety.FORBIDDEN_COMMAND_TOKENS`.
 
