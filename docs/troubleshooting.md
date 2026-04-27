@@ -31,9 +31,16 @@
 3. 端口/Client ID 是否与 `config` 与 `docs/ibkr-setup.md` 一致。  
 4. 仍失败：在终端用 `strategy_lab_doctor.sh` 或同文档排查；**不要**在 UI 里关 TWS 的 Order 保护。
 
+## launchd：`Operation not permitted` / `getcwd: cannot access parent directories`
+
+- **原因**：仓库若在 **`~/Documents`**、Desktop 或与 iCloud 同步的目录，macOS **隐私（TCC）** 可能禁止 **launchd 后台任务** 在该路径下**执行脚本**或把 **WorkingDirectory** 设在该路径，从而出现 `Operation not permitted`，或 `shell-init: getcwd` 报错。这与 **交易引擎本身**无关；在 **终端**里手动跑通常仍正常。  
+- **本仓库已做的安装侧修复**：`install_full_auto_paper_launchd.sh` 会把 **wrapper** 装到 `~/Library/Application Support/StrategyLab/run_full_auto_paper_supervisor.sh`，plist 的 **WorkingDirectory** 也在该目录；通过环境变量 **`STRATEGY_LAB_REPO_DIR`** + **`PYTHONPATH`/`IBKR_TRADING_PROJECT_ROOT`** 调用 `python3 -m bot.cli`，并把 **launchd 的 stdout/stderr** 写到 **`~/Library/Logs/StrategyLab/`**，避免强依赖对 Documents 下路径的 `exec`。  
+- **若仍失败**：把仓库移到非受保护路径，例如 **`~/StrategyLab/ibkr-trading-bot`**，然后 `export STRATEGY_LAB_REPO_DIR="$HOME/StrategyLab/ibkr-trading-bot"` 再执行 **install**；或在 **系统设置 → 隐私与安全性 → 完全磁盘访问权限** 中为 `/bin/bash`、实际使用的 **`python3`**（或 `.venv` 内解释器）授权。  
+- **重装 launchd**：`bash scripts/uninstall_full_auto_paper_launchd.sh` 后 `bash scripts/install_full_auto_paper_launchd.sh`。
+
 ## launchd 装了但似乎没有跑 / 日志为空
 
-- **先查**：`bash scripts/status_full_auto_paper_launchd.sh`；看 `logs/launchd_full_auto.out.log` 与 `logs/full_auto_paper_supervisor.log`。  
+- **先查**：`bash scripts/status_full_auto_paper_launchd.sh`；重点看 **`~/Library/Logs/StrategyLab/`** 下 `launchd_full_auto.err.log`、`full_auto_paper_supervisor.log`，以及仓库内 `logs/`（若仍写入）。  
 - **确认 TWS 纸面 + API 端口** 与 `IBKR_PORT` 一致；监督器在阻塞时会尝试 Telegram（若已配置），**不**在 UI 里执行 `launchctl`。  
 - **单实例锁**：若已有一份监督器在跑，新实例会**跳过**并在 supervisor 日志里写 `skip: another instance holds the lock`（防重复进程）。
 

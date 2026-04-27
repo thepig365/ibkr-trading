@@ -54,8 +54,10 @@
       <tbody>
         <tr><th>launchd plist in ~/Library/LaunchAgents</th><td>{% if background_runner.launchd_plist_in_user_dir %}<span class="pill good">file present</span>{% else %}<span class="pill warn">not installed</span>{% endif %}</td></tr>
         <tr><th>User plist path</th><td class="text-mono text-small">{{ background_runner.launchd_plist_path_user }}</td></tr>
-        <tr><th>Supervisor log (append)</th><td class="text-mono text-small">{{ background_runner.log_appended_supervisor }}</td></tr>
-        <tr><th>launchd out / err</th><td class="text-mono text-small">{{ background_runner.log_launchd_stdout }} · {{ background_runner.log_launchd_stderr }}</td></tr>
+        <tr><th>Supervisor log (append, repo)</th><td class="text-mono text-small">{{ background_runner.log_appended_supervisor }}</td></tr>
+        <tr><th>launchd out / err (repo)</th><td class="text-mono text-small">{{ background_runner.log_launchd_stdout }} · {{ background_runner.log_launchd_stderr }}</td></tr>
+        <tr><th>launchd wrapper (installed)</th><td class="text-mono text-small">{{ background_runner.wrapper_script_install_path }}</td></tr>
+        <tr><th>Logs (launchd, Library)</th><td class="text-mono text-small">{{ background_runner.library_logs_launchd_out }} · {{ background_runner.library_logs_launchd_err }}</td></tr>
         <tr><th>last supervisor state (file)</th><td class="text-mono text-small">phase: {{ (background_runner.last_supervisor_state or {}).get('supervisor_phase', '—') }} · last blocker: {{ (background_runner.last_supervisor_state or {}).get('last_blocker', '—') }}</td></tr>
       </tbody>
     </table>

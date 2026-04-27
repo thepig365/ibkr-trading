@@ -24,7 +24,8 @@ backend-swap, not a rewrite.
   TCP to localhost for TWS is **not** used on page render—run
   `full-auto-paper-readiness` in a terminal for live checks.)
 - **macOS background**: Optional `launchd` job (see `scripts/install_full_auto_paper_launchd.sh`)
-  runs the **full-auto paper supervisor** script on an interval; it does not change
+  runs a **wrapper** under `Library/Application Support` with `STRATEGY_LAB_REPO_DIR` + `PYTHONPATH`
+  (avoids TCC issues with executing paths under `~/Documents`). It does not change
   the UI safety model (no live trading, no UI-driven `launchctl`).
 - **The UI never places an order directly.** It can only enqueue an
   *allowlisted CLI command* (e.g. `paper-reconcile`, `scan-mtf-smc-watchlist`).

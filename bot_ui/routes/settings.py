@@ -39,6 +39,8 @@ def settings_page(request: Request) -> HTMLResponse:
     try:
         background_runner = build_background_runner_ui_context(root)
     except (OSError, TypeError, ValueError):
+        _h = Path.home()
+        _ll = _h / "Library" / "Logs" / "StrategyLab"
         background_runner = {
             "launchd_plist_in_user_dir": False,
             "launchd_plist_path_user": str(
@@ -48,7 +50,16 @@ def settings_page(request: Request) -> HTMLResponse:
             "log_appended_supervisor": str(root / "logs" / "full_auto_paper_supervisor.log"),
             "log_launchd_stdout": str(root / "logs" / "launchd_full_auto.out.log"),
             "log_launchd_stderr": str(root / "logs" / "launchd_full_auto.err.log"),
+            "wrapper_script_install_path": str(
+                _h / "Library" / "Application Support" / "StrategyLab" / "run_full_auto_paper_supervisor.sh"
+            ),
+            "library_logs_supervisor": str(_ll / "full_auto_paper_supervisor.log"),
+            "library_logs_launchd_out": str(_ll / "launchd_full_auto.out.log"),
+            "library_logs_launchd_err": str(_ll / "launchd_full_auto.err.log"),
             "lock_file": str(root / "data" / "runtime" / "full_auto_paper_supervisor.lock"),
+            "lock_file_launchd": str(
+                _h / "Library" / "Application Support" / "StrategyLab" / "full_auto_paper_supervisor.lock"
+            ),
             "last_supervisor_state": {},
         }
     ctx.update(

@@ -80,13 +80,13 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 #### 后台运行（macOS launchd，无需一直开 Cursor / Terminal）
 
-- **目标**：安装后由 `launchd` 周期调用 `scripts/run_full_auto_paper_supervisor.sh`，**不必**一直开着 Cursor；安装完成后也**不必**一直开着 Terminal 窗口（作业由 launchd 调度）。**TWS 纸面账户必须保持登录**，**Mac 建议禁止睡眠或使用常开机器**。  
-- **稳定 CLI**（与干跑一致）：`python3 -m bot.cli full-auto-paper-readiness --json`；`python3 -m bot.cli run-full-auto-paper-supervisor --dry-run --json`。另有一套只读门控：`automatic-paper-engine-readiness` / `run-automatic-paper-engine`（内层引擎；监督器优先用 `run-full-auto-paper-supervisor`）。  
-- **安装**（本机终端执行，勿在仓库内自动安装）：`bash scripts/install_full_auto_paper_launchd.sh`  
-- **状态**：`bash scripts/status_full_auto_paper_launchd.sh`（含日志尾、7497 探测、只读 readiness）  
-- **卸载**：`bash scripts/uninstall_full_auto_paper_launchd.sh`（仅移除 LaunchAgents plist，**不删** `data/` / 报告）  
-- **日志路径**（gitignore）：`logs/full_auto_paper_supervisor.log`（脚本追加）、`logs/launchd_full_auto.out.log`、`logs/launchd_full_auto.err.log`  
-- **plist 模板**：`scripts/com.strategy-lab.full-auto-paper.plist`（`__REPO_ROOT__` 由安装脚本替换）。**实盘仍禁用**；Telegram 仅短讯，全文在 **Reports / Journal**。
+- **目标**：安装后由 `launchd` 调用 **`~/Library/Application Support/StrategyLab/run_full_auto_paper_supervisor.sh`**（由安装脚本从 `scripts/strategy_lab_launchd_wrapper.sh` 复制），**不必**一直开着 Cursor；安装完成后也**不必**一直开着 Terminal。**TWS 纸面账户必须保持登录**，**Mac 建议禁止睡眠或使用常开机器**。若仓库在 **`~/Documents/...`**，macOS 可能对后台任务限制访问——安装脚本会提示；仍失败时请把仓库迁到如 **`~/StrategyLab/ibkr-trading-bot`** 再重装 launchd，或授予 **完全磁盘访问**（见 `docs/troubleshooting.md`）。  
+- **稳定 CLI**（与干跑一致）：`python3 -m bot.cli full-auto-paper-readiness --json`；`python3 -m bot.cli run-full-auto-paper-supervisor --dry-run --json`。另：`automatic-paper-engine-readiness` / `run-automatic-paper-engine`。  
+- **安装**（本机终端）：`bash scripts/install_full_auto_paper_launchd.sh`；可选 `STRATEGY_LAB_REPO_DIR=/path/to/ibkr-trading-bot bash scripts/install_full_auto_paper_launchd.sh`。  
+- **状态**：`bash scripts/status_full_auto_paper_launchd.sh`（含 **Operation not permitted** 诊断、`~/Library/Logs/StrategyLab`、7497、readiness）  
+- **卸载**：`bash scripts/uninstall_full_auto_paper_launchd.sh`（移除 plist 与 wrapper，**不删**仓库内 `data/` / 报告）  
+- **日志**：优先看 **`~/Library/Logs/StrategyLab/`**（`full_auto_paper_supervisor.log`、`launchd_full_auto.out.log` / `.err.log`）；从终端直接跑仓库内 `scripts/run_full_auto_paper_supervisor.sh` 时仍可能写仓库 `logs/`。  
+- **plist 模板**：`scripts/com.strategy-lab.full-auto-paper.plist`（**WorkingDirectory** 为 Application Support，**非** Documents）。**实盘仍禁用**。
 
 ### 2.5 自动纸面日内循环与 Automatic Paper Engine
 

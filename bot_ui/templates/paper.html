@@ -204,9 +204,10 @@
       <ul class="text-small text-dim" style="margin:0 0 8px 1.1rem;">
         <li>launchd plist in <code>~/Library/LaunchAgents/</code>: {% if background_runner and background_runner.get('launchd_plist_in_user_dir') %}<span class="pill good">present</span>{% else %}<span class="pill warn">not installed</span>{% endif %} (file check only; load state not probed from UI)</li>
         <li>Repo template: <code class="text-mono text-small">{{ background_runner.repo_scripts_plist if background_runner else '—' }}</code></li>
-        <li>Supervisor log (append): <code class="text-mono text-small">{{ background_runner.log_appended_supervisor if background_runner else '—' }}</code></li>
-        <li>launchd stdout/stderr: <code class="text-mono text-small">{{ background_runner.log_launchd_stdout if background_runner else '—' }}</code> · <code class="text-mono text-small">{{ background_runner.log_launchd_stderr if background_runner else '—' }}</code></li>
-        <li>Lock file: <code class="text-mono text-small">{{ background_runner.lock_file if background_runner else '—' }}</code></li>
+        <li>Wrapper (after install): <code class="text-mono text-small">{{ background_runner.wrapper_script_install_path if background_runner else '—' }}</code></li>
+        <li>Supervisor log (append, from Terminal script): <code class="text-mono text-small">{{ background_runner.log_appended_supervisor if background_runner else '—' }}</code></li>
+        <li>launchd logs (under Library, preferred when using launchd): <code class="text-mono text-small">{{ (background_runner.library_logs_launchd_out or '') if background_runner else '' }}</code> · <code class="text-mono text-small">{{ (background_runner.library_logs_launchd_err or '') if background_runner else '' }}</code></li>
+        <li>Lock: repo <code class="text-mono text-small">{{ background_runner.lock_file if background_runner else '—' }}</code> · launchd <code class="text-mono text-small">{{ background_runner.lock_file_launchd if background_runner else '—' }}</code></li>
         <li>TWS last known (supervisor state): <code>{{ (background_runner.last_supervisor_state or {}).get('tws_listening_last', '—') }}</code></li>
       </ul>
       <div class="card-sub text-small">Install / uninstall (run in Terminal on the Mac; not executed from this page):</div>

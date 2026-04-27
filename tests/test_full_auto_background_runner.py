@@ -13,4 +13,5 @@ def test_build_background_context_keys() -> None:
     c = build_background_runner_ui_context(REPO)
     assert "launchd_plist_in_user_dir" in c
     assert "log_appended_supervisor" in c
+    assert "library_logs_launchd_err" in c
     assert isinstance(c.get("last_supervisor_state"), dict)

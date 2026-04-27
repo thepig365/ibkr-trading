@@ -1,3 +1,2 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Deprecated alias: use com.strategy-lab.full-auto-paper.plist (same content, __REPO_ROOT__ placeholder). -->
-<!-- Install: bash scripts/install_full_auto_paper_launchd.sh -->
+See scripts/com.strategy-lab.full-auto-paper.plist (WorkingDirectory = Application Support; wrapper + STRATEGY_LAB_REPO_DIR).
+Install: bash scripts/install_full_auto_paper_launchd.sh

@@ -134,16 +134,27 @@ def paper_page(request: Request) -> HTMLResponse:
         ctx["background_runner"] = build_background_runner_ui_context(root)
     except (OSError, TypeError, ValueError):
         r = root
+        h = Path.home()
+        ll = h / "Library" / "Logs" / "StrategyLab"
         ctx["background_runner"] = {
             "launchd_plist_in_user_dir": False,
             "launchd_plist_path_user": str(
-                Path.home() / "Library" / "LaunchAgents" / "com.strategy-lab.full-auto-paper.plist"
+                h / "Library" / "LaunchAgents" / "com.strategy-lab.full-auto-paper.plist"
             ),
             "repo_scripts_plist": str(r / "scripts" / "com.strategy-lab.full-auto-paper.plist"),
             "log_appended_supervisor": str(r / "logs" / "full_auto_paper_supervisor.log"),
             "log_launchd_stdout": str(r / "logs" / "launchd_full_auto.out.log"),
             "log_launchd_stderr": str(r / "logs" / "launchd_full_auto.err.log"),
+            "wrapper_script_install_path": str(
+                h / "Library" / "Application Support" / "StrategyLab" / "run_full_auto_paper_supervisor.sh"
+            ),
+            "library_logs_supervisor": str(ll / "full_auto_paper_supervisor.log"),
+            "library_logs_launchd_out": str(ll / "launchd_full_auto.out.log"),
+            "library_logs_launchd_err": str(ll / "launchd_full_auto.err.log"),
             "lock_file": str(r / "data" / "runtime" / "full_auto_paper_supervisor.lock"),
+            "lock_file_launchd": str(
+                h / "Library" / "Application Support" / "StrategyLab" / "full_auto_paper_supervisor.lock"
+            ),
             "last_supervisor_state": {},
         }
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)

@@ -27,6 +27,8 @@ def build_background_runner_ui_context(project_root: Path) -> dict[str, Any]:
                 sup = raw
         except (OSError, json.JSONDecodeError, TypeError, UnicodeDecodeError):
             sup = {}
+    home = Path.home()
+    lib_logs = home / "Library" / "Logs" / "StrategyLab"
     return {
         "launchd_plist_in_user_dir": la.is_file(),
         "launchd_plist_path_user": str(la),
@@ -34,7 +36,16 @@ def build_background_runner_ui_context(project_root: Path) -> dict[str, Any]:
         "log_appended_supervisor": str(root / "logs" / "full_auto_paper_supervisor.log"),
         "log_launchd_stdout": str(root / "logs" / "launchd_full_auto.out.log"),
         "log_launchd_stderr": str(root / "logs" / "launchd_full_auto.err.log"),
+        "wrapper_script_install_path": str(
+            home / "Library" / "Application Support" / "StrategyLab" / "run_full_auto_paper_supervisor.sh"
+        ),
+        "library_logs_supervisor": str(lib_logs / "full_auto_paper_supervisor.log"),
+        "library_logs_launchd_out": str(lib_logs / "launchd_full_auto.out.log"),
+        "library_logs_launchd_err": str(lib_logs / "launchd_full_auto.err.log"),
         "lock_file": str(root / "data" / "runtime" / "full_auto_paper_supervisor.lock"),
+        "lock_file_launchd": str(
+            home / "Library" / "Application Support" / "StrategyLab" / "full_auto_paper_supervisor.lock"
+        ),
         "last_supervisor_state": sup,
     }
 

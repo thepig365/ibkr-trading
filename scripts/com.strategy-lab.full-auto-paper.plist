@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Template: __REPO_ROOT__ is replaced by scripts/install_full_auto_paper_launchd.sh
-  Paper only. Do not commit installed copies to LaunchAgents. Install manually.
+  Filled by install_full_auto_paper_launchd.sh:
+  - WorkingDirectory is ~/Library/Application Support/StrategyLab (not repo under Documents)
+  - Program runs wrapper script there; repo path only in STRATEGY_LAB_REPO_DIR
+  __WRAPPER_SH__ __WORK_DIR__ __OUT_LOG__ __ERR_LOG__ __REPO_ROOT__
 -->
 <plist version="1.0">
 <dict>
@@ -13,20 +15,22 @@
   <key>StartInterval</key>
   <integer>300</integer>
   <key>WorkingDirectory</key>
-  <string>__REPO_ROOT__</string>
+  <string>__WORK_DIR__</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>__REPO_ROOT__/scripts/run_full_auto_paper_supervisor.sh</string>
+    <string>__WRAPPER_SH__</string>
   </array>
   <key>StandardOutPath</key>
-  <string>__REPO_ROOT__/logs/launchd_full_auto.out.log</string>
+  <string>__OUT_LOG__</string>
   <key>StandardErrorPath</key>
-  <string>__REPO_ROOT__/logs/launchd_full_auto.err.log</string>
+  <string>__ERR_LOG__</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>IBKR_ACCOUNT_MODE</key>
     <string>paper</string>
+    <key>STRATEGY_LAB_REPO_DIR</key>
+    <string>__REPO_ROOT__</string>
   </dict>
 </dict>
 </plist>

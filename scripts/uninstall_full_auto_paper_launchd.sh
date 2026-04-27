@@ -12,3 +12,9 @@ if [[ -f "${DEST}" ]]; then
 else
   echo "No plist at ${DEST} (nothing to remove)"
 fi
+
+WRAP="${HOME}/Library/Application Support/StrategyLab/run_full_auto_paper_supervisor.sh"
+if [[ -f "${WRAP}" ]]; then
+  rm -f "${WRAP}"
+  echo "Removed wrapper ${WRAP}"
+fi

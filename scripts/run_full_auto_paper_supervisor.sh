@@ -1,5 +1,7 @@
 #!/bin/bash
-# Full-auto paper supervisor — PAPER ONLY. TWS/IB Gateway (paper) must be logged in.
+# Full-auto paper supervisor — PAPER ONLY. For manual/Terminal use from the repo.
+# launchd: use `install_full_auto_paper_launchd.sh` — it installs a wrapper under
+# ~/Library/Application Support/StrategyLab/ so macOS does not block execution under ~/Documents.
 # Logs append here; single-instance lock. No secrets printed.
 set -euo pipefail
 
