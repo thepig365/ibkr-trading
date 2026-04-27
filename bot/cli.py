@@ -4578,6 +4578,149 @@ def run_automatic_paper_engine_cmd(
     raise typer.Exit(0 if not out.get("blockers") else 2)
 
 
+@app.command("full-auto-paper-readiness")
+def full_auto_paper_readiness_cmd(
+    as_json: bool = typer.Option(
+        True,
+        "--json/--no-json",
+        help="Machine-readable readiness (default on).",
+    ),
+    probe_ibkr: bool = typer.Option(
+        False,
+        "--probe-ibkr",
+        help="Optional broker reconcile (TWS + journal).",
+    ),
+    session: str = typer.Option(
+        "full",
+        "--session",
+        help="full | morning — which trading window label to use.",
+    ),
+) -> None:
+    """Read-only full-auto paper supervisor gates (UI-safe without --probe-ibkr)."""
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from .full_auto_paper_readiness import build_full_auto_paper_readiness  # noqa: PLC0415
+
+    cfg, journal = _bootstrap()
+    root = _Path(cfg.project_root)
+    sess = (session or "full").strip().lower()
+    if sess not in {"full", "morning"}:
+        console.print("[red]--session must be full|morning[/red]")
+        raise typer.Exit(2)
+    payload = build_full_auto_paper_readiness(
+        root,
+        cfg,
+        journal if probe_ibkr else None,
+        probe_ibkr=probe_ibkr,
+        session=sess,
+    )
+    if as_json:
+        console.print(
+            json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+        )
+    else:
+        st = "OK" if payload.get("ok") else "BLOCKED"
+        bl = payload.get("blockers") or []
+        body = "\n".join(str(x) for x in bl) if bl else "(no blockers)"
+        console.print(
+            Panel.fit(
+                f"{st}\n{body}",
+                title="full-auto-paper-readiness",
+                style="green" if payload.get("ok") else "red",
+            )
+        )
+    raise typer.Exit(0 if payload.get("ok") else 2)
+
+
+@app.command("run-full-auto-paper-supervisor")
+def run_full_auto_paper_supervisor_cmd(
+    session: str = typer.Option(
+        "full",
+        "--session",
+        help="morning | full (default full).",
+    ),
+    telegram: Optional[bool] = typer.Option(
+        None,
+        "--telegram/--no-telegram",
+        help="Default: on if TELEGRAM_* configured.",
+    ),
+    report_on_exit: bool = typer.Option(
+        True,
+        "--report-on-exit/--no-report-on-exit",
+    ),
+    once: bool = typer.Option(False, "--once", help="Single supervisor iteration or one news pass."),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Readiness + state only; no engine, no broker trading path.",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print JSON result to stdout."),
+    sleep_seconds: float = typer.Option(
+        60.0,
+        "--sleep-seconds",
+        min=5.0,
+        help="Poll interval when waiting for session or when blocked.",
+    ),
+    market_open_check_only: bool = typer.Option(
+        False,
+        "--market-open-check-only",
+        help="Print readiness and exit (no loop).",
+    ),
+    no_trade: bool = typer.Option(
+        False,
+        "--no-trade",
+        help="Supervise / alert only; never start the automatic paper engine.",
+    ),
+    news_only: bool = typer.Option(
+        False,
+        "--news-only",
+        help="Run market-news-check loop only (no engine).",
+    ),
+    max_runtime_minutes: Optional[float] = typer.Option(
+        None,
+        "--max-runtime-minutes",
+        help="Stop supervisor after N minutes (optional).",
+    ),
+) -> None:
+    """Outer full-auto paper supervisor — gates, Telegram blockers, ICT/SMC engine (paper)."""
+    from .full_auto_paper_supervisor import run_full_auto_paper_supervisor  # noqa: PLC0415
+
+    sess = (session or "full").strip().lower()
+    if sess not in {"full", "morning"}:
+        console.print("[red]--session must be full|morning[/red]")
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    eff_telegram = (
+        bool(cfg.telegram.is_configured) if telegram is None else bool(telegram)
+    )
+    out = run_full_auto_paper_supervisor(
+        cfg,
+        journal,
+        session=sess,
+        telegram=eff_telegram,
+        report_on_exit=report_on_exit,
+        once=once,
+        dry_run=dry_run,
+        sleep_seconds=float(sleep_seconds),
+        market_open_check_only=market_open_check_only,
+        no_trade=no_trade,
+        news_only=news_only,
+        max_runtime_minutes=max_runtime_minutes,
+    )
+    if json_out or dry_run or market_open_check_only:
+        console.print(json.dumps(out, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(out, indent=2, ensure_ascii=False, default=str)[:12_000],
+                title="run-full-auto-paper-supervisor",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
+
+
 @app.command("intraday-paper-status")
 def intraday_paper_status_cmd(
     as_json: bool = typer.Option(False, "--json"),

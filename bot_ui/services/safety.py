@@ -89,6 +89,12 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "run-automatic-paper-engine": (
         "ICT/SMC automatic paper session loop (PAPER LIMIT brackets; long-running; controlled flags)."
     ),
+    "full-auto-paper-readiness": (
+        "Read-only gates for run-full-auto-paper-supervisor; optional --probe-ibkr."
+    ),
+    "run-full-auto-paper-supervisor": (
+        "Full-auto paper supervisor — outer loop, Telegram blockers, ICT/SMC engine (paper only)."
+    ),
     "paper-daily-report": "Generate data/reports/paper daily JSON+MD (file-based; no IBKR).",
     "paper-weekly-report": "Generate data/reports/paper weekly JSON+MD (file-based; no IBKR).",
     "data-status": "Show disk usage for local data/ categories (read-only).",
@@ -1325,6 +1331,114 @@ def validate_run_automatic_paper_engine_args(
     return True, ""
 
 
+_FA_READINESS_FLAGS = frozenset({"--json", "--no-json", "--probe-ibkr"})
+
+
+def validate_full_auto_paper_readiness_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("full-auto-paper-readiness", args)
+    if not ok:
+        return ok, err
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t in _FA_READINESS_FLAGS:
+            i += 1
+            continue
+        if t == "--session":
+            if i + 1 >= len(args):
+                return False, "full-auto-paper-readiness: --session needs a value."
+            v = args[i + 1].strip().lower()
+            if v not in {"morning", "full"}:
+                return False, "full-auto-paper-readiness: --session must be morning|full."
+            i += 2
+            continue
+        return False, f"full-auto-paper-readiness: unexpected token {t!r}."
+    if args.count("--json") > 1 or args.count("--no-json") > 1:
+        return False, "full-auto-paper-readiness: duplicate json flag."
+    if "--json" in args and "--no-json" in args:
+        return False, "full-auto-paper-readiness: --json and --no-json conflict."
+    if args.count("--probe-ibkr") > 1:
+        return False, "full-auto-paper-readiness: duplicate --probe-ibkr."
+    return True, ""
+
+
+def validate_run_full_auto_paper_supervisor_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Strict allowlist: full-auto supervisor (long-running; paper only)."""
+    ok, err = _check_no_forbidden("run-full-auto-paper-supervisor", args)
+    if not ok:
+        return ok, err
+    i = 0
+    seen: dict[str, int] = {}
+    bools = frozenset(
+        {
+            "--telegram",
+            "--no-telegram",
+            "--report-on-exit",
+            "--no-report-on-exit",
+            "--once",
+            "--dry-run",
+            "--json",
+            "--market-open-check-only",
+            "--no-trade",
+            "--news-only",
+        }
+    )
+    while i < len(args):
+        t = args[i]
+        if t in bools:
+            seen[t] = seen.get(t, 0) + 1
+            if seen[t] > 1:
+                return False, f"run-full-auto-paper-supervisor: duplicate {t!r}."
+            i += 1
+            continue
+        if t == "--session":
+            if i + 1 >= len(args):
+                return False, "run-full-auto-paper-supervisor: --session needs a value."
+            v = args[i + 1].strip().lower()
+            if v not in {"morning", "full"}:
+                return False, "run-full-auto-paper-supervisor: --session must be morning|full."
+            i += 2
+            continue
+        if t == "--sleep-seconds":
+            if i + 1 >= len(args):
+                return False, "run-full-auto-paper-supervisor: --sleep-seconds needs a value."
+            try:
+                n = float(args[i + 1])
+            except ValueError:
+                return False, "run-full-auto-paper-supervisor: --sleep-seconds must be a number."
+            if not 5.0 <= n <= 3600.0:
+                return False, "run-full-auto-paper-supervisor: --sleep-seconds out of range."
+            i += 2
+            continue
+        if t == "--max-runtime-minutes":
+            if i + 1 >= len(args):
+                return False, "run-full-auto-paper-supervisor: --max-runtime-minutes needs a value."
+            try:
+                n = float(args[i + 1])
+            except ValueError:
+                return (
+                    False,
+                    "run-full-auto-paper-supervisor: --max-runtime-minutes must be a number.",
+                )
+            if not 1.0 <= n <= 24 * 60:
+                return False, "run-full-auto-paper-supervisor: --max-runtime-minutes out of range."
+            i += 2
+            continue
+        return False, f"run-full-auto-paper-supervisor: unexpected token {t!r}."
+    if "--report-on-exit" in seen and "--no-report-on-exit" in seen:
+        return (
+            False,
+            "run-full-auto-paper-supervisor: --report-on-exit conflicts with --no-report-on-exit.",
+        )
+    if "--telegram" in seen and "--no-telegram" in seen:
+        return False, "run-full-auto-paper-supervisor: --telegram conflicts with --no-telegram."
+    return True, ""
+
+
 def validate_eod_paper_checklist_args(args: tuple[str, ...]) -> tuple[bool, str]:
     ok, err = _check_no_forbidden("eod-paper-checklist", args)
     if not ok:
@@ -1754,6 +1868,10 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_automatic_paper_engine_readiness_args(args)
     if command == "run-automatic-paper-engine":
         return validate_run_automatic_paper_engine_args(args)
+    if command == "full-auto-paper-readiness":
+        return validate_full_auto_paper_readiness_args(args)
+    if command == "run-full-auto-paper-supervisor":
+        return validate_run_full_auto_paper_supervisor_args(args)
     if command == "eod-paper-checklist":
         return validate_eod_paper_checklist_args(args)
     if command == "news-monitor-readiness":

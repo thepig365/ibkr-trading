@@ -31,6 +31,13 @@
 3. 端口/Client ID 是否与 `config` 与 `docs/ibkr-setup.md` 一致。  
 4. 仍失败：在终端用 `strategy_lab_doctor.sh` 或同文档排查；**不要**在 UI 里关 TWS 的 Order 保护。
 
+## Full Auto Paper Supervisor：未开 TWS / 一直 blocked
+
+- **若已配置 Telegram**：监督器在**平日美东约 08:30–16:30** 且门控失败时，可能发一条**去重后的阻塞告警**（例如 TWS 未在配置端口监听）；**不会**替你在本机启动 TWS。  
+- **自查**：`python3 -m bot.cli full-auto-paper-readiness --json`；需探针时加 `--probe-ibkr`（会连 TWS API）。  
+- **干跑**（不写单、不启内层循环）：`python3 -m bot.cli run-full-auto-paper-supervisor --dry-run --json`。  
+- **状态文件**：`data/runtime/full_auto_paper_supervisor_state.json`（若存在）可在 **Reports** 页看到摘要；完整报告仍以 **Reports / Journal** 为主。
+
 ## 在 /strategies 里选不了某策略的「纸面」
 
 - 只有 `config/strategy_ui.yaml` 里标注 **`paper_enabled: true`** 的模型才允许写入 **Set paper strategy**；当前为 **ICT/SMC Intraday**。  

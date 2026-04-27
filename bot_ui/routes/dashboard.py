@@ -1,4 +1,4 @@
-"""Dashboard page (command center — Prompt 13UI). Render path: files only, no TWS/IBKR."""
+"""Dashboard page (command center — Prompt 13UI). Render path: files only, no IBKR API."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
+from bot.full_auto_paper_readiness import build_full_auto_paper_readiness
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
@@ -81,6 +82,12 @@ def dashboard(request: Request) -> HTMLResponse:
         )
     except (OSError, TypeError, ValueError):
         automatic_paper_engine = {"ok": False, "blockers": ["preflight error"]}
+    try:
+        full_auto_readiness = build_full_auto_paper_readiness(
+            root, cfg, None, probe_ibkr=False, session="full", ui_safe=True
+        )
+    except (OSError, TypeError, ValueError):
+        full_auto_readiness = {"ok": False, "status": "error", "blockers": ["readiness error"]}
 
     op_hints = load_operational_hints(root)
     report_email = load_report_email_status(
@@ -136,6 +143,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "active_paper_strategy_entry": paper_s_entry,
             "auto_loop_readiness": auto_loop_readiness,
             "automatic_paper_engine": automatic_paper_engine,
+            "full_auto_readiness": full_auto_readiness,
             "market_news_state": mnews,
             "news_monitor": nmon,
             "report_hub": build_report_hub_ui_context(root),

@@ -179,21 +179,44 @@ def run_auto_paper_intraday_loop(
             if telegram and cfg.telegram.is_configured:
                 now_ts = time_fn()
                 if style == "engine":
-                    if line["orders_submitted"] > 0:
-                        dk = _dedup_key("orders", f"{cycle}:{line['orders_submitted']}")
-                        if dk:
+                    from .full_auto_telegram import (  # noqa: PLC0415
+                        format_bracket_incomplete_urgent,
+                        format_daily_cap_telegram,
+                        format_paper_order_submitted_telegram,
+                    )
+
+                    for sub in list(result.submissions or []):
+                        sym = str(getattr(sub, "symbol", "") or "")
+                        ok = bool(getattr(sub, "submitted", False))
+                        intent = getattr(sub, "intent", None)
+                        direction = str(getattr(intent, "direction", "") or "long")
+                        n_usd: float | None = None
+                        if intent is not None:
                             try:
-                                send_telegram_message(
-                                    (
-                                        f"<pre>paper engine: order(s) accepted "
-                                        f"count={line['orders_submitted']} "
-                                        f"cycle={cycle} sym={line.get('reason', '')[:80]}</pre>"
-                                    ),
-                                    cfg=cfg,
-                                    journal=journal,
+                                n_usd = float(
+                                    int(getattr(intent, "quantity", 0) or 0)
+                                    * float(getattr(intent, "entry_price", 0) or 0.0)
                                 )
-                            except Exception:  # noqa: BLE001
-                                logger.warning("engine TG orders failed", exc_info=True)
+                            except (TypeError, ValueError):
+                                n_usd = None
+                        bint = str(getattr(sub, "bracket_integrity", "") or "")
+                        prot = "bracket complete" if ok and bint == "complete" else bint
+                        if ok and sym:
+                            dk = _dedup_key("order_ok", f"{sym}:{cycle}")
+                            if dk:
+                                try:
+                                    send_telegram_message(
+                                        format_paper_order_submitted_telegram(
+                                            symbol=sym,
+                                            direction=direction,
+                                            notional_usd=n_usd,
+                                            bracket=prot,
+                                        ),
+                                        cfg=cfg,
+                                        journal=journal,
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    logger.warning("engine TG order ok failed", exc_info=True)
                     for sub in list(result.submissions or []):
                         stob = bool(getattr(sub, "submitted_to_broker", False))
                         ok = bool(getattr(sub, "submitted", False))
@@ -203,7 +226,7 @@ def run_auto_paper_intraday_loop(
                             if dk:
                                 try:
                                     send_telegram_message(
-                                        f"<pre>URGENT: paper bracket INCOMPLETE {sym!s} — verify TWS</pre>",
+                                        format_bracket_incomplete_urgent(symbol=sym),
                                         cfg=cfg,
                                         journal=journal,
                                     )
@@ -215,7 +238,7 @@ def run_auto_paper_intraday_loop(
                             if dk:
                                 try:
                                     send_telegram_message(
-                                        f"<pre>paper engine broker: {sym!s} {errs[0]!s}</pre>",
+                                        f"<b>Broker rejected</b> — {sym}\n{errs[0]!s}"[:1000],
                                         cfg=cfg,
                                         journal=journal,
                                     )
@@ -229,7 +252,9 @@ def run_auto_paper_intraday_loop(
                         if dk:
                             try:
                                 send_telegram_message(
-                                    f"<pre>paper engine: {line['reason'][:500]}</pre>",
+                                    format_daily_cap_telegram(
+                                        detail=line["reason"][:500],
+                                    ),
                                     cfg=cfg,
                                     journal=journal,
                                 )

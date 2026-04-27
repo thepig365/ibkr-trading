@@ -91,7 +91,24 @@
         <div class="mt-8">{% with command='auto-loop-readiness', label='Check Morning Paper Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">8 · Automatic Paper Trading Engine (ICT/SMC)</div>
+        <div class="card-title">8 · Full Auto Paper Supervisor</div>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;">
+          Outer loop: NY window + gates + optional Telegram blockers, then starts the same ICT/SMC automatic paper engine. <strong>PAPER ONLY</strong>. UI shows file-level readiness (no TWS TCP on page load).
+        </p>
+        <div class="card-value text-small" style="margin-bottom:6px;">
+          Status: <code>{{ full_auto_readiness.get('status') if full_auto_readiness else '—' }}</code>
+          · {% if full_auto_readiness and full_auto_readiness.get('ok') %}<span class="pill good">ready (file)</span>{% else %}<span class="pill warn">not ready</span>{% endif %}
+        </div>
+        <div class="card-sub text-small">Next: {{ full_auto_readiness.get('next_action') if full_auto_readiness else '—' }} · NY: {{ full_auto_readiness.get('current_ny_hhmm') if full_auto_readiness else '—' }}</div>
+        <div class="form-row mt-8" style="flex-wrap:wrap; gap:8px;">
+          {% with command='full-auto-paper-readiness', label='Full Auto Readiness', return_to='/dashboard', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-full-auto-paper-supervisor', label='Dry Run Supervisor', return_to='/dashboard', btn_class='ghost', args='--dry-run --json' %}{% include "_command_form.html" %}{% endwith %}
+          {% with command='run-full-auto-paper-supervisor', label='Start Full Auto Supervisor', return_to='/dashboard', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+        </div>
+        <p class="text-dim text-small" style="margin:8px 0 0 0;"><a href="/paper">Paper</a> · <a href="/reports">Reports</a> · Same 8h UI timeout as the engine.</p>
+      </div>
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">9 · Automatic Paper Trading Engine (ICT/SMC)</div>
         <p class="text-dim text-small" style="margin:0 0 8px 0;"><strong>Mode: PAPER ONLY</strong> — LIMIT brackets with stop/target. No market orders, no live trading. Morning <strong>09:45–11:30</strong> NY · Full session new entries <strong>09:45–15:30</strong> NY (wind-down per config). Engine uses the same gates as <code>run-automatic-paper-engine</code> (does <strong>not</strong> require legacy <code>READY_FOR_PAPER_TEST</code>).</p>
         <div class="card-value text-small" style="margin-bottom:6px;">
           {% if automatic_paper_engine and automatic_paper_engine.get('ok') %}

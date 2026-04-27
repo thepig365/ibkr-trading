@@ -68,6 +68,16 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **Chanlun / ORB 等未来策略**：在列表中可见，但 **paper_enabled = false** 时，不能选为纸面策略；页面上有「未来 / 未就绪」类说明。  
 - **新策略何时能纸面**：在代码里**独立声明**纸面不变量、接入扫描器/回测/括号与安全测试后，再把 `paper_enabled` 与相关开关打开（由开发流程决定，不在这里自动放开）。
 
+### 2.5a Full Auto Paper Supervisor（全日纸面自动监督，**仅纸面**）
+
+- **含义**：在 `run-automatic-paper-engine` **外层**再包一层 **监督器** —— 按美东时间等待 RTH 窗口、检查 TWS/API 门控、在**需要人工处理**时发 **Telegram 阻塞告警**（去重），门控全部通过后再启动**同一套** ICT/SMC 自动纸面引擎。**不会**启用实盘、**不会**使用市价单；新闻与 Edge **不会**代为下单。
+- **CLI**：`python3 -m bot.cli run-full-auto-paper-supervisor --session full --telegram --report-on-exit`；干跑：`… --dry-run --json`。只读门控：`python3 -m bot.cli full-auto-paper-readiness --json`（可加 `--probe-ibkr` 探针 TWS/对账）。
+- **脚本**：`scripts/run_full_auto_paper_supervisor.sh`（cd 到仓库根再执行上述命令）。可选 **launchd** 模板：`scripts/com.strategy-lab.full-auto-paper.plist.example` —— **不会**由仓库自动安装，需你手动复制/编辑路径后再 `launchctl load`。
+- **Telegram**：仅在**阻塞**（如 TWS 未监听、对账失败、kill switch、策略非 ict_smc、预算为 0 等）或**真实引擎事件**（启动/停止、订单、括号不完整、券商拒单、日帽、EOD 摘要）时发送；**不发**「无新闻」、**不发**无信号心跳。
+- **新闻**：监督器在盘前/RTH 相关时段可**最多每小时**调用一次与 `market-news-check` 相同的逻辑；仅当**达到市场波动分数且去重通过**才可能发 Telegram；缺 API key 则跳过、不崩溃。
+- **UI**：Dashboard / Paper 的 **Full Auto Paper Supervisor** 卡片为**只读文件快照** + 白名单按钮（**Dry Run** / **Start**）；页面加载**不**建立 IBKR API 连接（TWS 端口是否开放以你上次监督器落盘或 CLI 为准）。
+- **状态文件**（默认 gitignore）：`data/runtime/full_auto_paper_supervisor_state.json`；阻塞去重：`data/runtime/full_auto_blocker_dedup.json`。
+
 ### 2.5 自动纸面日内循环与 Automatic Paper Engine
 
 - **底层循环**：`run-auto-paper-intraday-loop` 是在终端**长时间轮询**、反复调用与单次 `auto-paper-intraday-smc` 同一条执行链路的 **Worker/CLI 流程**；用于盘中自动重复「扫描/门控/尝试发纸面括号」。  

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -12,6 +14,7 @@ from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.report_email_status import load_report_email_status
 from bot.reports.report_hub_ui import build_report_hub_ui_context
+from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH
 from bot.reports.telegram_report_dedup import read_state
 
 from ..strategy_lab_context import get_catalog_and_selection
@@ -95,5 +98,15 @@ def reports_page(request: Request) -> HTMLResponse:
                 ctx["paper_audit_hint"] = str(cands[-1])
 
     ctx["report_hub"] = build_report_hub_ui_context(root)
+
+    fa = root / FULL_AUTO_STATE_RELPATH
+    ctx["full_auto_supervisor_state"] = {}
+    if fa.is_file():
+        try:
+            raw = json.loads(fa.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                ctx["full_auto_supervisor_state"] = raw
+        except (OSError, json.JSONDecodeError, TypeError):
+            ctx["full_auto_supervisor_state"] = {}
 
     return request.app.state.templates.TemplateResponse(request, "reports.html", ctx)

@@ -172,6 +172,32 @@
   </div>
 
   <div class="section">
+    <h2>Full Auto Paper Supervisor</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px 0;">
+      <strong>PAPER ONLY</strong> — outer supervisor waits for the NY window, checks TWS/API via CLI, sends <strong>Telegram blockers</strong> when action is needed (deduplicated), then can start the same <code>run-automatic-paper-engine</code> inner loop. No market orders, no live trading. UI shows file-level readiness only (no TCP to TWS on load).
+    </p>
+    <div class="card" style="max-width:52rem;">
+      <div class="card-title">Readiness (UI snapshot)</div>
+      <div class="card-value text-small">
+        Status: <code>{{ full_auto_readiness.get('status') if full_auto_readiness else '—' }}</code>
+        · OK: {% if full_auto_readiness and full_auto_readiness.get('ok') %}<span class="pill good">yes</span>{% else %}<span class="pill warn">no</span>{% endif %}
+      </div>
+      <div class="card-sub text-small">Next action: <strong>{{ full_auto_readiness.get('next_action') if full_auto_readiness else '—' }}</strong></div>
+      <div class="card-sub text-small">NY time (ISO): {{ full_auto_readiness.get('current_ny_time') if full_auto_readiness else '—' }}</div>
+      <div class="card-sub text-small">Session window: {{ full_auto_readiness.get('session_window') if full_auto_readiness else '—' }}</div>
+      <div class="card-sub text-small">Last supervisor state: <code>{{ (full_auto_supervisor_state or {}).get('supervisor_phase', '—') }}</code>
+        · engine_running: {{ (full_auto_supervisor_state or {}).get('engine_running', '—') }}</div>
+      <div class="card-sub text-small">Last blocker: {{ (full_auto_supervisor_state or {}).get('last_blocker') or full_auto_readiness.get('blockers', [None])[0] or '—' }}</div>
+      <div class="form-row mt-12" style="flex-wrap:wrap; gap:8px;">
+        {% with command='full-auto-paper-readiness', label='Full Auto Readiness', return_to='/paper', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='run-full-auto-paper-supervisor', label='Dry Run Supervisor', return_to='/paper', btn_class='ghost', args='--dry-run --json' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='run-full-auto-paper-supervisor', label='Start Full Auto Supervisor', return_to='/paper', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+      <p class="text-dim text-small" style="margin:10px 0 0 0;">Kill switch: card above. Links: <a href="/dashboard">Dashboard</a> · <a href="/reports">Reports</a>. Prefer terminal for all-day supervisor; UI timeout matches long engine runs.</p>
+    </div>
+  </div>
+
+  <div class="section">
     <h2>Automatic Paper Trading Engine</h2>
     <p class="text-dim text-small" style="margin:0 0 12px 0;">
       <strong>Mode: PAPER ONLY</strong> · Active strategy: <strong>ICT/SMC Intraday</strong> (<code>ict_smc_intraday_v1</code>) · US cash session.

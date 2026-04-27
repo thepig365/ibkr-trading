@@ -79,6 +79,8 @@
     </p>
     <table>
       <tbody>
+        <tr><th>Full auto mode</th><td><span class="pill good">paper only</span> (no live; supervisor + engine are PAPER LIMIT brackets)</td></tr>
+        <tr><th>Telegram blocker alerts (full-auto / engine)</th><td>{% if telegram_env_configured %}<span class="pill good">env set</span>{% else %}<span class="pill warn">missing — blockers only via UI/reports</span>{% endif %}</td></tr>
         <tr><th>Telegram (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)</th><td>{% if telegram_env_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">missing</span>{% endif %}</td></tr>
         <tr><th>Resend (optional; key + from + recipient)</th><td>{% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill neutral">skipped / incomplete: {{ report_email.missing_fields|join(', ') }}</span>{% endif %}{% if report_email.from_address_may_need_resend_verification %} <span class="text-dim">(Gmail from — verify in Resend if you enable mail)</span>{% endif %}</td></tr>
         <tr><th>News REST keys (any of Finnhub/FMP/Benzinga/Polygon)</th><td>{% if news_api_any %}<span class="pill good">at least one</span>{% else %}<span class="pill warn">none</span>{% endif %}</td></tr>

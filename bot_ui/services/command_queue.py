@@ -209,7 +209,10 @@ class LocalCommandRunner:
         env["IBKR_ACCOUNT_MODE"] = "paper"
 
         child_timeout: int | None = self.timeout_seconds
-        if request.command == "run-automatic-paper-engine" and "--dry-run" not in request.args:
+        if request.command in (
+            "run-automatic-paper-engine",
+            "run-full-auto-paper-supervisor",
+        ) and "--dry-run" not in request.args:
             # RTH can run several hours; cap at one trading day. Dry-run stays default.
             child_timeout = max(self.timeout_seconds, 28_800)  # 8 hours
         t0 = time.monotonic()

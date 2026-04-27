@@ -25,6 +25,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
+from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH, build_full_auto_paper_readiness
 from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
@@ -115,6 +116,19 @@ def paper_page(request: Request) -> HTMLResponse:
         )
     except (OSError, TypeError, ValueError):
         ctx["automatic_paper_engine"] = {"ok": False, "blockers": ["preflight error"]}
+    try:
+        ctx["full_auto_readiness"] = build_full_auto_paper_readiness(
+            root, cfg, None, probe_ibkr=False, session="full", ui_safe=True
+        )
+    except (OSError, TypeError, ValueError):
+        ctx["full_auto_readiness"] = {
+            "ok": False,
+            "status": "error",
+            "blockers": ["readiness error"],
+        }
+    ctx["full_auto_supervisor_state"] = _read_json_optional(
+        cfg.absolute(FULL_AUTO_STATE_RELPATH)
+    )
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

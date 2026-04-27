@@ -19,7 +19,10 @@ backend-swap, not a rewrite.
 - **Paper trading only.** `IBKR_ACCOUNT_MODE` must be `paper`. Live mode is
   rejected by `bot/config.py`.
 - **The UI never connects to IBKR / TWS at startup.** No socket connect, no
-  `place_order`, no contract qualification on import.
+  `place_order`, no contract qualification on import. (Readiness cards that
+  include **Full Auto Paper** use a UI-safe path without IBKR API probes; optional
+  TCP to localhost for TWS is **not** used on page render—run
+  `full-auto-paper-readiness` in a terminal for live checks.)
 - **The UI never places an order directly.** It can only enqueue an
   *allowlisted CLI command* (e.g. `paper-reconcile`, `scan-mtf-smc-watchlist`).
   The actual broker calls only happen inside the existing `bot/` modules

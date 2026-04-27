@@ -9,7 +9,8 @@
 
 - [ ] 1. **`Strategy Lab.command`**（或 `start_strategy_lab_ui.sh`）  
 - [ ] 2. 浏览器 `http://127.0.0.1:8765/dashboard` — 健康/预算/当前**纸面策略**提示；若使用 **Automatic Paper Trading Engine**：先看 **Check Automatic Engine Readiness**（`automatic-paper-engine-readiness --json`）或 `run-automatic-paper-engine --dry-run --json`。旧版 **60 分钟烟测准备**读数仍用 **Automatic paper loop readiness** / `auto-loop-readiness`（含 `READY_FOR_PAPER_TEST`，与引擎门控可能不一致）。  
-- [ ] 2a.（可选）**早晨/全日纸面自动引擎**：Dashboard / Paper 的 **Start Morning / Full-Day Paper Engine**（白名单 `run-automatic-paper-engine`）；或终端 `python3 -m bot.cli run-automatic-paper-engine --session morning --telegram --report-on-exit`。底层仍与 `run-auto-paper-intraday-loop` 同执行链；**`run-auto-paper-intraday-loop` 本身**不在 UI 白名单。  
+- [ ] 2a.（可选）**早晨/全日纸面自动引擎**：Dashboard / Paper 的 **Start Morning / Full-Day Paper Engine**（白名单 `run-automatic-paper-engine`）；或终端 `python3 -m bot.cli run-automatic-paper-engine --session morning --telegram --report-on-exit`。底层仍与 `run-auto-paper-intraday-loop` 同执行链；**`run-auto-paper-intraday-loop` 本身**不在 UI 白名单。
+- [ ] 2a-alt.（可选）**Full Auto Paper Supervisor**（外层监督 + 相同引擎）：先 `full-auto-paper-readiness --json`，再 `run-full-auto-paper-supervisor` 或 `scripts/run_full_auto_paper_supervisor.sh`；需 **TWS 纸面已开** 且 Telegram 若用需配置 `TELEGRAM_*`。干跑：`run-full-auto-paper-supervisor --dry-run --json`。**不**自动安装 launchd；仅 `scripts/com.strategy-lab.full-auto-paper.plist.example` 供参考。  
 - [ ] 2b. 如需切换 **scan / backtest / edge / paper** 的默认：打开 **/strategies**（Strategy Center），`data/runtime/selected_strategy.json` 不提交  
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist** — 构建表  

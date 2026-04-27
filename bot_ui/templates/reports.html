@@ -35,6 +35,17 @@
         <p class="text-dim text-small" style="margin:8px 0 0 0;">No market-moving news ⇒ <strong>no</strong> Telegram/email notification (silence rule).</p>
       </div>
       <div class="card">
+        <div class="card-title">Full auto paper supervisor (runtime file)</div>
+        {% if full_auto_supervisor_state %}
+          <div class="text-small">phase: <code>{{ full_auto_supervisor_state.get('supervisor_phase', '—') }}</code></div>
+          <div class="text-small">last blocker: {{ full_auto_supervisor_state.get('last_blocker') or '—' }}</div>
+          <div class="text-small text-dim">last TG blocker: {{ full_auto_supervisor_state.get('last_telegram_blocker') or '—' }}</div>
+          <div class="text-small text-dim">updated: {{ full_auto_supervisor_state.get('updated_utc', '—') }}</div>
+        {% else %}
+          <div class="text-dim text-small">No <code>full_auto_paper_supervisor_state.json</code> yet — run supervisor or dry-run once.</div>
+        {% endif %}
+      </div>
+      <div class="card">
         <div class="card-title">Paper daily (latest JSON)</div>
         {% if report_hub.hub_paper_daily %}
           <div class="text-small">date: <strong>{{ report_hub.hub_paper_daily.date }}</strong> · data: {{ report_hub.hub_paper_daily.data_status or '—' }}</div>

@@ -94,6 +94,10 @@ def run_automatic_paper_engine(
     preflight_probe_ibkr: bool = True,
 ) -> dict[str, Any]:
     from .auto_paper_intraday_loop import run_auto_paper_intraday_loop  # noqa: PLC0415
+    from .full_auto_telegram import (  # noqa: PLC0415
+        format_engine_started_telegram,
+        format_engine_stopped_telegram,
+    )
     from .notifications import send_telegram_message  # noqa: PLC0415
     from .paper_activation import set_intraday_runtime_flag  # noqa: PLC0415
 
@@ -131,8 +135,7 @@ def run_automatic_paper_engine(
     if telegram and cfg.telegram.is_configured:
         try:
             send_telegram_message(
-                f"<pre>Automatic paper engine START · session={session!s} "
-                f"· paper only · no market orders</pre>",
+                format_engine_started_telegram(session=session),
                 cfg=cfg,
                 journal=journal,
             )
@@ -190,7 +193,7 @@ def run_automatic_paper_engine(
         if telegram and cfg.telegram.is_configured:
             try:
                 send_telegram_message(
-                    "<pre>Automatic paper engine STOP</pre>",
+                    format_engine_stopped_telegram(reason="loop ended or interrupt"),
                     cfg=cfg,
                     journal=journal,
                 )
