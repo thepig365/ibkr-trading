@@ -72,6 +72,7 @@ ALLOWED_COMMANDS: dict[str, str] = {
     ),
     "eod-paper-checklist": "Print read-only EOD paper review CLI sequence (no orders, no IBKR, no email).",
     "news-monitor-readiness": "Read-only news monitor env/config snapshot (no provider fetch, no orders).",
+    "email-config-status": "Read-only Resend + recipient readiness (booleans only, no network).",
     "market-news-check": "Score market headlines (Finnhub/FMP); optional Telegram; never places trades.",
     "strategy-lab-engine-status": (
         "Read-only Strategy Lab engine + config snapshot (no TWS, no orders)."
@@ -1220,6 +1221,18 @@ def validate_news_monitor_readiness_args(args: tuple[str, ...]) -> tuple[bool, s
     return True, ""
 
 
+def validate_email_config_status_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("email-config-status", args)
+    if not ok:
+        return ok, err
+    for t in args:
+        if t not in _NEWS_MON_READ_FLAGS:
+            return False, f"email-config-status: only --json or empty, got {t!r}."
+    if args.count("--json") > 1:
+        return False, "email-config-status: duplicate --json."
+    return True, ""
+
+
 _MARKET_NEWS_FLAGS = frozenset(
     {
         "--symbols",
@@ -1613,6 +1626,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_eod_paper_checklist_args(args)
     if command == "news-monitor-readiness":
         return validate_news_monitor_readiness_args(args)
+    if command == "email-config-status":
+        return validate_email_config_status_args(args)
     if command == "market-news-check":
         return validate_market_news_check_args(args)
     if command == "write-paper-local-config":

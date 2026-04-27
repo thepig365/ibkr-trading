@@ -33,8 +33,9 @@
       </div>
       <div class="card">
         <div class="card-title">Email (Resend)</div>
-        <div class="card-sub text-small">{% if report_email.resend_configured %}<span class="pill good">RESEND + FROM set</span>{% else %}<span class="pill warn">skipped_missing_credentials</span>{% endif %}</div>
-        <div class="card-sub text-small">Target in config: <code>{{ reports_config.email_to }}</code> · also <code>REPORT_EMAIL_TO</code> in env if used by CLI</div>
+        <div class="card-sub text-small">{% if report_email.resend_configured %}<span class="pill good">ready to send (key + from + recipient)</span>{% else %}<span class="pill warn">incomplete</span>{% endif %}{% if report_email.missing_fields %} · missing: {% for f in report_email.missing_fields %}<code>{{ f }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</div>
+        {% if report_email.from_address_may_need_resend_verification %}<div class="card-sub text-small">From uses Gmail: verify sender in Resend if delivery fails (not a config block here).</div>{% endif %}
+        <div class="card-sub text-small">Target in config: <code>{{ reports_config.email_to }}</code> · override with <code>REPORT_EMAIL_TO</code> in env if needed</div>
       </div>
       <div class="card">
         <div class="card-title">Dedup + state files</div>
@@ -44,6 +45,7 @@
     </div>
     <div class="form-row flex-wrap mt-12" style="gap:6px;">
       {% with command='news-monitor-readiness', label='Check news monitor readiness', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='email-config-status', args='--json', label='Email config status', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
     </div>
   </div>
 
@@ -71,7 +73,7 @@
     <div class="card">
       <div class="card-title">Report email status</div>
       <div class="card-sub text-small text-mono">
-        resend: {% if report_email.resend_configured %}<span class="pill good">key present</span>{% else %}<span class="pill warn">skipped_missing_credentials (no RESEND_API_KEY)</span>{% endif %}
+        resend: {% if report_email.resend_configured %}<span class="pill good">fully configured</span>{% else %}<span class="pill warn">skipped — {{ report_email.missing_fields|join(', ') or 'incomplete' }}</span>{% endif %}
         · from: <code>{{ report_email.from_env or '—' }}</code><br/>
         {% for k, info in (report_email.by_report or {}).items() %}
           <div><strong>{{ k }}</strong> · {{ info.status }}{% if info.at_utc %} · {{ info.at_utc[:19] }}Z{% endif %}{% if info.to_addr %} → {{ info.to_addr }}{% endif %}{% if info.detail %}: {{ info.detail }}{% endif %}</div>

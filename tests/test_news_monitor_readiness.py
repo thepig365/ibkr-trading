@@ -35,5 +35,10 @@ def test_readiness_includes_silence_and_interval(tmp_path: Path) -> None:
     p = build_news_monitor_readiness(tmp_path, cfg)
     assert p["send_no_news_messages"] is False
     assert p["check_interval_minutes"] == 60
+    assert "resend_api_key_present" in p
+    assert "report_email_from_present" in p
+    assert "missing_fields" in p
+    assert "email_resend_configured" in p
+    assert "dotenv_load_warning" in p
     # JSON serializable
     json.dumps(p)

@@ -25,6 +25,13 @@
 - 确认命令：`python3 -m bot.cli premarket-brief --latest` 能读到 `data/premarket_briefs/` 下最近 JSON。  
 - **再强调**：盘前内容**不触发**发单；若误以为是「交易信号」——仍以 **ICT/SMC + 1m 触发** 与 Journal/门控 为准。  
 
+## Resend 显示「未配置」但 `.env` 已改
+
+- 运行 `python3 -m bot.cli email-config-status --json`（**只输出布尔与缺项名**）与 `news-monitor-readiness --json`：看 `missing_fields`（如 `RESEND_API_KEY`、`REPORT_EMAIL_FROM`、或收件人）。  
+- 收件人可由 **`reports.email_to`**（`config/settings.yaml`）满足，不必再设 `REPORT_EMAIL_TO`。  
+- `.env` 必须从**仓库根**加载；若 `dotenv_load_warning` 非空，说明解析阶段出错（类型名见输出，**不含**密钥原文）。  
+- Gmail 作发件人需在 Resend 控制台完成域名验证；`from_address_may_need_resend_verification` 为提示，**不**等于配置无效。
+
 ## 多标的回测只跑了一两只（其余被跳过）
 
 - **原因**：`backtest-intraday-smc-watchlist` 对每个标的只读**本地** `data/candles/{SYMBOL}/1min/*.csv`；**没有 1m 文件就跳过**该标的，不会自动联网拉取。  

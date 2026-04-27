@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -13,6 +12,7 @@ from bot.config import load_config
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
 from bot.premarket.storage import find_latest_premarket_brief
+from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
@@ -74,11 +74,9 @@ def dashboard(request: Request) -> HTMLResponse:
             "next_safe_action": "run_readiness_check",
         }
 
-    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
-    report_from = (os.environ.get("REPORT_EMAIL_FROM") or "").strip()
     op_hints = load_operational_hints(root)
     report_email = load_report_email_status(
-        root, resend_key_present=resend_ok, from_addr=report_from
+        root, email_status=build_email_config_status(cfg)
     )
     premarket = find_latest_premarket_brief(root)
     mnews = read_state(root / cfg.settings.news_reporting.state_relpath)

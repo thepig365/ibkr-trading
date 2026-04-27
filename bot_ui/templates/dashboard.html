@@ -135,7 +135,7 @@
         <div class="card-title">Report email (last run)</div>
         <div class="card-sub text-small text-mono">
           default to: <code>{{ reports_config.email_to or 'ileonzh@gmail.com' }}</code><br/>
-          resend key: {% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">missing</span>{% endif %}
+          resend: {% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">incomplete ({{ report_email.missing_fields|join(', ') }})</span>{% endif %}
           · from env: <code>{{ report_email.from_env or '—' }}</code><br/>
           {% for k, info in (report_email.by_report or {}).items() %}
             <div><strong>{{ k }}</strong>: {{ info.status }}{% if info.at_utc %} @ {{ info.at_utc[:19] }}Z{% endif %}{% if info.to_addr %} → {{ info.to_addr }}{% endif %}</div>

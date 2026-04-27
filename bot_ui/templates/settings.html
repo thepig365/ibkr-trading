@@ -76,7 +76,7 @@
     <table>
       <tbody>
         <tr><th>Telegram (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)</th><td>{% if telegram_env_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">missing</span>{% endif %}</td></tr>
-        <tr><th>Resend (RESEND_API_KEY + REPORT_EMAIL_FROM)</th><td>{% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">skipped_missing_credentials</span>{% endif %}</td></tr>
+        <tr><th>Resend (key + from + recipient)</th><td>{% if report_email.resend_configured %}<span class="pill good">set</span>{% else %}<span class="pill warn">incomplete: {{ report_email.missing_fields|join(', ') }}</span>{% endif %}{% if report_email.from_address_may_need_resend_verification %} <span class="text-dim">(Gmail from — verify in Resend if needed)</span>{% endif %}</td></tr>
         <tr><th>News REST keys (any of Finnhub/FMP/Benzinga/Polygon)</th><td>{% if news_api_any %}<span class="pill good">at least one</span>{% else %}<span class="pill warn">none</span>{% endif %}</td></tr>
         <tr><th>reports.telegram_enabled</th><td class="text-mono">{{ reports_config.telegram_enabled }}</td></tr>
         <tr><th>news_reporting.send_no_news_messages</th><td class="text-mono">{{ news_reporting.send_no_news_messages }} (default false = no spam)</td></tr>

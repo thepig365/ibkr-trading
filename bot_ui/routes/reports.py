@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from bot.config import load_config
 from bot.data_lifecycle import data_dir_line, data_status
 from bot.premarket.storage import find_latest_premarket_brief
+from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.report_email_status import load_report_email_status
 from bot.reports.telegram_report_dedup import read_state
@@ -66,12 +65,8 @@ def reports_page(request: Request) -> HTMLResponse:
     ctx["market_news_state"] = read_state(
         root / cfg.settings.news_reporting.state_relpath
     )
-    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
-    ctx["report_email"] = load_report_email_status(
-        root,
-        resend_key_present=resend_ok,
-        from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
-    )
+    ecs = build_email_config_status(cfg)
+    ctx["report_email"] = load_report_email_status(root, email_status=ecs)
     ctx["data_disk"] = data_status(root)
     ctx["data_dir_line"] = data_dir_line
     ctx["premarket_brief"] = find_latest_premarket_brief(root)

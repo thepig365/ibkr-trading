@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,8 @@ class ReportEmailStatusView:
     by_report: dict[str, LastEmailInfo] = field(default_factory=dict)
     resend_configured: bool = False
     from_env: str = ""
+    missing_fields: list[str] = field(default_factory=list)
+    from_address_may_need_resend_verification: bool = False
 
 
 def _path(root: Path) -> Path:
@@ -34,8 +37,11 @@ def _path(root: Path) -> Path:
 
 
 def load_report_email_status(
-    project_root: Path, *, resend_key_present: bool, from_addr: str
+    project_root: Path,
+    *,
+    email_status: dict[str, Any],
 ) -> ReportEmailStatusView:
+    """Load persisted last-send rows; combine with :func:`build_email_config_status` output."""
     p = _path(project_root)
     by_report: dict[str, LastEmailInfo] = {}
     if p.is_file():
@@ -54,10 +60,15 @@ def load_report_email_status(
                     report_key=str(v.get("report_key") or k),
                     detail=str(v.get("detail") or ""),
                 )
+    from_addr = (os.environ.get("REPORT_EMAIL_FROM") or "").strip()
     return ReportEmailStatusView(
         by_report=by_report,
-        resend_configured=resend_key_present,
+        resend_configured=bool(email_status.get("email_resend_configured")),
         from_env=from_addr,
+        missing_fields=list(email_status.get("missing_fields") or []),
+        from_address_may_need_resend_verification=bool(
+            email_status.get("from_address_may_need_resend_verification")
+        ),
     )
 
 

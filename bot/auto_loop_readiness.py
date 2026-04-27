@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +21,7 @@ from .execution.intraday_paper_execution import (
 from .execution.intraday_paper_sizing import ledger_snapshot_for_status
 from .journal import Journal
 from .paper_activation import build_paper_activation_status
+from .reports.email_config_status import build_email_config_status
 from .reports.report_email_status import load_report_email_status
 from .strategy_ui import load_strategy_selection, load_strategy_ui_catalog
 
@@ -252,12 +252,9 @@ def build_auto_loop_readiness(
     ny["no_new_entries_after_config"] = ip.no_new_entries_after
     ny["exit_open_positions_at_config"] = ip.exit_open_positions_at
 
-    resend = bool((os.environ.get("RESEND_API_KEY") or "").strip())
-    rfrom = (os.environ.get("REPORT_EMAIL_FROM") or "").strip()
-    report_email = load_report_email_status(
-        root, resend_key_present=resend, from_addr=rfrom
-    )
-    re_status = "configured" if resend and rfrom else "skipped_missing_credentials"
+    ecs = build_email_config_status(cfg)
+    report_email = load_report_email_status(root, email_status=ecs)
+    re_status = "configured" if ecs["email_resend_configured"] else "skipped_missing_credentials"
 
     hints = _scan_edge_hints(root)
     lspath = hints.get("latest_scan_path")

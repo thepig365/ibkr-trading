@@ -17,3 +17,4 @@ def test_research_route_no_ibkr_client_import() -> None:
 def test_reports_shows_telegram_section_in_template() -> None:
     t = (REPO / "bot_ui" / "templates" / "reports.html").read_text(encoding="utf-8")
     assert "Telegram" in t and "news-monitor-readiness" in t
+    assert "email-config-status" in t

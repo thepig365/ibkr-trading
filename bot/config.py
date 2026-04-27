@@ -17,6 +17,14 @@ from typing import Any
 
 import yaml
 from dotenv import load_dotenv
+
+# Set by :func:`_try_load_dotenv` when ``.env`` fails to load (no secrets).
+_LAST_DOTENV_WARNING: str | None = None
+
+
+def get_dotenv_load_warning() -> str | None:
+    """Last ``.env`` load issue (exception type only), or ``None``."""
+    return _LAST_DOTENV_WARNING
 from pydantic import BaseModel, Field, field_validator
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -483,10 +491,22 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
-def _load_env(project_root: Path) -> tuple[IBKREnv, TelegramEnv, PerplexityEnv]:
+def _try_load_dotenv(project_root: Path) -> None:
+    """Load ``<project_root>/.env`` with an explicit path (no ``find_dotenv``)."""
+    global _LAST_DOTENV_WARNING
+    _LAST_DOTENV_WARNING = None
     env_path = project_root / ".env"
-    if env_path.exists():
+    if not env_path.is_file():
+        return
+    try:
         load_dotenv(env_path, override=False)
+    except Exception as exc:  # noqa: BLE001 — config load must never crash on .env
+        # Do not include str(exc); it may echo .env line contents.
+        _LAST_DOTENV_WARNING = f"dotenv: {type(exc).__name__}"
+
+
+def _load_env(project_root: Path) -> tuple[IBKREnv, TelegramEnv, PerplexityEnv]:
+    _try_load_dotenv(project_root)
 
     ibkr = IBKREnv(
         host=os.getenv("IBKR_HOST", "127.0.0.1"),

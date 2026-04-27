@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 
 from bot.config import load_config
 from bot.data_lifecycle import data_dir_line, data_status
+from bot.reports.email_config_status import build_email_config_status
 from bot.reports.report_email_status import load_report_email_status
 
 from ..services.safety import (
@@ -26,7 +27,7 @@ def settings_page(request: Request) -> HTMLResponse:
     st = request.app.state.state_store
     root = request.app.state.project_root
     cfg = load_config(project_root=root)
-    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
+    ecs = build_email_config_status(cfg)
     t_ok = bool(
         (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
         and (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
@@ -53,11 +54,7 @@ def settings_page(request: Request) -> HTMLResponse:
             ),
             "data_disk": data_status(root),
             "data_dir_line": data_dir_line,
-            "report_email": load_report_email_status(
-                root,
-                resend_key_present=resend_ok,
-                from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
-            ),
+            "report_email": load_report_email_status(root, email_status=ecs),
         }
     )
     return request.app.state.templates.TemplateResponse(request, "settings.html", ctx)

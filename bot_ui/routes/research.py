@@ -9,13 +9,12 @@ the LocalCommandRunner allowlist.
 
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from bot.config import load_config
 from bot.premarket.storage import find_latest_premarket_brief
+from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.report_email_status import load_report_email_status
 from bot.reports.telegram_report_dedup import read_state
@@ -31,13 +30,10 @@ def research(request: Request) -> HTMLResponse:
     root = request.app.state.project_root
     summary = state.get_research_summary()
     pm = find_latest_premarket_brief(root)
-    resend_ok = bool((os.environ.get("RESEND_API_KEY") or "").strip())
-    pm_email = load_report_email_status(
-        root,
-        resend_key_present=resend_ok,
-        from_addr=(os.environ.get("REPORT_EMAIL_FROM") or "").strip(),
-    )
     cfg = load_config(project_root=root)
+    pm_email = load_report_email_status(
+        root, email_status=build_email_config_status(cfg)
+    )
     mstate = read_state(root / cfg.settings.news_reporting.state_relpath)
     ctx = base_context(request, active="research")
     ctx.update(

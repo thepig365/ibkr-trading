@@ -135,6 +135,7 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "auto-loop-readiness": (),
     "eod-paper-checklist": (),
     "news-monitor-readiness": (),
+    "email-config-status": ("--json",),
     "market-news-check": (
         "--core-basket",
         "--market-moving-only",

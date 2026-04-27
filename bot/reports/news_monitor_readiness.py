@@ -6,7 +6,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from ..config import AppConfig
+from ..config import AppConfig, get_dotenv_load_warning
+from .email_config_status import build_email_config_status
 from .telegram_report_dedup import read_state
 
 
@@ -22,8 +23,7 @@ def build_news_monitor_readiness(project_root: Path | str, cfg: AppConfig) -> di
     state = root / nr.state_relpath
 
     tg_ok = _env("TELEGRAM_BOT_TOKEN") and _env("TELEGRAM_CHAT_ID")
-    resend = _env("RESEND_API_KEY")
-    rfrom = _env("REPORT_EMAIL_FROM")
+    email_status = build_email_config_status(cfg)
     providers = {
         "finnhub": _env("FINNHUB_API_KEY"),
         "fmp": _env("FMP_API_KEY"),
@@ -53,7 +53,8 @@ def build_news_monitor_readiness(project_root: Path | str, cfg: AppConfig) -> di
         "send_no_news_messages": bool(nr.send_no_news_messages),
         "min_market_moving_score": int(nr.min_market_moving_score),
         "telegram_configured": tg_ok,
-        "email_resend_configured": resend and rfrom,
+        "dotenv_load_warning": get_dotenv_load_warning(),
+        **email_status,
         "providers_configured": providers,
         "providers_count": n_prov,
         "dedup_store_path": str(dedup),

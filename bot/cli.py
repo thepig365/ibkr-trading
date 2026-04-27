@@ -4647,6 +4647,31 @@ def news_monitor_readiness_cmd(
     raise typer.Exit(0)
 
 
+@app.command("email-config-status")
+def email_config_status_cmd(
+    as_json: bool = typer.Option(False, "--json", help="Machine-readable output."),
+) -> None:
+    """Read-only: Resend + recipient readiness. Booleans and missing field names only."""
+    from .config import get_dotenv_load_warning
+    from .reports.email_config_status import (  # noqa: PLC0415
+        build_email_config_status,
+    )
+
+    cfg, _journal = _bootstrap()
+    payload: dict[str, object] = {**build_email_config_status(cfg), "dotenv_load_warning": get_dotenv_load_warning()}
+    if as_json:
+        console.print_json(data=payload)
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="email-config-status",
+                style="cyan",
+            )
+        )
+    raise typer.Exit(0)
+
+
 @app.command("market-news-check")
 def market_news_check_cmd(
     symbols: str | None = typer.Option(

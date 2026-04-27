@@ -62,6 +62,7 @@ _KNOWN_REPORT_COMMANDS: frozenset[str] = frozenset({
     "test-telegram",
     "market-news-check",
     "news-monitor-readiness",
+    "email-config-status",
 })
 
 
