@@ -15,13 +15,14 @@ mkdir -p "$LOG_DIR" "$SUPPORT"
 
 # Logs under Library (not under repo) so launchd can write if Documents is protected
 LOG="${LOG_DIR}/full_auto_paper_supervisor.log"
-LOCK="${SUPPORT}/full_auto_paper_supervisor.lock"
-
-exec 200>"$LOCK"
-if ! flock -n 200; then
+# Portable lock: macOS launchd often has no `flock` in PATH; mkdir is atomic.
+LOCK_DIR="${SUPPORT}/full_auto_paper_supervisor.lock.run"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   echo "==== $(date -u) skip: another instance holds lock (paper only) ====" >> "$LOG"
   exit 0
 fi
+_cleanup_lock() { rmdir "$LOCK_DIR" 2>/dev/null || true; }
+trap _cleanup_lock EXIT INT TERM HUP
 
 exec >> "$LOG" 2>&1
 echo "==== $(date -u) launchd wrapper start project=${REPO} ===="
@@ -35,4 +36,6 @@ else
   PYTHON_BIN="/usr/bin/python3"
 fi
 
-exec "$PYTHON_BIN" -m bot.cli run-full-auto-paper-supervisor --session full --telegram --report-on-exit
+set +e
+"$PYTHON_BIN" -m bot.cli run-full-auto-paper-supervisor --session full --telegram --report-on-exit
+exit $?

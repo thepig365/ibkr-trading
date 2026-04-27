@@ -44,7 +44,11 @@ def build_background_runner_ui_context(project_root: Path) -> dict[str, Any]:
         "library_logs_launchd_err": str(lib_logs / "launchd_full_auto.err.log"),
         "lock_file": str(root / "data" / "runtime" / "full_auto_paper_supervisor.lock"),
         "lock_file_launchd": str(
-            home / "Library" / "Application Support" / "StrategyLab" / "full_auto_paper_supervisor.lock"
+            home
+            / "Library"
+            / "Application Support"
+            / "StrategyLab"
+            / "full_auto_paper_supervisor.lock.run"
         ),
         "last_supervisor_state": sup,
     }

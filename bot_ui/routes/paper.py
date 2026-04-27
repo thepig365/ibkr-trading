@@ -153,7 +153,11 @@ def paper_page(request: Request) -> HTMLResponse:
             "library_logs_launchd_err": str(ll / "launchd_full_auto.err.log"),
             "lock_file": str(r / "data" / "runtime" / "full_auto_paper_supervisor.lock"),
             "lock_file_launchd": str(
-                h / "Library" / "Application Support" / "StrategyLab" / "full_auto_paper_supervisor.lock"
+                h
+                / "Library"
+                / "Application Support"
+                / "StrategyLab"
+                / "full_auto_paper_supervisor.lock.run"
             ),
             "last_supervisor_state": {},
         }
