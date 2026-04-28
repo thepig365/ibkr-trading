@@ -62,30 +62,61 @@ _SKIP_REASON_HUMAN: dict[str, str] = {
 }
 
 
-def humanize_skip_reason(reason: str) -> str:
-    """Map one engine skip string to plain language; keep technical meaning."""
+def humanize_skip_reason(reason: str, locale: str = "en") -> str:
+    """Map one engine skip string to plain language; optional Chinese (zh).
+
+    Technical tokens stay ASCII; wording is localized when ``locale.startswith('zh')``.
+    """
     rs = (reason or "").strip()
     if not rs:
         return ""
+    zh = (locale or "en").strip().lower().startswith("zh")
+
     low = rs.lower()
+    if ("bracket" in low and "incomplete" in low) or low.strip() == "bracket incomplete":
+        return (
+            "紧急：括号保护不完整。"
+            if zh
+            else "Urgent: bracket protection is incomplete."
+        )
     if "trading_allow_shorting" in low and "false" in low:
-        return "Skipped because short selling is disabled in paper safety settings."
+        return (
+            "已跳过：纸面安全设置禁止做空，因此没有提交空头括号单。"
+            if zh
+            else "Skipped because short selling is disabled in paper safety settings."
+        )
     if "cannot submit short bracket" in low:
-        return "Skipped because a short bracket cannot be submitted with current safety settings."
+        return (
+            "已跳过：当前安全规则下不允许提交空头括号单。"
+            if zh
+            else "Skipped because a short bracket cannot be submitted with current safety settings."
+        )
     if "open order exists" in low and "refuse duplicate" in low:
         return (
-            "Skipped because an open order already exists for this symbol. "
-            "The engine avoids duplicate paper entries."
+            "已跳过：标的已有未完成订单，引擎避免重复进场。"
+            if zh
+            else (
+                "Skipped because an open order already exists for this symbol. "
+                "The engine avoids duplicate entries."
+            )
         )
     if "existing position" in low and "refuse duplicate" in low:
         return (
-            "Skipped because this symbol already has a paper position. "
-            "The one-position-per-symbol gate blocked a duplicate entry."
+            "已跳过：该标的已有纸面持仓，单标的单仓位保护阻止重复进场。"
+            if zh
+            else (
+                "Skipped because this symbol already has a paper position. "
+                "One-position-per-symbol protection blocked the trade."
+            )
         )
     if "duplicate paper entry" in low:
         return (
-            "Skipped as a duplicate paper entry — another open order or position "
-            "already exists for this symbol."
+            "已跳过：检测到重复纸面开仓（未完成订单或已有持仓）。"
+            if zh
+            else (
+                "Skipped as a duplicate paper entry — another open order or position "
+                "already exists for this symbol."
+            )
         )
     for k, h in _SKIP_REASON_HUMAN.items():
         if k in low:
@@ -93,7 +124,9 @@ def humanize_skip_reason(reason: str) -> str:
     return rs
 
 
-def humanize_skip_reasons(reasons: list[str] | None) -> list[str]:
+def humanize_skip_reasons(
+    reasons: list[str] | None, *, locale: str = "en"
+) -> list[str]:
     if not reasons:
         return []
     out: list[str] = []
@@ -101,7 +134,7 @@ def humanize_skip_reasons(reasons: list[str] | None) -> list[str]:
         rs = (r or "").strip()
         if not rs:
             continue
-        out.append(humanize_skip_reason(rs))
+        out.append(humanize_skip_reason(rs, locale=locale))
     return out
 
 

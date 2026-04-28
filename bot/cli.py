@@ -3767,24 +3767,61 @@ def backtest_report_cmd(
     raise typer.Exit(0)
 
 
+@app.command("generate-trade-chart")
 @app.command("journal-generate-trade-chart")
-def journal_generate_trade_chart_cmd(
+def generate_trade_chart_cmd(
     trade_id: str = typer.Option(
         ...,
         "--trade-id",
         help="Stable trade id from the Strategy Lab Journal (`/journal`).",
     ),
+    json_out: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit one JSON object with status, chart_path, symbol, date (stdout only).",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite an existing PNG under data/reports/trade_charts/.",
+    ),
+    window_before_minutes: int = typer.Option(
+        30,
+        "--window-before-minutes",
+        min=1,
+        max=1440,
+        help="Minutes of 1m bars before trade time (local cache only).",
+    ),
+    window_after_minutes: int = typer.Option(
+        60,
+        "--window-after-minutes",
+        min=1,
+        max=1440,
+        help="Minutes of 1m bars after trade time (local cache only).",
+    ),
 ) -> None:
-    """Render one trade-review PNG from local 1m cache only (no IBKR; never places orders)."""
-    cfg = load_config()
-    root = cfg.project_root
-    from .trade_journal_chart import generate_trade_journal_chart_png
+    """Render one trade-review PNG from local 1m cache only (no IBKR; never places orders).
 
-    out = generate_trade_journal_chart_png(root, trade_id)
-    if out.ok:
-        console.print(f"[green]{out.message}[/green]")
+    Same command as ``journal-generate-trade-chart`` (duplicate Typer name).
+    """
+    cfg = load_config()
+    from .trade_journal_chart import trade_chart_cli_payload
+
+    payload = trade_chart_cli_payload(
+        cfg.project_root,
+        trade_id,
+        force=force,
+        before_mins=window_before_minutes,
+        after_mins=window_after_minutes,
+    )
+    if json_out:
+        print(json.dumps(payload, ensure_ascii=False))
+        code = 0 if payload.get("status") in {"generated", "already_exists"} else 2
+        raise typer.Exit(code)
+    if payload.get("status") in {"generated", "already_exists"}:
+        console.print(f"[green]{payload.get('detail', '')}[/green]")
         raise typer.Exit(0)
-    console.print(f"[yellow]{out.message}[/yellow]")
+    console.print(f"[yellow]{payload.get('detail', payload.get('status', 'error'))}[/yellow]")
     raise typer.Exit(2)
 
 

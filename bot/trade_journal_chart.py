@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 from zoneinfo import ZoneInfo
 
 from .backtests.candle_cache import BarRow, read_candles_csv
@@ -26,6 +26,72 @@ class TradeChartOutcome:
     ok: bool
     message: str
     png_path: Path | None = None
+
+
+class TradeChartCliPayload(TypedDict, total=False):
+    status: str
+    chart_path: str | None
+    trade_id: str
+    symbol: str | None
+    date: str | None
+    detail: str
+
+
+def trade_chart_cli_payload(
+    project_root: Path,
+    trade_id: str,
+    *,
+    force: bool = False,
+    before_mins: int = 30,
+    after_mins: int = 60,
+) -> TradeChartCliPayload:
+    """Structured result for ``generate-trade-chart`` / ``journal-generate-trade-chart`` CLI (no IBKR)."""
+    tid = (trade_id or "").strip().lower()
+    proj = Path(project_root).resolve()
+    out: TradeChartCliPayload = {
+        "status": "error",
+        "chart_path": None,
+        "trade_id": tid,
+        "symbol": None,
+        "date": None,
+        "detail": "",
+    }
+    obj = find_paper_order_payload_by_trade_id(proj, tid)
+    if obj is None:
+        out["status"] = "trade_not_found"
+        out["detail"] = "Trade row not found in local journal files."
+        return out
+    sym = str(obj.get("symbol") or "").strip().upper()
+    out["symbol"] = sym or None
+    anchor = trade_anchor_utc(obj)
+    if anchor is not None:
+        out["date"] = anchor.astimezone(_NY).date().isoformat()
+    res = generate_trade_journal_chart_png(
+        proj,
+        tid,
+        before_mins=before_mins,
+        after_mins=after_mins,
+        force=force,
+    )
+    out["detail"] = res.message
+    if res.ok and res.png_path is not None:
+        out["chart_path"] = str(res.png_path)
+        low = res.message.lower()
+        if "already exists" in low:
+            out["status"] = "already_exists"
+        else:
+            out["status"] = "generated"
+        return out
+    low = res.message.lower()
+    if "not found" in low and "trade row" in low:
+        out["status"] = "trade_not_found"
+    elif "no local" in low or "expected file" in low:
+        out["status"] = "missing_candles"
+    elif "not enough" in low:
+        out["status"] = "missing_candles"
+    else:
+        out["status"] = "error"
+    return out
 
 
 def local_candle_file_for_trade(
@@ -111,6 +177,12 @@ def trade_review_chart_png_path(project_root: Path, trade_id: str) -> Path:
     )
 
 
+def candles_available_for_journal_row(project_root: Path, row: Any) -> bool:
+    """True if NY-day 1m cache file exists for this journal row (read-only probe)."""
+    d = {"timestamp": str(getattr(row, "timestamp", "")), "symbol": str(getattr(row, "symbol", ""))}
+    return candles_available_for_trade(project_root, d)
+
+
 def candles_available_for_trade(project_root: Path, obj: dict[str, Any]) -> bool:
     sym = str(obj.get("symbol") or "").strip().upper()
     if not sym:
@@ -128,6 +200,7 @@ def generate_trade_journal_chart_png(
     *,
     before_mins: int = 30,
     after_mins: int = 60,
+    force: bool = False,
 ) -> TradeChartOutcome:
     """Write a PNG preview for one journal trade id."""
     tid = (trade_id or "").strip().lower()
@@ -174,18 +247,33 @@ def generate_trade_journal_chart_png(
 
     outfile = trade_review_chart_png_path(proj, tid)
     outfile.parent.mkdir(parents=True, exist_ok=True)
+    if outfile.is_file() and not force:
+        try:
+            rel = outfile.relative_to(proj)
+        except ValueError:
+            rel = outfile
+        return TradeChartOutcome(
+            ok=True,
+            message=f"Chart already exists: {rel} (use force to regenerate)",
+            png_path=outfile,
+        )
     ok_write = _write_matplotlib_chart(
         filtered,
         outfile,
         anchor=anchor,
         symbol=sym,
+        direction=str(obj.get("direction") or "").strip().lower(),
+        planned_rr=_f(obj.get("planned_rr")),
         entry=entry,
         stop=stop,
         target=target,
         qty=qty_f,
         submitted=submitted,
         skipped=bool(skipped_raw),
+        submitted_to_broker=bool(obj.get("submitted_to_broker", False)),
         bracket_complete=bracket_ok,
+        signal_category=str(obj.get("signal_category") or ""),
+        skipped_human_one=_first_skip_human_line(skipped_raw),
     )
     if not ok_write.startswith("OK"):
         return TradeChartOutcome(ok=False, message=ok_write)
@@ -199,6 +287,18 @@ def generate_trade_journal_chart_png(
         message=f"Wrote {rel}",
         png_path=outfile,
     )
+
+
+def _first_skip_human_line(skipped_raw: Any) -> str:
+    if not skipped_raw:
+        return ""
+    sr = skipped_raw if isinstance(skipped_raw, list) else [skipped_raw]
+    first = next((str(s).strip() for s in sr if s), "")
+    if not first:
+        return ""
+    from bot.ux.humanize import humanize_skip_reason  # noqa: PLC0415 — chart caption only
+
+    return humanize_skip_reason(first, locale="en")
 
 
 def _f(v: Any) -> float | None:
@@ -216,13 +316,18 @@ def _write_matplotlib_chart(
     *,
     anchor: datetime,
     symbol: str,
+    direction: str,
+    planned_rr: float | None,
     entry: float | None,
     stop: float | None,
     target: float | None,
     qty: float | None,
     submitted: bool,
     skipped: bool,
+    submitted_to_broker: bool,
     bracket_complete: bool,
+    signal_category: str,
+    skipped_human_one: str,
 ) -> str:
     try:
         import matplotlib
@@ -282,24 +387,46 @@ def _write_matplotlib_chart(
             ha="left",
         )
 
-    headline = []
-    headline.append(symbol)
-    if submitted:
-        headline.append("submitted=True")
-    else:
-        headline.append("submitted=False")
+    lr = (
+        "Long"
+        if direction == "long"
+        else "Short"
+        if direction == "short"
+        else (direction.title() if direction else "—")
+    )
+
+    sub_bits: list[str] = []
+    if "DAY_TRADE_READY_STRICT" in (signal_category or ""):
+        sub_bits.append("ICT/SMC strict")
+    elif "DAY_TRADE_READY_AGGRESSIVE" in (signal_category or ""):
+        sub_bits.append("ICT/SMC aggressive")
+    if planned_rr is not None:
+        sub_bits.append(f"R/R {planned_rr:g}")
+    sub_bits.append("Protection complete" if bracket_complete else "Protection incomplete")
+    subtitle_mid = " | ".join(sub_bits)
+
     if skipped:
-        headline.append("skipped=True")
-    if bracket_complete:
-        headline.append("bracket=COMPLETE")
+        title_line = f"{symbol} {lr} — Skipped"
+    elif submitted_to_broker and not submitted:
+        title_line = f"{symbol} {lr} — Partial"
+    elif (submitted or submitted_to_broker) and not bracket_complete:
+        title_line = f"{symbol} {lr} — Protection incomplete"
+    elif submitted:
+        title_line = f"{symbol} {lr} — Sent"
     else:
-        headline.append("bracket=INCOMPLETE/WARN")
+        title_line = f"{symbol} {lr} — Not sent"
 
-    qty_s = ""
+    extra_lines: list[str] = [subtitle_mid, anchor_ny.strftime("%Y-%m-%d %H:%M %Z")]
+    if skipped and skipped_human_one:
+        extra_lines.append(f"Skipped: {skipped_human_one}")
+    elif (submitted or submitted_to_broker) and not bracket_complete:
+        extra_lines.append("Bracket protection incomplete — verify in TWS")
+
+    title_blob = title_line + "\n" + "\n".join(extra_lines)
     if qty is not None:
-        qty_s = f" qty={qty:g}"
-
-    plt.title("\n".join([" · ".join(headline) + qty_s, anchor_ny.strftime("%Y-%m-%d %H:%M %Z")]))
+        title_blob += f"\nqty={qty:g}"
+    fig.subplots_adjust(top=0.82)
+    fig.suptitle(title_blob, fontsize=10, va="top")
     plt.xlabel("NY time")
     plt.ylabel("Price")
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))

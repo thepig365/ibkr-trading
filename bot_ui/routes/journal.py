@@ -10,12 +10,14 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from bot.journal_trade_lookup import find_paper_order_payload_by_trade_id
 from bot.trade_journal_chart import (
+    candles_available_for_journal_row,
     candles_available_for_trade,
     generate_trade_journal_chart_png,
     trade_review_chart_png_path,
 )
 from bot.ux.humanize import humanize_skip_reason
 
+from ..i18n import get_locale
 from ._helpers import base_context
 
 router = APIRouter()
@@ -30,21 +32,23 @@ def _float_or_none(val: object) -> float | None:
         return None
 
 
-def _trade_status_label(row: object) -> str:
-    """Coarse UI status for Identity / review card."""
-    skipped = bool(getattr(row, "skipped_reasons", None))
+def _journal_trade_status_i18n_key(row: object) -> str:
+    sr = getattr(row, "skipped_reasons", None) or []
+    sk = len(sr) > 0
     sub = bool(getattr(row, "submitted", False))
-    sub_b = bool(getattr(row, "submitted_to_broker", False))
+    sb = bool(getattr(row, "submitted_to_broker", False))
     bi = str(getattr(row, "bracket_integrity", "") or "").strip().lower()
-    if skipped and not sub and not sub_b:
-        return "Skipped"
-    if sub or sub_b:
-        if bi == "complete":
-            return "Protected"
-        if bi == "incomplete":
-            return "Incomplete"
-        return "Sent"
-    return "—"
+    if sk and not sub and not sb:
+        return "journal.status_skipped"
+    if sb and not sub:
+        return "journal.status_partial"
+    if bi == "incomplete" and (sub or sb):
+        return "journal.status_protection_incomplete"
+    if sub or sb:
+        return "journal.status_sent"
+    if sk:
+        return "journal.status_skipped"
+    return "journal.status_unknown"
 
 
 @router.get("/journal", response_class=HTMLResponse, name="journal_page")
@@ -75,9 +79,18 @@ def journal_page(
     )
     ctx = base_context(request, active="journal")
     root: Path = request.app.state.project_root
+    loc = get_locale(request)
 
     def _chart_exists(tid: str) -> bool:
         return trade_review_chart_png_path(root, tid).is_file()
+
+    def _can_gen_chart(row: object) -> bool:
+        tid = getattr(row, "trade_id", "") or ""
+        if not tid:
+            return False
+        if _chart_exists(tid):
+            return False
+        return candles_available_for_journal_row(root, row)
 
     ctx.update(
         {
@@ -89,7 +102,8 @@ def journal_page(
             "journal_chart_filter": (chart_filter or "all").strip().lower(),
             "journal_session_scope": (session_scope or "all").strip().lower(),
             "chart_png_exists": _chart_exists,
-            "humanize_skip": humanize_skip_reason,
+            "can_generate_journal_chart": _can_gen_chart,
+            "humanize_skip": lambda s: humanize_skip_reason(s, locale=loc),
         }
     )
     return request.app.state.templates.TemplateResponse(
@@ -120,15 +134,17 @@ def journal_trade_review(
         ctx = base_context(request, active="journal")
         ctx["unknown_trade_id"] = trade_id
         return request.app.state.templates.TemplateResponse(
-            request, "journal_trade_not_found.html",
+            request,
+            "journal_trade_not_found.html",
             ctx,
             status_code=404,
         )
     tid = row.trade_id
     root: Path = request.app.state.project_root
+    loc = get_locale(request)
     chart_notice: str | None = None
     if preview_chart == 1:
-        out = generate_trade_journal_chart_png(root, tid)
+        out = generate_trade_journal_chart_png(root, tid, force=True)
         if out.ok:
             q = urlencode({"generated": "1"})
             return RedirectResponse(
@@ -161,16 +177,26 @@ def journal_trade_review(
         else:
             reward_ps = target - entry
 
-    skipped_h = [humanize_skip_reason(s) for s in (row.skipped_reasons or [])]
+    skipped_h = [
+        humanize_skip_reason(s, locale=loc)
+        for s in (list(row.skipped_reasons or []))
+    ]
+    r_multiple = row.planned_rr
+    multiplier_label = ""
+    if r_multiple is not None:
+        multiplier_label = f"{float(r_multiple):g}R"
 
     ctx = base_context(request, active="journal")
     ctx.update(
         {
             "jr": row,
-            "trade_status": _trade_status_label(row),
+            "jr_timestamp": (row.timestamp or "")[:26],
+            "trade_status_key": _journal_trade_status_i18n_key(row),
+            "risk_multiple_label": multiplier_label,
             "risk_per_share": risk_ps,
             "reward_per_share": reward_ps,
             "skipped_human": skipped_h,
+            "skipped_raw_lines": list(row.skipped_reasons or []),
             "has_chart": has_chart,
             "chart_notice": chart_notice,
             "generated_flag": bool(generated),

@@ -28,3 +28,31 @@ def test_humanize_list_wraps_each() -> None:
     xs = humanize_skip_reasons(["waiting_for_1m_trigger", "kill switch active"])
     assert len(xs) == 2
     assert "kill" in xs[1].lower()
+
+
+def test_humanize_bracket_incomplete_zh() -> None:
+    assert "括号" in humanize_skip_reason("bracket incomplete", locale="zh")
+
+
+def test_humanize_short_zh() -> None:
+    raw = (
+        "trading_allow_shorting=false; cannot submit short bracket for PLTR"
+    )
+    h = humanize_skip_reason(raw, locale="zh")
+    assert "做空" in h or "跳过" in h
+
+
+def test_humanize_short_en() -> None:
+    raw = (
+        "trading_allow_shorting=false; cannot submit short bracket for PLTR"
+    )
+    h = humanize_skip_reason(raw, locale="en")
+    assert "short" in h.lower()
+
+
+def test_humanize_skip_reasons_passes_locale() -> None:
+    xs = humanize_skip_reasons(
+        ["bracket incomplete"],
+        locale="zh",
+    )
+    assert xs and ("括号" in xs[0] or "不完整" in xs[0])

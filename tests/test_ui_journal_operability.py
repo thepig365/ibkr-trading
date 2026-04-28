@@ -13,6 +13,8 @@ from bot_ui.services.command_queue import LocalCommandRunner
 from bot_ui.services.log_reader import mask_secrets
 from bot_ui.services.state_store import LocalFileStateStore
 
+from tests.test_journal_page import _write_paper_order
+
 
 def _client(root: Path) -> TestClient:
     (root / "data").mkdir(exist_ok=True)
@@ -85,3 +87,22 @@ def test_log_mask_strips_telegram_token_like_strings() -> None:
     masked = mask_secrets(raw)
     assert "***REDACTED-TG-TOKEN***" in masked
     assert "abcdefghijklmnopqrstuvwxyzAB" not in masked
+
+
+def test_journal_review_link_includes_stable_trade_id(tmp_project: Path) -> None:
+    _write_paper_order(tmp_project)
+    tid = LocalFileStateStore(tmp_project).get_journal_view(limit=10).paper_orders[
+        0
+    ].trade_id
+    r = _client(tmp_project).get("/journal")
+    assert r.status_code == 200, r.text
+    assert "Review" in r.text
+    assert tid in r.text
+
+
+def test_journal_lang_zh_shows_sizing_fold_and_review_label(tmp_project: Path) -> None:
+    _write_paper_order(tmp_project)
+    r = _client(tmp_project).get("/journal?lang=zh")
+    assert r.status_code == 200, r.text
+    assert "展开仓位细节" in r.text
+    assert "复盘" in r.text

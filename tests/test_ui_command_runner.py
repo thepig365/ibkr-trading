@@ -124,6 +124,10 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
         "--trade-id",
         "a" * 22,
     ),
+    "generate-trade-chart": (
+        "--trade-id",
+        "a" * 22,
+    ),
     "build-edge-profile": (
         "--symbol", "CRM",
         "--start", "2026-04-01",

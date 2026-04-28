@@ -185,7 +185,7 @@ UI command runner allowlist additions for v2:
 - `eod-paper-checklist` (read-only; prints recommended EOD command sequence; no orders, no email)
 - `news-monitor-readiness` (read-only; env + config for market-news monitor; no provider fetch)
 - `market-news-check` (Finnhub/FMP REST when keys present; default `--dry-run` avoids Telegram; never trades)
-- `journal-generate-trade-chart` (writes `data/reports/trade_charts/<trade_id>.png` from **local** 1m cache only via `--trade-id`; no IBKR; no orders)
+- `journal-generate-trade-chart` / `generate-trade-chart` (writes `data/reports/trade_charts/<trade_id>.png` from **local** 1m cache only via `--trade-id` plus optional `--json`, `--force`, `--window-before-minutes`, `--window-after-minutes`; no IBKR; no orders)
 
 `run-auto-paper-intraday-loop` remains **forbidden** in the UI (use
 `run-automatic-paper-engine` from the allowlist instead). All other

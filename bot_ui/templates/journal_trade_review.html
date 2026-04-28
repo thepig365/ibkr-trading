@@ -6,9 +6,10 @@
   <div class="section">
     <p><a href="{{ ret(url_for('journal_page')) }}">← {{ t('journal.trade_back') }}</a></p>
     <h1>{{ t('journal.trade_title') }} · <span class="text-mono">{{ jr.symbol }}</span></h1>
-    <p class="text-dim text-small text-mono">{{ jr.trade_id }}</p>
+    <p class="text-dim text-small">{{ t('journal.hdr_time') }} <code>{{ jr_timestamp }}Z</code></p>
+    <p class="text-dim text-small text-mono">trade_id {{ jr.trade_id }}</p>
     {% if generated_flag %}
-      <p class="pill good" style="display:inline-block;">Chart file updated (local PNG).</p>
+      <p class="pill good" style="display:inline-block;">{{ t('journal.chart_file_updated') }}</p>
     {% endif %}
     {% if chart_notice %}
       <p class="pill warn" style="display:inline-block;">{{ chart_notice }}</p>
@@ -17,96 +18,113 @@
 
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
     <div class="card">
-      <div class="card-title">{{ t('journal.trade_identity') }}</div>
-      <div class="text-small"><strong>{{ jr.symbol }}</strong> · {{ (jr.direction or '-')|upper }}</div>
-      <div class="text-small">Strategy <code>{{ jr.strategy_id }}</code></div>
-      <div class="text-small">Mode
-        {% if jr.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">strict</span>
-        {% elif jr.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill neutral">aggressive</span>
-        {% else %}<span class="pill warn">{{ jr.signal_category or '—' }}</span>{% endif %}
-      </div>
-      <div class="text-small">Status: <strong>{{ trade_status }}</strong></div>
+      <div class="card-title">{{ t('journal.trade_header') }}</div>
+      <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+        <li>{{ t('journal.col_symbol') }}: <strong>{{ jr.symbol }}</strong></li>
+        <li>{{ t('journal.col_direction') }}: {{ (jr.direction or '-')|upper }}</li>
+        <li>{{ t('journal.hdr_status') }}: <strong>{{ t(trade_status_key) }}</strong></li>
+        <li>{{ t('journal.hdr_strategy') }}: <code>{{ jr.strategy_id }}</code></li>
+        <li>{{ t('journal.hdr_mode') }}:
+          {% if jr.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">strict</span>
+          {% elif jr.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill neutral">aggressive</span>
+          {% else %}<span class="pill warn">{{ jr.signal_category or '—' }}</span>{% endif %}
+        </li>
+      </ul>
     </div>
 
     <div class="card">
-      <div class="card-title">{{ t('journal.trade_prices') }}</div>
+      <div class="card-title">{{ t('journal.sec_trade_plan') }}</div>
       <ul class="text-small" style="margin:0;padding-left:1.1rem;">
-        <li>Entry {% if jr.entry is not none %}{{ "%.2f"|format(jr.entry) }}{% else %}—{% endif %}</li>
-        <li>Stop {% if jr.stop is not none %}{{ "%.2f"|format(jr.stop) }}{% else %}—{% endif %}</li>
-        <li>Target {% if jr.target is not none %}{{ "%.2f"|format(jr.target) }}{% else %}—{% endif %}</li>
-        <li>Risk/sh {% if risk_per_share is not none %}{{ "%.4f"|format(risk_per_share) }}{% else %}—{% endif %}</li>
-        <li>Reward/sh {% if reward_per_share is not none %}{{ "%.4f"|format(reward_per_share) }}{% else %}—{% endif %}</li>
-        <li>R/R {% if jr.planned_rr is not none %}{{ "%.2f"|format(jr.planned_rr) }}{% else %}—{% endif %}</li>
-        <li>Qty {% if jr.quantity is not none %}{{ jr.quantity|int }}{% else %}—{% endif %}</li>
-        <li>Est. notional {% if jr.estimated_notional is not none %}${{ "{:,.0f}".format(jr.estimated_notional) }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.lbl_entry') }}: {% if jr.entry is not none %}{{ "%.2f"|format(jr.entry) }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.lbl_stop') }}: {% if jr.stop is not none %}{{ "%.2f"|format(jr.stop) }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.lbl_target') }}: {% if jr.target is not none %}{{ "%.2f"|format(jr.target) }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.lbl_risk_per_share') }}: {% if risk_per_share is not none %}{{ "%.4f"|format(risk_per_share) }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.lbl_reward_per_share') }}: {% if reward_per_share is not none %}{{ "%.4f"|format(reward_per_share) }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.lbl_rr') }}: {% if jr.planned_rr is not none %}{{ "%.2f"|format(jr.planned_rr) }}{% if risk_multiple_label %} ({{ risk_multiple_label }}){% endif %}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.col_qty') }}: {% if jr.quantity is not none %}{{ jr.quantity|int }}{% else %}—{% endif %}</li>
+        <li>{{ t('journal.col_notional') }}: {% if jr.estimated_notional is not none %}${{ "{:,.0f}".format(jr.estimated_notional) }}{% else %}—{% endif %}</li>
+        <li>TIF: {% if jr.order_tif %}<code>{{ jr.order_tif }}</code>{% else %}—{% endif %}</li>
       </ul>
     </div>
 
     <div class="card">
       <div class="card-title">{{ t('journal.trade_decision') }}</div>
       <ul class="text-small" style="margin:0;padding-left:1.1rem;">
-        <li>Submitted to broker: {% if jr.submitted %}yes{% else %}no{% endif %}</li>
-        {% if jr.skipped_reasons %}
-          {% for s in skipped_human %}<li>Skip: {{ s }}</li>{% endfor %}
-        {% endif %}
-        {% if jr.broker_errors %}{% for m in jr.broker_errors %}<li>Broker: {{ m }}</li>{% endfor %}{% endif %}
-        {% if jr.verify_in_tws_required %}<li class="pill warn">Verify TWS</li>{% endif %}
+        <li>{{ t('journal.lbl_submitted_yesno') }} {% if jr.submitted %}{{ t('journal.yes') }}{% else %}{{ t('journal.no') }}{% endif %}</li>
+        {% if skipped_human %}<li>{{ t('journal.lbl_reason_short') }} {% for s in skipped_human %}{{ s }}{% if not loop.last %}; {% endif %}{% endfor %}</li>{% endif %}
+        {% if jr.broker_errors %}{% for m in jr.broker_errors %}<li>{{ t('journal.lbl_broker_line') }} {{ m }}</li>{% endfor %}{% endif %}
+        {% if jr.verify_in_tws_required %}<li class="pill warn">{{ t('journal.verify_tws') }}</li>{% endif %}
       </ul>
+      {% if skipped_raw_lines %}
+        <details class="mt-8">
+          <summary>{{ t('journal.raw_skip_summary') }}</summary>
+          <pre class="code text-small mt-8" style="white-space:pre-wrap;">{% for line in skipped_raw_lines %}{{ line }}
+{% endfor %}</pre>
+        </details>
+      {% endif %}
     </div>
 
     <div class="card">
       <div class="card-title">{{ t('journal.trade_ict') }}</div>
       <ul class="text-small" style="margin:0;padding-left:1.1rem;">
-        <li>HTF context {% if jr.higher_timeframe_context_ok %}✓{% else %}missing{% endif %}</li>
-        <li>5m setup {% if jr.five_min_setup_found %}✓{% else %}missing{% endif %}</li>
-        <li>1m trigger {% if jr.one_min_trigger_found %}✓{% else %}missing{% endif %}</li>
+        <li>{{ t('journal.lbl_htf') }} {{ t('journal.chk_yes') if jr.higher_timeframe_context_ok else t('journal.chk_missing') }}</li>
+        <li>{{ t('journal.lbl_5m') }} {{ t('journal.chk_yes') if jr.five_min_setup_found else t('journal.chk_missing') }}</li>
+        <li>{{ t('journal.lbl_1m') }} {{ t('journal.chk_yes') if jr.one_min_trigger_found else t('journal.chk_missing') }}</li>
+        <li>{{ t('journal.hdr_mode') }}:
+          {% if jr.signal_category == 'DAY_TRADE_READY_STRICT' %}strict
+          {% elif jr.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}aggressive
+          {% else %}{{ jr.signal_category or '—' }}{% endif %}
+        </li>
       </ul>
     </div>
 
     <div class="card">
       <div class="card-title">{{ t('journal.trade_edge') }}</div>
-      <div class="text-small">
-        {% if jr.edge_score is not none %}Score {{ "%.0f"|format(jr.edge_score) }}{% else %}<span class="pill warn">no edge_score in row</span>{% endif %}
-        {% if jr.recommended_mode %} · profile/ref: <span class="text-dim">{{ jr.recommended_mode }}</span>{% endif %}
-      </div>
+      {% if jr.edge_score is not none %}
+        <div class="text-small">{{ t('journal.edge_score') }} {{ "%.0f"|format(jr.edge_score) }}{% if jr.recommended_mode %} · {{ jr.recommended_mode }}{% endif %}</div>
+      {% else %}
+        <p class="text-dim text-small">{{ t('journal.edge_unavailable') }}</p>
+      {% endif %}
     </div>
 
     <div class="card">
       <div class="card-title">{{ t('journal.trade_protection') }}</div>
       {% if jr.bracket_integrity == 'complete' %}
-        <p class="pill good">Bracket reports complete legs.</p>
+        <p class="pill good">{{ t('journal.protection_complete') }}</p>
       {% elif jr.bracket_integrity == 'incomplete' %}
-        <p class="pill warn" style="font-weight:bold;">Protection incomplete — verify parent / SL / TP in TWS immediately.</p>
+        <p class="pill warn" style="font-weight:bold;">{{ t('journal.protection_incomplete_warn') }}</p>
+      {% elif not jr.submitted and not jr.submitted_to_broker %}
+        <p class="text-small">{{ t('journal.not_submitted') }}</p>
       {% else %}
-        <p>—</p>
+        <p class="text-small">—</p>
       {% endif %}
-      <div class="text-small text-mono">P {{ jr.parent_entry_order_id or '—' }} · SL {{ jr.parent_sl_order_id or '—' }} · TP {{ jr.parent_tp_order_id or '—' }}</div>
+      <div class="text-small text-mono">parent {{ jr.parent_entry_order_id or '—' }} · SL {{ jr.parent_sl_order_id or '—' }} · TP {{ jr.parent_tp_order_id or '—' }}</div>
     </div>
   </div>
 
   <div class="section">
     <h2>{{ t('journal.trade_chart') }}</h2>
     {% if has_chart %}
-      <p><img src="{{ chart_png_url }}" alt="trade chart" style="max-width:100%;height:auto;border:1px solid var(--border);" /></p>
+      <p><img src="{{ chart_png_url }}" alt="{{ t('journal.alt_chart') }}" style="max-width:100%;height:auto;border:1px solid var(--border);" /></p>
       <form method="get" style="margin-top:12px;">
         <input type="hidden" name="preview_chart" value="1"/>
-        <button type="submit" class="btn ghost">{{ t('journal.trade_generate_chart') }}</button>
+        <button type="submit" class="btn ghost">{{ t('journal.generate_chart_btn') }}</button>
       </form>
     {% else %}
       {% if has_local_day_cache %}
-        <p class="text-dim text-small">{{ t('journal.trade_generate_chart') }}</p>
+        <p class="text-dim text-small">{{ t('journal.chart_local_only_hint') }}</p>
         <form method="get">
           <input type="hidden" name="preview_chart" value="1"/>
-          <button type="submit" class="btn">{{ t('journal.trade_generate_chart') }}</button>
+          <button type="submit" class="btn">{{ t('journal.generate_chart_btn') }}</button>
         </form>
       {% else %}
         <p class="pill warn">{{ t('journal.trade_no_candles') }}</p>
       {% endif %}
     {% endif %}
     <p class="text-dim text-small mt-12">
-      Optional CLI (allowlisted): <code>journal-generate-trade-chart --trade-id {{ jr.trade_id }}</code>.
-      Separate read-only workflow: use <strong>fetch-candles</strong> only when you explicitly choose IBKR-read-only caching.
-      <a href="{{ ret('/backtest') }}">Backtest</a> · <a href="{{ ret('/reports') }}">Reports</a>
+      <code>python3 -m bot.cli generate-trade-chart --trade-id {{ jr.trade_id }}</code>
+      · {{ t('journal.cli_fetch_note') }}
+      <a href="{{ ret('/backtest') }}">Backtest</a> · <a href="{{ ret('/reports') }}">{{ t('journal.open_reports_link') }}</a>
     </p>
   </div>
 
@@ -114,14 +132,19 @@
     <h2>{{ t('journal.trade_links') }}</h2>
     <ul class="text-small">
       <li><a href="{{ ret(url_for('journal_page')) }}">{{ t('journal.trade_back') }}</a></li>
-      <li><a href="{{ ret('/reports') }}">Reports</a></li>
-      <li><a href="{{ ret('/paper') }}">Paper</a></li>
+      <li><a href="{{ ret('/reports') }}">{{ t('journal.open_reports_link') }}</a></li>
+      <li><a href="{{ ret('/paper') }}">{{ t('journal.open_paper_link') }}</a></li>
     </ul>
   </div>
 
   <div class="section">
     <details>
-      <summary>{{ t('journal.details_engine') }}</summary>
+      <summary>{{ t('journal.raw_audit_summary') }}</summary>
+      {% if jr.sizing_audit_json %}
+      <h3 class="text-small">{{ t('journal.sizing_audit_block') }}</h3>
+      <pre class="code text-small">{{ jr.sizing_audit_json }}</pre>
+      {% endif %}
+      <h3 class="text-small">{{ t('journal.raw_row_heading') }}</h3>
       <pre class="code text-small" style="max-height:320px;overflow:auto;">{{ jr.raw_row_json_truncated }}</pre>
     </details>
   </div>

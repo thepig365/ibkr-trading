@@ -64,13 +64,14 @@ def _write_journal_row(proj: Path) -> str:
 
 def test_journal_main_table_columns_and_details_hidden(client_and_project):
     cli, proj = client_and_project
-    _write_journal_row(proj)
+    tid = _write_journal_row(proj)
     r = cli.get("/journal")
     assert r.status_code == 200
     html = r.text
     assert "Show sizing details" in html
     assert "final_quantity" in html  # from sizing_audit_json in expanded pre
     assert "Review" in html
+    assert tid in html
 
 
 def test_trade_review_returns_200(client_and_project) -> None:
@@ -89,6 +90,55 @@ def test_trade_review_zh_lang(client_and_project) -> None:
     tid = _write_journal_row(proj)
     rr = cli.get(f"/journal/trade/{tid}?lang=zh")
     assert rr.status_code == 200
+    zh = rr.text
+    assert "交易复盘" in zh
+    assert "入场" in zh
+
+
+def _write_skipped_journal_row(proj: Path) -> str:
+    pod = proj / "data" / "paper_orders"
+    pod.mkdir(parents=True)
+    out = pod / "skipped-intraday-paper-orders.jsonl"
+    raw_skip = "open order exists for PLTR — refuse duplicate paper entry"
+    row = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "strategy_id": "ict_smc_intraday_v1",
+        "symbol": "SKIP",
+        "direction": "short",
+        "signal_category": "DAY_TRADE_READY_STRICT",
+        "submitted": False,
+        "skipped_reasons": [raw_skip],
+        "entry": 50.0,
+        "stop": 51.0,
+        "target": 48.0,
+        "planned_rr": 2.0,
+        "quantity": 1,
+        "estimated_notional": 50.0,
+        "order_ids": [],
+        "paper_only": True,
+        "live_trading_allowed": False,
+        "bracket_integrity": "incomplete",
+        "tif": "DAY",
+        "chart_paths": [],
+    }
+    out.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    st = LocalFileStateStore(proj)
+    v = st.get_journal_view(limit=50)
+    match = [r for r in v.paper_orders if r.symbol == "SKIP"]
+    assert match, "expected skipped row"
+    return match[0].trade_id
+
+
+def test_skipped_trade_human_reason_and_raw_reason_still_present(
+    client_and_project,
+) -> None:
+    cli, proj = client_and_project
+    tid = _write_skipped_journal_row(proj)
+    rr = cli.get(f"/journal/trade/{tid}")
+    assert rr.status_code == 200
+    body = rr.text
+    assert "open order" in body.lower() or "duplicate" in body.lower()
+    assert "open order exists for PLTR" in body
 
 
 def test_sent_trade_shows_prices_rr(client_and_project) -> None:

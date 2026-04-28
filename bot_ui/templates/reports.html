@@ -80,6 +80,14 @@
             {% for sym, why in journal_skipped_pairs %}<li><strong>{{ sym }}</strong>: {{ why }}</li>{% endfor %}
           </ul>
         {% endif %}
+        {% if jr_review_sent or jr_review_skipped or jr_review_incomplete %}
+          <p class="text-small mt-8"><strong>{{ t('reports.latest_trade_reviews') }}</strong></p>
+          <ul class="text-small" style="margin:4px 0 0 18px;">
+            {% if jr_review_sent %}<li><a href="{{ ret('/journal/trade/' ~ jr_review_sent.trade_id) }}">{{ t('reports.jr_latest_sent') }} {{ jr_review_sent.symbol }}</a></li>{% endif %}
+            {% if jr_review_skipped %}<li><a href="{{ ret('/journal/trade/' ~ jr_review_skipped.trade_id) }}">{{ t('reports.jr_latest_skipped') }} {{ jr_review_skipped.symbol }}</a></li>{% endif %}
+            {% if jr_review_incomplete %}<li><a href="{{ ret('/journal/trade/' ~ jr_review_incomplete.trade_id) }}">{{ t('reports.jr_latest_incomplete') }} {{ jr_review_incomplete.symbol }}</a></li>{% endif %}
+          </ul>
+        {% endif %}
         <div class="text-dim text-small mt-8"><a href="{{ ret('/journal') }}">Journal</a> · <a href="{{ ret('/paper') }}">Paper</a></div>
       </div>
 

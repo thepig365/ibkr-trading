@@ -104,6 +104,10 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Render one trade-review PNG under data/reports/trade_charts "
         "from local 1m candle cache only; no IBKR; no orders."
     ),
+    "generate-trade-chart": (
+        "Alias of journal-generate-trade-chart: render one trade-review PNG "
+        "from local 1m candle cache only; no IBKR; no orders."
+    ),
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -1938,8 +1942,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_data_cleanup_args(args)
     if command == "premarket-brief":
         return validate_premarket_brief_args(args)
-    if command == "journal-generate-trade-chart":
-        return validate_journal_generate_trade_chart_args(args)
+    if command in {"journal-generate-trade-chart", "generate-trade-chart"}:
+        return validate_generate_trade_chart_args(command, args)
     return True, ""
 
 
@@ -1971,23 +1975,84 @@ def validate_data_cleanup_args(args: tuple[str, ...]) -> tuple[bool, str]:
 _JOURNAL_TRADE_CHART_TID_RE = re.compile(r"^[a-f0-9]{16,44}$")
 
 
-def validate_journal_generate_trade_chart_args(
+def validate_generate_trade_chart_args(
+    command: str,
     args: tuple[str, ...],
 ) -> tuple[bool, str]:
-    """Exactly ``--trade-id <hex>`` — local PNG only; connects to neither IBKR nor the engine."""
-    ok, err = _check_no_forbidden("journal-generate-trade-chart", args)
+    """``--trade-id <hex>`` plus optional UI flags — local PNG only; no IBKR."""
+    ok, err = _check_no_forbidden(command, args)
     if not ok:
         return ok, err
-    if len(args) != 2 or args[0] != "--trade-id":
+    i = 0
+    tid: str | None = None
+    saw_json = False
+    saw_force = False
+    window_before: int | None = None
+    window_after: int | None = None
+    while i < len(args):
+        tok = args[i]
+        if tok == "--trade-id":
+            if tid is not None:
+                return False, f"{command}: duplicate --trade-id"
+            if i + 1 >= len(args):
+                return False, f"{command}: --trade-id requires a value"
+            tid = str(args[i + 1]).strip().lower()
+            i += 2
+            continue
+        if tok == "--json":
+            if saw_json:
+                return False, f"{command}: duplicate --json"
+            saw_json = True
+            i += 1
+            continue
+        if tok == "--force":
+            if saw_force:
+                return False, f"{command}: duplicate --force"
+            saw_force = True
+            i += 1
+            continue
+        if tok == "--window-before-minutes":
+            if window_before is not None:
+                return False, f"{command}: duplicate --window-before-minutes"
+            if i + 1 >= len(args):
+                return False, f"{command}: --window-before-minutes needs an integer"
+            try:
+                window_before = int(str(args[i + 1]).strip())
+            except ValueError:
+                return False, f"{command}: --window-before-minutes must be an integer"
+            if not 1 <= window_before <= 24 * 60:
+                return (
+                    False,
+                    f"{command}: --window-before-minutes must be between 1 and 1440",
+                )
+            i += 2
+            continue
+        if tok == "--window-after-minutes":
+            if window_after is not None:
+                return False, f"{command}: duplicate --window-after-minutes"
+            if i + 1 >= len(args):
+                return False, f"{command}: --window-after-minutes needs an integer"
+            try:
+                window_after = int(str(args[i + 1]).strip())
+            except ValueError:
+                return False, f"{command}: --window-after-minutes must be an integer"
+            if not 1 <= window_after <= 24 * 60:
+                return (
+                    False,
+                    f"{command}: --window-after-minutes must be between 1 and 1440",
+                )
+            i += 2
+            continue
+        return False, f"{command}: unexpected token {tok!r}"
+    if tid is None:
         return False, (
-            "journal-generate-trade-chart accepts only `--trade-id <id>` "
+            f"{command} requires --trade-id <id>. Optional: --json, --force, "
+            "--window-before-minutes <n>, --window-after-minutes <n> "
             "(hex id from Strategy Lab Journal)."
         )
-    tid = str(args[1]).strip().lower()
     if not _JOURNAL_TRADE_CHART_TID_RE.match(tid):
         return False, (
-            "journal-generate-trade-chart: trade id must be a lowercase hex string "
-            "(16–44 chars)."
+            f"{command}: trade id must be a lowercase hex string (16–44 chars)."
         )
     return True, ""
 

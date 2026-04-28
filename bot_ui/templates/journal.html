@@ -107,9 +107,11 @@
                   {% else %}—{% endif %}
                 </td>
                 <td class="text-small">
-                  <a href="{{ ret(url_for('journal_trade_review', trade_id=r.trade_id)) }}">{{ t('journal.review') }}</a>
+                  <div><a href="{{ ret(url_for('journal_trade_review', trade_id=r.trade_id)) }}">{{ t('journal.review') }}</a></div>
                   {% if chart_png_exists(r.trade_id) %}
-                    <div class="text-dim">PNG</div>
+                    <div><a href="{{ ret(request.url_for('journal_trade_chart_png', trade_id=r.trade_id)) }}">{{ t('journal.link_chart') }}</a></div>
+                  {% elif can_generate_journal_chart(r) %}
+                    <div><a href="{{ ret('/journal/trade/' ~ r.trade_id ~ '?preview_chart=1') }}">{{ t('journal.link_generate') }}</a></div>
                   {% endif %}
                 </td>
               </tr>
