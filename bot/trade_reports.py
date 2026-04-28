@@ -485,6 +485,19 @@ def build_data_quality_payload(
     }
 
 
+def _fmt_price(v: float | None) -> str:
+    """Short display string for entry/exit; empty when unknown."""
+
+    if v is None:
+        return ""
+    try:
+        f = float(v)
+        s = f"{f:.6f}".rstrip("0").rstrip(".")
+        return s if s else "—"
+    except (TypeError, ValueError):
+        return ""
+
+
 @dataclass
 class DashboardTradeContext:
     """Compact trader-facing dashboard snapshot."""
@@ -492,6 +505,10 @@ class DashboardTradeContext:
     today_r_ny: float | None
     today_closed_realized_count: int
     cumulative_r_total: float | None
+    open_pipeline_total: int
+    explain_open_no_closed: bool
+    explain_missing_charts_block: bool
+    performance_pending: bool
     latest_trades: list[dict[str, Any]]
     ledger_counts: dict[str, Any]
     data_quality: dict[str, Any]
@@ -533,29 +550,47 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
         s += rv
         cumulative.append(s)
 
+    performance_pending = len(closed_series) < 2
     mini = ""
     if len(cumulative) >= 2:
         xr = [i / float(len(cumulative) - 1) for i in range(len(cumulative))]
         yn = _normalize_y(cumulative)
         mini = svg_line_series(list(zip(xr, yn)), width=320, height=90, stroke="#22c55e")
-    elif len(cumulative) == 1:
-        mini = svg_line_series([(0, 0.5), (1, 0.5)], width=320, height=90, stroke="#22c55e")
 
     latest: list[dict[str, Any]] = []
     for rec in rows[:5]:
+        has_png = bool(rec.chart_path)
         latest.append(
             {
                 "trade_id": rec.trade_id,
                 "symbol": rec.symbol,
+                "direction": (rec.direction or "—"),
                 "status_slug": rec.status_slug,
                 "submitted_time": rec.submitted_time[:19] if rec.submitted_time else "",
+                "entry_price": rec.entry_price,
+                "exit_price": rec.exit_price,
+                "entry_display": _fmt_price(rec.entry_price),
+                "exit_display": _fmt_price(rec.exit_price),
                 "realized_r": rec.realized_r,
+                "chart_status": rec.chart_status or "",
+                "has_chart_png": has_png,
             }
         )
+
+    ope = int(counts.get("open", 0)) + int(counts.get("pending", 0)) + int(
+        counts.get("protection_incomplete", 0)
+    )
+    closed_n = int(counts.get("closed", 0))
+    explain_open_no_closed = ope > 0 and closed_n == 0
+    explain_mc = int(counts.get("charts_missing_candles", 0)) > 0
+
+    dq_payload = build_data_quality_payload(rows, counts)
 
     actions: list[str] = []
     inc = counts.get("protection_incomplete", 0)
     miss = counts.get("charts_missing_candles", 0)
+    if dq_payload.get("missing_exit", 0) > 0:
+        actions.append("missing_exit_records")
     if inc:
         actions.append("protection_incomplete")
     if miss:
@@ -565,9 +600,13 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
         today_r_ny=(today_r if today_closed_realized_count else None),
         today_closed_realized_count=today_closed_realized_count,
         cumulative_r_total=float(s) if closed_series else None,
+        open_pipeline_total=ope,
+        explain_open_no_closed=explain_open_no_closed,
+        explain_missing_charts_block=explain_mc,
+        performance_pending=performance_pending,
         latest_trades=latest,
         ledger_counts=counts,
-        data_quality=build_data_quality_payload(rows, counts),
+        data_quality=dq_payload,
         action_required=actions,
         mini_r_svg=mini,
         ny_today=today_ny,

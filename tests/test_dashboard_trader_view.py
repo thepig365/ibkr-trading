@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -26,28 +27,77 @@ def _client(root: Path) -> TestClient:
     )
 
 
-def test_dashboard_trader_command_center_en(tmp_path: Path) -> None:
+def test_dashboard_returns_200(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/dashboard")
     assert r.status_code == 200
-    assert "Trader command center" in r.text
+
+
+def test_dashboard_trading_day_summary_and_cockpit_en(tmp_path: Path) -> None:
+    r = _client(tmp_path).get("/dashboard")
+    assert r.status_code == 200
+    assert "Trading Day Summary" in r.text
+    assert "Trader Cockpit" in r.text
     assert "Quick links" in r.text
     assert "Latest trades" in r.text
-    assert "Data Quality" in r.text
+    assert "<details" in r.text
 
 
-def test_dashboard_trader_zh_labels(tmp_path: Path) -> None:
+def test_dashboard_zh_lang_shows_summary_or_cockpit(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/dashboard?lang=zh")
     assert r.status_code == 200
-    assert "交易员控制台" in r.text
+    assert "交易日摘要" in r.text or "交易员驾驶舱" in r.text
     assert "快捷入口" in r.text
 
 
-def test_dashboard_diagnostics_collapsed_not_primary(tmp_path: Path) -> None:
+def test_dashboard_diagnostics_inside_collapsed_primary_first(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/dashboard")
     assert r.status_code == 200
     assert "<details" in r.text
     tc = r.text
-    assert tc.index("Trader command center") < tc.index("Operational snapshot")
+    assert tc.index("Trading Day Summary") < tc.index("Operational snapshot")
+
+
+def test_dashboard_explains_when_open_but_no_closed(tmp_path: Path) -> None:
+    pod = tmp_path / "data" / "paper_orders"
+    pod.mkdir(parents=True)
+    p = pod / "2026-x-intraday-paper-orders.jsonl"
+    row = {
+        "symbol": "SPY",
+        "timestamp": "2026-04-01T15:30:00",
+        "submitted": True,
+        "direction": "long",
+        "strategy_id": "t",
+        "signal_category": "x",
+        "entry": 100.0,
+        "stop": 99.0,
+        "skipped_reasons": [],
+    }
+    p.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    r = _client(tmp_path).get("/dashboard")
+    assert r.status_code == 200
+    assert "no closed trades with exit data" in r.text
+
+
+def test_dashboard_complete_trade_charts_buttons(tmp_path: Path) -> None:
+    r = _client(tmp_path).get("/dashboard")
+    assert r.status_code == 200
+    assert "complete-trade-charts" in r.text
+
+
+def test_dashboard_developer_fold_title(tmp_path: Path) -> None:
+    r = _client(tmp_path).get("/dashboard")
+    assert r.status_code == 200
+    assert "Developer / Engine Diagnostics" in r.text
+
+
+def test_dashboard_automatic_engine_only_under_diagnostics_fold(tmp_path: Path) -> None:
+    text = _client(tmp_path).get("/dashboard").text
+    pivot = text.find("Trading Day Summary")
+    fold = text.find("Developer / Engine Diagnostics")
+    assert pivot >= 0 and fold > pivot
+    between = text[pivot:fold]
+    assert "run-automatic-paper-engine" not in between
+    assert "complete-trade-charts" in between
 
 
 def test_dashboard_get_does_not_need_ibkr(tmp_path: Path) -> None:

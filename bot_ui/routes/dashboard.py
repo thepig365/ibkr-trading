@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -28,6 +29,56 @@ from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
 
 router = APIRouter()
+
+
+def cockpit_engine_slug(runtime_flags: Any, intraday_loop: Any) -> str:
+    """File-derived paper loop notion: Waiting / Running / Blocked."""
+
+    if getattr(runtime_flags, "kill_switch_active", False):
+        return "blocked"
+    if getattr(intraday_loop, "kill_switch", False):
+        return "blocked"
+    hb = getattr(intraday_loop, "last_heartbeat_ts", None)
+    if hb is not None:
+        try:
+            if time.time() - float(hb) < 420.0:
+                return "running"
+        except (TypeError, ValueError):
+            pass
+    return "waiting"
+
+
+def enrich_trader_dashboard(
+    td: dict[str, Any],
+    *,
+    runtime_flags: Any,
+    intraday_loop: Any,
+    automatic_paper_engine: dict[str, Any],
+    telegram_listener_dash: dict[str, Any],
+    op_hints: Any,
+) -> dict[str, Any]:
+    """Merge cockpit engine badge + non-ledger alert actions."""
+
+    out = dict(td)
+    base = list(out.get("action_required") or [])
+    extras: list[str] = []
+    if not telegram_listener_dash.get("running_hint"):
+        extras.append("telegram_listener_down")
+    if not automatic_paper_engine.get("ok", False):
+        extras.append("engine_gates_blocked")
+    rh = getattr(op_hints, "reconcile_pass", None)
+    if rh is False:
+        extras.append("tws_hints_issue")
+    seen: set[str] = set()
+    merged: list[str] = []
+    for a in base + extras:
+        if a in seen:
+            continue
+        seen.add(a)
+        merged.append(a)
+    out["action_required"] = merged
+    out["cockpit_engine"] = cockpit_engine_slug(runtime_flags, intraday_loop)
+    return out
 
 
 def _stdout_after(recent: list[Any], *names: str) -> str | None:
@@ -104,19 +155,29 @@ def dashboard(request: Request) -> HTMLResponse:
         tg_listener_dash = {"launchd_plist_installed": False, "running_hint": False}
     cat, ssel = get_catalog_and_selection(root)
     paper_s_entry = cat.strategies.get(ssel.active_paper_strategy)
+    intraday_loop_snap = state.get_intraday_paper_loop_status()
     ux = DashboardUX.from_runtime(
         paper_act=paper_act,
         runtime=state.runtime_flags(),
         intraday=state.intraday_signals(),
         loop=state.loop_status(),
         ledger=ledger,
-        intraday_loop=state.get_intraday_paper_loop_status(),
+        intraday_loop=intraday_loop_snap,
         first_paper=first_snap,
+    )
+
+    trader_td = enrich_trader_dashboard(
+        build_dashboard_trade_context(root),
+        runtime_flags=state.runtime_flags(),
+        intraday_loop=intraday_loop_snap,
+        automatic_paper_engine=automatic_paper_engine,
+        telegram_listener_dash=tg_listener_dash,
+        op_hints=op_hints,
     )
 
     ctx.update(
         {
-            "trader_dash": build_dashboard_trade_context(root),
+            "trader_dash": trader_td,
             "account": state.account_summary(),
             "positions": state.positions(),
             "watchlist": state.watchlist(),
@@ -127,7 +188,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "intraday": state.intraday_signals(),
             "edge_profiles": state.get_edge_profiles_view()[:8],
             "backtest": state.get_backtest_summary(),
-            "intraday_loop": state.get_intraday_paper_loop_status(),
+            "intraday_loop": intraday_loop_snap,
             "first_paper": first_snap,
             "paper_sizing_ledger": ledger,
             "paper_activation": paper_act,

@@ -30,14 +30,14 @@ def _client(root: Path) -> TestClient:
 def test_dashboard_default_english(tmp_project: Path) -> None:
     r = _client(tmp_project).get("/dashboard")
     assert r.status_code == 200
-    assert "Dashboard" in r.text or "Report center" in r.text
-    assert "交易员控制台" not in r.text
+    assert "Trader Cockpit" in r.text or "Report center" in r.text or "Trading Day Summary" in r.text
+    assert "交易员驾驶舱" not in r.text
 
 
 def test_dashboard_zh_shows_chinese(tmp_project: Path) -> None:
     r = _client(tmp_project).get("/dashboard?lang=zh")
     assert r.status_code == 200
-    assert "交易员控制台" in r.text
+    assert "交易员驾驶舱" in r.text
     assert 'lang="zh"' in r.text
 
 

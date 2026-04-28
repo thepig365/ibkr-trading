@@ -6,29 +6,47 @@
 
 {% block content %}
   <div class="section">
-    <h2>{{ t('dashboard.trader_title') }}</h2>
-    <p class="text-dim text-small" style="margin:0 0 12px 0;">
+    <h2>{{ t('dashboard.trading_day_summary') }}</h2>
+    <p class="text-dim text-small" style="margin:0 0 14px 0;">
       {{ t('safety.ui_no_ibkr') }} · NY: <code>{{ trader_dash.ny_today }}</code>
+      · <strong>{{ t('dashboard.engine_label') }}</strong>:
+      {% set ce = trader_dash.cockpit_engine %}
+      {% if ce == 'blocked' %}
+        <span class="pill bad">{{ t('dashboard.engine_blocked') }}</span>
+      {% elif ce == 'running' %}
+        <span class="pill good">{{ t('dashboard.engine_running') }}</span>
+      {% else %}
+        <span class="pill neutral">{{ t('dashboard.engine_waiting') }}</span>
+      {% endif %}
     </p>
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
       <div class="card">
         <div class="card-title">{{ t('dashboard.trader_today_r') }}</div>
         <div class="card-value text-mono">
-          {% if trader_dash.today_r_ny is not none %}{{ "%.2f"|format(trader_dash.today_r_ny) }}{% else %}<span class="text-dim">{{ t('dashboard.trader_none_today_r') }}</span>{% endif %}
+          {% if trader_dash.today_r_ny is not none %}
+            {{ "%.2f"|format(trader_dash.today_r_ny) }}
+          {% else %}
+            <span class="text-dim">{{ t('dashboard.trader_none_today_r') }}</span>
+          {% endif %}
         </div>
       </div>
       <div class="card">
         <div class="card-title">{{ t('dashboard.trader_cum_r') }}</div>
         <div class="card-value text-mono">
-          {% if trader_dash.cumulative_r_total is not none %}{{ "%.2f"|format(trader_dash.cumulative_r_total) }}{% else %}—{% endif %}
+          {% if trader_dash.cumulative_r_total is not none %}
+            {{ "%.2f"|format(trader_dash.cumulative_r_total) }}
+          {% else %}
+            —
+          {% endif %}
         </div>
       </div>
       <div class="card">
-        <div class="card-title">{{ t('dashboard.trader_open') }}</div>
-        <div class="card-value">{{ trader_dash.ledger_counts.open }}</div>
+        <div class="card-title">{{ t('dashboard.trader_open_pipeline') }}</div>
+        <div class="card-value">{{ trader_dash.open_pipeline_total }}</div>
       </div>
       <div class="card">
-        <div class="card-title">{{ t('dashboard.trader_closed') }}</div>
+        <div class="card-title">{{ t('dashboard.trader_closed_exit') }}</div>
         <div class="card-value">{{ trader_dash.ledger_counts.closed }}</div>
       </div>
       <div class="card">
@@ -36,90 +54,156 @@
         <div class="card-value">{{ trader_dash.ledger_counts.skipped }}</div>
       </div>
       <div class="card">
-        <div class="card-title">{{ t('dashboard.trader_charts_missing') }}</div>
+        <div class="card-title">{{ t('dashboard.trader_charts_miss_label') }}</div>
         <div class="card-value">{{ trader_dash.ledger_counts.charts_missing_candles }}</div>
       </div>
-      <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">{{ t('dashboard.data_quality_title') }}</div>
-        {% if trader_dash.data_quality.no_trade_records %}
-          <p class="text-dim text-small">{{ t('dashboard.no_trade_records_yet') }}</p>
-        {% else %}
-          <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
-            <li>{{ t('dashboard.dq_closed_exit') }}: <strong>{{ trader_dash.data_quality.closed_with_exit }}</strong></li>
-            <li>{{ t('dashboard.dq_missing_exit') }}: <strong>{{ trader_dash.data_quality.missing_exit }}</strong></li>
-            <li>{{ t('dashboard.dq_charts_ok') }}: <strong>{{ trader_dash.data_quality.charts_available }}</strong></li>
-            <li>{{ t('dashboard.dq_charts_miss') }}: <strong>{{ trader_dash.data_quality.charts_missing_candles }}</strong></li>
-            <li>{{ t('dashboard.dq_usd_rel') }}:
-              {% if trader_dash.data_quality.reliable_usd_pnl is none %}
-                <span class="text-dim">—</span>
-              {% elif trader_dash.data_quality.reliable_usd_pnl %}
-                <strong>{{ t('journal.yes') }}</strong>
-              {% else %}
-                <strong>{{ t('journal.no') }}</strong>
-              {% endif %}
-            </li>
-          </ul>
-          {% if trader_dash.data_quality.charts_missing_candles > 0 %}
-            <p class="text-dim text-small mt-8">{{ t('dashboard.charts_incomplete_explainer') }}</p>
-          {% endif %}
-        {% endif %}
-      </div>
-      <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">{{ t('dashboard.trader_action') }}</div>
-        {% if trader_dash.action_required %}
-          <ul class="text-small" style="margin:4px 0 0 18px;">
-            {% for a in trader_dash.action_required %}
-              <li>{% if a == 'protection_incomplete' %}{{ t('dashboard.action_protection') }}{% elif a == 'charts_missing_candles' %}{{ t('dashboard.action_charts') }}{% else %}{{ a }}{% endif %}</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <div class="text-dim text-small">—</div>
-        {% endif %}
-      </div>
-      <div class="card">
-        <div class="card-title">{{ t('dashboard.trader_mini_r') }}</div>
-        {% if trader_dash.mini_r_svg %}<div style="overflow:auto;">{{ trader_dash.mini_r_svg|safe }}</div>{% else %}<div class="text-dim text-small">—</div>{% endif %}
-      </div>
-      <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">{{ t('dashboard.trader_latest') }}</div>
-        {% if trader_dash.latest_trades %}
+    </div>
+  </div>
+
+  {% if trader_dash.explain_open_no_closed or trader_dash.explain_missing_charts_block %}
+    <div class="section">
+      {% if trader_dash.explain_open_no_closed %}
+        <div class="card" style="margin-bottom:12px;">
+          <p class="text-small" style="margin:0;">{{ t('dashboard.explain_open_no_closed_body') }}</p>
+        </div>
+      {% endif %}
+      {% if trader_dash.explain_missing_charts_block %}
+        <div class="card">
+          <p class="text-small" style="margin:0;">{{ t('dashboard.explain_missing_candles_body') }}</p>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="section">
+    <h2>{{ t('dashboard.trader_action') }}</h2>
+    <div class="card">
+      {% if trader_dash.action_required %}
+        <ul class="text-small" style="margin:4px 0 0 18px;line-height:1.65;">
+          {% for a in trader_dash.action_required %}
+          <li>
+            {% if a == 'protection_incomplete' %}
+              {{ t('dashboard.action_protection') }}
+            {% elif a == 'charts_missing_candles' %}
+              {{ t('dashboard.action_charts') }}
+            {% elif a == 'missing_exit_records' %}
+              {{ t('dashboard.action_missing_exit_records') }}
+            {% elif a == 'telegram_listener_down' %}
+              {{ t('dashboard.action_telegram_listener') }}
+            {% elif a == 'engine_gates_blocked' %}
+              {{ t('dashboard.action_engine_gates') }}
+            {% elif a == 'tws_hints_issue' %}
+              {{ t('dashboard.action_tws_hints') }}
+            {% else %}
+              {{ a }}
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-dim text-small">—</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('dashboard.trader_latest') }}</h2>
+    <div class="card">
+      {% if trader_dash.latest_trades %}
+        <div style="overflow-x:auto;">
           <table class="data-table text-small">
-            <thead><tr><th>{{ 'Symbol' }}</th><th>{{ 'Status' }}</th><th>{{ 'Time' }}</th><th>R</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{{ t('dashboard.col_time') }}</th>
+                <th>{{ t('dashboard.col_symbol') }}</th>
+                <th>{{ t('dashboard.col_direction') }}</th>
+                <th>{{ t('dashboard.col_status') }}</th>
+                <th>{{ t('dashboard.col_entry') }}</th>
+                <th>{{ t('dashboard.col_exit') }}</th>
+                <th>{{ t('dashboard.col_r') }}</th>
+                <th>{{ t('dashboard.col_chart') }}</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
               {% for row in trader_dash.latest_trades %}
               <tr>
-                <td class="text-mono">{{ row.symbol }}</td>
-                <td>{{ row.status_slug }}</td>
                 <td class="text-mono">{{ row.submitted_time }}</td>
+                <td class="text-mono">{{ row.symbol }}</td>
+                <td>{{ row.direction }}</td>
+                <td>{{ row.status_slug }}</td>
+                <td>{% if row.entry_display %}{{ row.entry_display }}{% else %}—{% endif %}</td>
+                <td>{% if row.exit_display %}{{ row.exit_display }}{% else %}—{% endif %}</td>
                 <td>{% if row.realized_r is not none %}{{ "%.2f"|format(row.realized_r) }}{% else %}—{% endif %}</td>
-                <td><a href="{{ ret(url_for('trade_detail_page', trade_id=row.trade_id)) }}">{{ 'View' }}</a></td>
+                <td>
+                  {% if row.has_chart_png %}
+                    <a href="{{ ret(url_for('trades_trade_chart_png', trade_id=row.trade_id)) }}">{{ t('dashboard.chart_png_link') }}</a>
+                  {% else %}
+                    <span class="text-dim">{{ row.chart_status or "—" }}</span>
+                  {% endif %}
+                </td>
+                <td><a href="{{ ret(url_for('trade_detail_page', trade_id=row.trade_id)) }}">{{ t('trades.view_trade') }}</a></td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
-        {% else %}
-          <div class="text-dim text-small">—</div>
-        {% endif %}
-      </div>
-      <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">{{ t('dashboard.trader_quick') }}</div>
-        <div class="text-small">
-          <a href="{{ ret('/reports') }}">{{ t('page.reports') }}</a> ·
-          <a href="{{ ret(url_for('trades_page')) }}">{{ t('nav.trades') }}</a> ·
-          <a href="{{ ret('/paper') }}">{{ t('nav.paper') }}</a> ·
-          <a href="{{ ret('/journal') }}">{{ t('nav.journal') }}</a> ·
-          <a href="{{ ret('/settings') }}">{{ t('nav.settings') }}</a>
         </div>
+      {% else %}
+        <div class="text-dim text-small">—</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('dashboard.perf_pending_heading') }}</h2>
+    <div class="card">
+      {% if trader_dash.performance_pending %}
+        <div class="text-small">{{ t('dashboard.mini_performance_pending_text') }}</div>
+      {% elif trader_dash.mini_r_svg %}
+        <div style="overflow:auto;">{{ trader_dash.mini_r_svg|safe }}</div>
+      {% else %}
+        <div class="text-dim text-small">{{ t('dashboard.mini_performance_pending_text') }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('dashboard.trader_quick') }}</h2>
+    <div class="card">
+      <div class="text-small mb-12">
+        <a href="{{ ret(url_for('trades_page')) }}">{{ t('nav.trades') }}</a> ·
+        <a href="{{ ret(url_for('reports_page')) }}">{{ t('page.reports') }}</a> ·
+        <a href="{{ ret(url_for('paper_page')) }}">{{ t('nav.paper') }}</a> ·
+        <a href="#cockpit-diagnostics">{{ t('dashboard.quick_diagnostics_anchor') }}</a>
+      </div>
+
+      <div class="card-title">{{ t('dashboard.complete_trade_charts_card_title') }}</div>
+      <p class="text-dim text-small" style="margin:4px 0 10px 0;">
+        {{ t('dashboard.complete_trade_charts_card_sub') }}
+      </p>
+      <div class="form-row flex-wrap" style="gap:8px;">
+        {% with command='complete-trade-charts', args='--latest --limit 50 --local-only --window-before-minutes 30 --window-after-minutes 90 --json', label=t('reports.complete_trade_charts_title') ~ ' (local)', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='complete-trade-charts', args='--latest --limit 50 --fetch-missing-candles --window-before-minutes 30 --window-after-minutes 90 --json', label=t('reports.complete_trade_charts_title') ~ ' (+IBKR)', return_to='/dashboard', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
       </div>
     </div>
   </div>
-  <div class="text-small text-dim" style="margin-bottom: 10px;">
-    <strong>{{ t('dashboard.current_strategy') }}:</strong>
-    {% if active_paper_strategy_entry %}{{ active_paper_strategy_entry.display_name }}{% else %}{{ strategy_selection.active_paper_strategy }}{% endif %}
+
+  <div class="text-small text-dim mb-16">
+    <strong>{{ t('dashboard.compact_strategy_line') }}</strong>
+    {% if active_paper_strategy_entry %}
+      {{ active_paper_strategy_entry.display_name }}
+    {% else %}
+      {{ strategy_selection.active_paper_strategy }}
+    {% endif %}
     · <strong>{{ t('dashboard.trigger_line') }}</strong>
     <a href="{{ ret(url_for('strategies')) }}">Strategy Control Center</a>
   </div>
-  <div class="card" style="margin-bottom: 16px; border: 1px solid var(--border, #2a2a2e);">
+
+  <details id="cockpit-diagnostics" class="section" style="margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border, #2a2a2e); border-radius: 6px;">
+    <summary style="cursor:pointer; list-style:none;">{{ t('dashboard.dev_engine_diagnostics_fold') }}</summary>
+    <div class="mt-12">
+
+  <div class="card mb-16" style="border: 1px solid var(--border, #2a2a2e);">
     <div class="card-title">{{ t('dashboard.report_center_title') }}</div>
     <p class="text-small text-dim" style="margin:0 0 8px 0;">
       {{ t('dashboard.report_center_p') }} <a href="{{ ret('/reports') }}"><strong>{{ t('dashboard.open_reports') }}</strong></a>.
@@ -131,6 +215,7 @@
       · News check: <code>{{ (market_news_state.last_result or {}).get('telegram_status', '—') }}</code>
     </div>
   </div>
+
   <div class="section">
     <h2>{{ t('dashboard.today_safety') }}</h2>
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
@@ -162,7 +247,7 @@
           <ul class="text-small">{% for h in (premarket_brief.headlines or [])[:3] %}<li>{{ h.title }}{% if h.symbol %} ({{ h.symbol }}){% endif %}</li>{% else %}<li class="text-dim">—</li>{% endfor %}</ul>
           <div class="text-dim text-small">Optional email: {% if report_email.by_report and 'premarket_brief' in report_email.by_report %}{{ report_email.by_report['premarket_brief'].status }}{% else %}not sent — brief still on disk / <a href="/reports">Reports</a>{% endif %}</div>
         {% else %}
-          <div class="text-dim text-small">No pre-market brief on disk yet. Use Research → <em>Generate Pre-Market Brief</em> or run <code>python -m bot.cli premarket-brief</code> (default ~08:30 NY in docs).</div>
+          <div class="text-dim text-small">No pre-market brief on disk yet.</div>
         {% endif %}
       </div>
       <div class="card" style="grid-column: 1 / -1;">
@@ -171,7 +256,7 @@
       </div>
       <div class="card" style="grid-column: 1 / -1;">
         <div class="card-title">6 · Automatic paper loop readiness (60&nbsp;min smoke prep)</div>
-        <p class="text-dim text-small" style="margin:0 0 8px 0;">Read-only file snapshot. Does <strong>not</strong> start the auto loop. NY session reference: <code>America/New_York</code> — open 09:30, new entries 09:45–15:30 (config), wind-down 15:55, close 16:00; daily report window 16:05–16:30 (manual).</p>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;">Read-only file snapshot. Does <strong>not</strong> start the auto loop.</p>
         <div class="card-value text-small" style="margin-bottom:6px;">
           {% if auto_loop_readiness and auto_loop_readiness.get('readiness') == 'Ready' %}
             <span class="pill good">Ready</span>
@@ -180,13 +265,11 @@
           {% endif %}
         </div>
         <div class="card-sub text-small">Reason: {{ auto_loop_readiness.get('readiness_reason') if auto_loop_readiness else '—' }}</div>
-        <div class="card-sub text-small" style="margin-top:4px;">Next safe action: <strong class="text-mono">{{ auto_loop_readiness.get('next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
         <div class="mt-8">{% with command='auto-loop-readiness', label='Check Auto Loop Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
-        <p class="text-dim text-small" style="margin:8px 0 0 0;">The automatic intraday paper <strong>loop</strong> is <strong>not</strong> started from this page. After this checklist is green, plan any timed smoke test from a terminal (operator-only).</p>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
-        <div class="card-title">7 · Morning paper test readiness (future US morning smoke)</div>
-        <p class="text-dim text-small" style="margin:0 0 8px 0;">Window <strong>09:45–11:30</strong> <code>America/New_York</code> · no “Start morning loop” here. Refreshes the same file snapshot as the check below.</p>
+        <div class="card-title">7 · Morning paper test readiness</div>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;">Same file snapshot refreshed by the readiness check.</p>
         <div class="card-value text-small" style="margin-bottom:6px;">
           {% if auto_loop_readiness and auto_loop_readiness.get('morning_readiness') == 'Ready' %}
             <span class="pill good">Ready</span>
@@ -195,29 +278,24 @@
           {% endif %}
         </div>
         <div class="card-sub text-small">{{ auto_loop_readiness.get('morning_readiness_reason') if auto_loop_readiness else '—' }}</div>
-        <div class="card-sub text-small" style="margin-top:4px;">Next: <strong class="text-mono">{{ auto_loop_readiness.get('morning_next_safe_action') if auto_loop_readiness else '—' }}</strong></div>
         <div class="mt-8">{% with command='auto-loop-readiness', label='Check Morning Paper Readiness', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}</div>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
         <div class="card-title">8 · Full Auto Paper Supervisor</div>
-        <p class="text-dim text-small" style="margin:0 0 8px 0;">
-          Outer loop: NY window + gates + optional Telegram blockers, then starts the same ICT/SMC automatic paper engine. <strong>PAPER ONLY</strong>. UI shows file-level readiness (no TWS TCP on page load).
-        </p>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;"><strong>PAPER ONLY</strong>. Does not start runs from dashboard render.</p>
         <div class="card-value text-small" style="margin-bottom:6px;">
           Status: <code>{{ full_auto_readiness.get('status') if full_auto_readiness else '—' }}</code>
           · {% if full_auto_readiness and full_auto_readiness.get('ok') %}<span class="pill good">ready (file)</span>{% else %}<span class="pill warn">not ready</span>{% endif %}
         </div>
-        <div class="card-sub text-small">Next: {{ full_auto_readiness.get('next_action') if full_auto_readiness else '—' }} · NY: {{ full_auto_readiness.get('current_ny_hhmm') if full_auto_readiness else '—' }}</div>
         <div class="form-row mt-8" style="flex-wrap:wrap; gap:8px;">
           {% with command='full-auto-paper-readiness', label='Full Auto Readiness', return_to='/dashboard', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
           {% with command='run-full-auto-paper-supervisor', label='Dry Run Supervisor', return_to='/dashboard', btn_class='ghost', args='--dry-run --json' %}{% include "_command_form.html" %}{% endwith %}
           {% with command='run-full-auto-paper-supervisor', label='Start Full Auto Supervisor', return_to='/dashboard', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
         </div>
-        <p class="text-dim text-small" style="margin:8px 0 0 0;"><a href="/paper">Paper</a> · <a href="/reports">Reports</a> · Same 8h UI timeout as the engine.</p>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
         <div class="card-title">{{ t('dashboard.automatic_engine') }}</div>
-        <p class="text-dim text-small" style="margin:0 0 8px 0;"><strong>Mode: PAPER ONLY</strong> — LIMIT brackets with stop/target. No market orders, no live trading. Morning <strong>09:45–11:30</strong> NY · Full session new entries <strong>09:45–15:30</strong> NY (wind-down per config). Engine uses the same gates as <code>run-automatic-paper-engine</code> (does <strong>not</strong> require legacy <code>READY_FOR_PAPER_TEST</code>).</p>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;"><strong>Mode: PAPER ONLY</strong>.</p>
         <div class="card-value text-small" style="margin-bottom:6px;">
           {% if automatic_paper_engine and automatic_paper_engine.get('ok') %}
             <span class="pill good">Gates pass (file-level)</span>
@@ -225,12 +303,6 @@
             <span class="pill warn">Blocked or incomplete</span>
           {% endif %}
         </div>
-        <ul class="text-small text-dim" style="margin:6px 0 8px 1.1rem;">
-          <li>Strategy: <code>ict_smc_intraday_v1</code> · 1m trigger + HTF/5m chain (enforced in execution)</li>
-          <li>Remaining budget: <strong>{% if paper_sizing_ledger.get('daily_remaining_notional_usd') is not none %}${{ "{:,.0f}".format(paper_sizing_ledger.get('daily_remaining_notional_usd', 0)) }}{% else %}—{% endif %}</strong> · Kill: {% if runtime.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}</li>
-          <li>Loop reconcile hint: <code>{{ automatic_paper_engine.get('reconciliation_loop_state') or '—' if automatic_paper_engine else '—' }}</code></li>
-          <li>Blockers: {% set engb = automatic_paper_engine.get('blockers') if automatic_paper_engine else [] %}{% for b in engb[:4] %}<span class="pill warn">{{ b }}</span> {% else %}<span class="text-dim">—</span>{% endfor %}</li>
-        </ul>
         <div class="form-row" style="flex-wrap:wrap; gap:8px;">
           {% with command='automatic-paper-engine-readiness', label='Check Automatic Engine Readiness', return_to='/dashboard', btn_class='ghost', args='--json' %}{% include "_command_form.html" %}{% endwith %}
           {% with command='intraday-paper-on', label='Turn Paper Runtime ON', return_to='/dashboard', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
@@ -238,14 +310,9 @@
           {% with command='run-automatic-paper-engine', label='Start Morning Paper Engine', return_to='/dashboard', btn_class='warn', args='--session morning --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
           {% with command='run-automatic-paper-engine', label='Start Full-Day Paper Engine', return_to='/dashboard', btn_class='warn', args='--session full --telegram --report-on-exit' %}{% include "_command_form.html" %}{% endwith %}
         </div>
-        <p class="text-dim text-small" style="margin:8px 0 0 0;">Use <a href="/reports">Reports</a> &amp; Journal after a run. Emergency: Kill switch above or <code>intraday-paper-off</code>. Long runs may take hours; the UI extends timeout to 8h for this command.</p>
       </div>
     </div>
   </div>
-
-  <details class="section" style="margin-top: 12px; padding: 8px 12px; border: 1px solid var(--border, #2a2a2e); border-radius: 6px;">
-    <summary style="cursor: pointer; list-style: none;"><span class="text-dim">{{ t('dashboard.diagnostics_fold') }}</span></summary>
-    <div class="mt-12">
 
   <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
     <div class="card">
@@ -260,6 +327,31 @@
     <div class="card">
       <div class="card-title">Open positions</div>
       <div class="card-value">{{ positions|length }}</div>
+    </div>
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-title">{{ t('dashboard.data_quality_title') }}</div>
+      {% if trader_dash.data_quality.no_trade_records %}
+        <p class="text-dim text-small">{{ t('dashboard.no_trade_records_yet') }}</p>
+      {% else %}
+        <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
+          <li>{{ t('dashboard.dq_closed_exit') }}: <strong>{{ trader_dash.data_quality.closed_with_exit }}</strong></li>
+          <li>{{ t('dashboard.dq_missing_exit') }}: <strong>{{ trader_dash.data_quality.missing_exit }}</strong></li>
+          <li>{{ t('dashboard.dq_charts_ok') }}: <strong>{{ trader_dash.data_quality.charts_available }}</strong></li>
+          <li>{{ t('dashboard.dq_charts_miss') }}: <strong>{{ trader_dash.data_quality.charts_missing_candles }}</strong></li>
+          <li>{{ t('dashboard.dq_usd_rel') }}:
+            {% if trader_dash.data_quality.reliable_usd_pnl is none %}
+              <span class="text-dim">—</span>
+            {% elif trader_dash.data_quality.reliable_usd_pnl %}
+              <strong>{{ t('journal.yes') }}</strong>
+            {% else %}
+              <strong>{{ t('journal.no') }}</strong>
+            {% endif %}
+          </li>
+        </ul>
+        {% if trader_dash.data_quality.charts_missing_candles > 0 %}
+          <p class="text-dim text-small mt-8">{{ t('dashboard.charts_incomplete_explainer') }}</p>
+        {% endif %}
+      {% endif %}
     </div>
   </div>
 
@@ -439,7 +531,7 @@
         </div>
         {% endfor %}
       {% else %}
-        <div class="text-dim">No data/runtime/first_paper_pass_last.json or empty submissions</div>
+        <div class="text-dim">No first_paper snapshot or empty submissions</div>
       {% endif %}
     </div>
 
@@ -472,6 +564,7 @@
     <div class="text-dim">No commands in this session yet</div>
     {% endif %}
   </div>
+
     </div>
   </details>
 {% endblock %}

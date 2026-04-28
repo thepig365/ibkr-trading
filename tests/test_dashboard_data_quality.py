@@ -68,3 +68,26 @@ def test_dashboard_data_quality_zh(tmp_path: Path) -> None:
     assert r.status_code == 200
     assert "数据质量" in r.text
     assert "暂无交易记录" in r.text
+
+
+def test_dashboard_missing_candles_zh_body_when_ledger_misses_charts(tmp_path: Path) -> None:
+    pod = tmp_path / "data" / "paper_orders"
+    pod.mkdir(parents=True)
+    p = pod / "miss-intraday-paper-orders.jsonl"
+    row = {
+        "symbol": "SPY",
+        "timestamp": "2026-01-02T15:30:00",
+        "submitted": True,
+        "strategy_id": "t",
+        "signal_category": "x",
+        "direction": "long",
+        "entry": 100.0,
+        "stop": 99.0,
+        "exit_time": "2026-01-02T16:00:00",
+        "exit_price": 101.0,
+    }
+    p.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    r = _client(tmp_path).get("/dashboard?lang=zh")
+    assert r.status_code == 200
+    # Either explainer block or diagnostics copy references missing 1m candles.
+    assert "1分钟" in r.text or "K线" in r.text

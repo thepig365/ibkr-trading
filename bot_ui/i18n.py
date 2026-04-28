@@ -15,7 +15,7 @@ M: dict[str, dict[str, str]] = {
     # base / nav
     "app.title_suffix": {"en": "— Strategy Lab (Local)", "zh": "— Strategy Lab（本地）"},
     "brand.sub": {"en": "Local · Paper Only", "zh": "本地 · 仅纸面"},
-    "nav.dashboard": {"en": "Trader Dashboard", "zh": "交易员控制台"},
+    "nav.dashboard": {"en": "Trader Cockpit", "zh": "交易员驾驶舱"},
     "nav.research": {"en": "Research", "zh": "研究"},
     "nav.watchlist": {"en": "Watchlist", "zh": "自选股"},
     "nav.signals": {"en": "Signals", "zh": "信号"},
@@ -56,10 +56,10 @@ M: dict[str, dict[str, str]] = {
         "zh": "页面加载本身不会连接 IBKR。",
     },
     # dashboard
-    "page.dashboard": {"en": "Trader Dashboard", "zh": "交易员控制台"},
+    "page.dashboard": {"en": "Trader Cockpit", "zh": "交易员驾驶舱"},
     "dashboard.sub": {
-        "en": "Your day at a glance — everything here is from saved files or your last approved safe action (button). No broker connection when this page loads. Nothing runs until you click a button.",
-        "zh": "今日一览 — 数据来自已保存文件或你上次点击的「已批准安全操作」。本页加载时不连接经纪商。未点击按钮前不会执行任何操作。",
+        "en": "Your trading day — file-only snapshot: no broker connection on load. Diagnostics are folded below.",
+        "zh": "交易日一览 — 仅本地文件快照，页面加载时不连接经纪商。技术诊断折叠在页面下方。",
     },
     "dashboard.current_strategy": {"en": "Current paper strategy", "zh": "当前纸面策略"},
     "dashboard.trigger_line": {
@@ -82,9 +82,42 @@ M: dict[str, dict[str, str]] = {
         "zh": "9 · 自动纸面交易引擎（ICT/SMC）",
     },
     "dashboard.paper_safety": {"en": "Paper safety", "zh": "纸面安全"},
-    "dashboard.trader_title": {"en": "Trader command center", "zh": "交易员控制台"},
+    "dashboard.trading_day_summary": {"en": "Trading Day Summary", "zh": "交易日摘要"},
+    "dashboard.engine_label": {"en": "Engine", "zh": "引擎"},
+    "dashboard.engine_waiting": {"en": "Waiting", "zh": "等待"},
+    "dashboard.engine_running": {"en": "Running", "zh": "运行中"},
+    "dashboard.engine_blocked": {"en": "Blocked", "zh": "阻断"},
+    "dashboard.perf_pending_heading": {"en": "Mini Performance", "zh": "迷你表现"},
+    "dashboard.mini_performance_pending_text": {
+        "en": "Not enough closed trades yet — cumulative R appears after exits are recorded.",
+        "zh": "表现等待中：已有平仓不足以绘制累计 R — 记录在平仓后继续。",
+    },
+    "dashboard.explain_open_no_closed_body": {
+        "en": "Trades have been submitted/opened, but no closed trades with exit data are recorded yet. R curve and P&L analytics will appear after exits are recorded.",
+        "zh": "当前已有开仓/提交记录，但尚无已记录平仓的交易；R曲线与盈亏统计会在记录到平仓后显示。",
+    },
+    "dashboard.explain_missing_candles_body": {
+        "en": "Some trades are missing local 1-minute candles. Complete Trade Charts can fetch IBKR read-only candles for traded symbols and generate charts.",
+        "zh": "部分交易缺少本地1分钟K线。可用「补齐交易图表」从 IBKR 只读补齐已交易标的K线并生成图表。",
+    },
+    "dashboard.quick_diagnostics_anchor": {"en": "Diagnostics", "zh": "诊断"},
+    "dashboard.complete_trade_charts_card_title": {
+        "en": "Complete Trade Charts",
+        "zh": "补齐交易图表",
+    },
+    "dashboard.complete_trade_charts_card_sub": {
+        "en": "Fetch missing IBKR 1m candles for traded symbols and generate charts. Read-only; no orders. Clicking submits the allowlisted CLI (same as Reports / Trades); nothing runs on dashboard load.",
+        "zh": "从 IBKR 只读补齐已交易标的的1分钟K线并生成图表；不会下单。以下为已批准 CLI 表单（与报告/记录页同源）；不会在仪表板加载时自动执行。",
+    },
+    "dashboard.compact_strategy_line": {
+        "en": "Strategy:",
+        "zh": "策略：",
+    },
     "dashboard.trader_today_r": {"en": "Today R (NY, closed)", "zh": "今日 R（美东已平仓）"},
     "dashboard.trader_cum_r": {"en": "Σ R (closed)", "zh": "Σ R（已平仓）"},
+    "dashboard.trader_open_pipeline": {"en": "Open or submitted", "zh": "开仓或已提交"},
+    "dashboard.trader_closed_exit": {"en": "Closed with exit", "zh": "已记录平仓"},
+    "dashboard.trader_charts_miss_label": {"en": "Missing trade charts", "zh": "缺少交易图"},
     "dashboard.trader_open": {"en": "Open (ledger)", "zh": "持仓（台账）"},
     "dashboard.trader_closed": {"en": "Closed (ledger)", "zh": "已平仓（台账）"},
     "dashboard.trader_skipped": {"en": "Skipped", "zh": "已跳过"},
@@ -102,6 +135,22 @@ M: dict[str, dict[str, str]] = {
         "en": "Some trade review charts are incomplete — local 1-minute candles may still be missing.",
         "zh": "部分交易复盘图不齐 — 可能仍缺少本地 1 分钟 K 线数据。",
     },
+    "dashboard.action_missing_exit_records": {
+        "en": "Missing exit records for open/submitted trades — reconcile in Trade Records.",
+        "zh": "开仓/提交类记录尚缺平仓明细 — 请在交易记录中核对。",
+    },
+    "dashboard.action_telegram_listener": {
+        "en": "Telegram command listener appears down — check launchd / Settings.",
+        "zh": "Telegram 命令监听可能未启动 — 请查看 launchctl 与 Settings。",
+    },
+    "dashboard.action_engine_gates": {
+        "en": "Automatic paper engine readiness blocked (configuration / gates — see Diagnostics).",
+        "zh": "自动纸面引擎就绪未通过 — 请到下方诊断区块查看门禁原因。",
+    },
+    "dashboard.action_tws_hints": {
+        "en": "TWS / reconcile hints failing — refresh Open Orders / Paper Reconcile safely.",
+        "zh": "本地对账提示失败 — 请使用安全 CLI 刷新 Open Orders / Paper Reconcile。",
+    },
     "dashboard.data_quality_title": {"en": "Data Quality", "zh": "数据质量"},
     "dashboard.no_trade_records_yet": {"en": "No trade records yet.", "zh": "暂无交易记录。"},
     "dashboard.dq_closed_exit": {"en": "Closed trades with exit data", "zh": "已有平仓数据"},
@@ -113,9 +162,21 @@ M: dict[str, dict[str, str]] = {
         "en": "Some trade charts are missing because local 1-minute candles are not available yet.",
         "zh": "部分交易图表缺失，因为本地尚无对应的1分钟K线。",
     },
+    "dashboard.col_time": {"en": "Time", "zh": "时间"},
+    "dashboard.col_direction": {"en": "Direction", "zh": "方向"},
+    "dashboard.col_status": {"en": "Status", "zh": "状态"},
+    "dashboard.col_entry": {"en": "Entry", "zh": "入场"},
+    "dashboard.col_exit": {"en": "Exit", "zh": "平仓"},
+    "dashboard.col_r": {"en": "R", "zh": "R"},
+    "dashboard.col_chart": {"en": "Chart", "zh": "图表"},
+    "dashboard.chart_png_link": {"en": "PNG", "zh": "PNG"},
+    "dashboard.dev_engine_diagnostics_fold": {
+        "en": "Developer / Engine Diagnostics",
+        "zh": "开发者与引擎诊断",
+    },
     "dashboard.diagnostics_fold": {
-        "en": "Show developer & engine diagnostics (raw hints, supervisor, commands)",
-        "zh": "展开开发者与引擎诊断（原始提示、监督器、命令）",
+        "en": "Developer / Engine Diagnostics — expand",
+        "zh": "开发者与引擎诊断 — 展开",
     },
     # paper
     "page.paper": {"en": "Paper Trading", "zh": "纸面交易"},

@@ -33,7 +33,7 @@ def test_unknown_lang_defaults_to_english(tmp_project: Path) -> None:
     r = c.get("/dashboard?lang=de")
     assert r.status_code == 200
     assert 'lang="en"' in r.text
-    assert "交易员控制台" not in r.text
+    assert "交易员驾驶舱" not in r.text
 
 
 def test_lang_switcher_present(tmp_project: Path) -> None:
@@ -51,4 +51,4 @@ def test_cookie_persists_locale(tmp_project: Path) -> None:
     assert c.cookies.get(COOKIE_NAME) == "zh"
     r2 = c.get("/dashboard")
     assert r2.status_code == 200
-    assert "交易员控制台" in r2.text
+    assert "交易员驾驶舱" in r2.text

@@ -27,7 +27,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 页面 | 路径 | 用途 |
 |------|------|------|
-| Dashboard | `/dashboard` | **交易员控制台**：今日已平仓 R（美东）、累计 R、账本开/平/跳过、复盘图缺口、**数据质量**（是否有平仓记录、缺平仓条数、复盘图 / 本地 1m K 线是否齐、美元盈亏是否在台账中可靠）、迷你累计 R、最新五笔；账户快照、Operational snapshot、引擎健康等收在折叠区「开发者与引擎诊断」——仍只读磁盘，**加载不连 IBKR** |
+| Dashboard | `/dashboard` | **交易员驾驶舱**：**交易日摘要**（引擎 Waiting / Running / Blocked、今日 R、开仓或已提交、已记录平仓、跳过、复盘图缺口）、白话解释（开仓/提交但未平仓 vs 复盘图缺本地 1m）、**待办与快捷入口**（含「补齐交易图表」白名单按钮；**不会在 GET `/dashboard` 时执行**）；**迷你累计 R** 有足够平仓后出现。**详细「数据质量」指标、Today's safety / readiness、报表中心快照、Operational snapshot、白名单命令区等**均在默认折叠的「**开发者与引擎诊断**」内 — 仍只读磁盘，**页面加载不连 IBKR** |
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单） |
@@ -61,7 +61,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 区域 | 在问什么 |
 |------|----------|
-| **Dashboard** | **第一层（交易员）**：今日已平仓 R（美东）、ΣR、账本状态、**数据质量**、复盘图缺口、待办、迷你 R、最近五笔与报告/交易记录入口。**第二层（折叠）**：账户文件摘要、operational hints、白名单命令输出、引擎健康等调试信息 |
+| **Dashboard** | **第一层（交易员）**：交易日摘要 → 白话说明（条件显示）→ 待办 → 最近五笔（含图表链接）→ 迷你表现 → 快捷入口（`/trades`、`/reports`、`/paper`、补齐交易图表、`#cockpit-diagnostics`）。**第二层（折叠默认关）**：数据质量分项、Today's safety / readiness（含 loop / morning / full-auto / automatic engine）、Report center、账户与 operational hints、白名单 CLI 表单与最近一次 stdout。**缺本地 1m K 线图不齐时**：用 **`/reports`/`/trades`/Dashboard上的「补齐交易图表」**，点击才会走只读拉线；**不因打开 Dashboard 而自动 fetch** |
 | **Research → Pre-Market Brief** | 最近一份盘前简报的**时间、 tone、各新闻源状态、邮件是否已发**；可用按钮**生成/邮件**（不连 TWS 直至你点受控命令） |
 | **Signals（ICT）** | 每行是 **Ready to test / Watching / Blocked** 等口语状态 + 下一条件；**不是**交易指令 |
 | **Paper** | **现在能否做纸面试**（文件侧门控 + 可选「不确定」= 缺信号/TWS 不可见等）、**风险上限**、**最近一笔纸单结果** |
