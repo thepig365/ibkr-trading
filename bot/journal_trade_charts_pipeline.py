@@ -303,15 +303,9 @@ def journal_chart_cell(project_root: Path, row_like: Any) -> JournalChartCell:
     bi = str(getattr(row_like, "bracket_integrity", "") or "").strip().lower()
     if bi == "incomplete":
         return JournalChartCell("pending")
-    payload = find_paper_order_payload_by_trade_id(root, tid)
-    if payload is None:
-        return JournalChartCell("not_applicable")
-    cls = classify_paper_trade_for_auto_chart(payload)
-    if cls == "pending":
-        return JournalChartCell("pending")
-    if cls == "not_applicable":
-        return JournalChartCell("not_applicable")
-    # ready_to_draw at payload level — still need candles on disk for PNG
+    # IMPORTANT: do not call find_paper_order_payload_by_trade_id per row — it scans
+    # every JSONL line each time and makes /journal O(rows × total_lines) (timeouts).
+    # Row fields + local candle probe are enough for the table column.
     has_candles = candles_available_for_journal_row(root, row_like)
     if has_candles:
         return JournalChartCell("ready_to_draw")
