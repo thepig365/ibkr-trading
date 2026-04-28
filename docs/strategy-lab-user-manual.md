@@ -27,7 +27,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 页面 | 路径 | 用途 |
 |------|------|------|
-| Dashboard | `/dashboard` | **交易员驾驶舱**：**交易日摘要**（引擎 Waiting / Running / Blocked、今日 R、「已提交记录 / 已发送至券商 / 券商确认持仓（来自最近一次快照）」等）、白话解释。**「连接 / 刷新 TWS」** 才 writes `data/runtime/broker_snapshot_last.json`（只读 API；不下单）；**普通 GET 不连 IBKR**。明细仍见「开发者与折叠区」——只读磁盘 |
+| Dashboard | `/dashboard` | **交易员驾驶舱**：首屏 **「交易日记核心」**含 **累计 R 曲线**（主健康度；已平仓样本不足时有说明）、**美元资金曲线**（仅当每笔已平仓 JSON 均有可靠已实现美元盈亏时显示，不伪造）、**Edge 健康度**（累计 R、当前/最大回撤 R、已平仓笔数、胜率/平均 R 等）、**数据质量**与**跳过原因（Top）**；其下为 **交易日摘要**（今日 R、ΣR、已提交/已发送券商、券商快照占位、已平仓、跳过、缺图等）、**连接/刷新 TWS**、**需要处理**（含未刷新券商快照时提示）、**最新交易**。**「连接 / 刷新 TWS」** 才写入 `data/runtime/broker_snapshot_last.json`（只读；GET 不连 IBKR）。**Reports** 可查更全曲线；明细命令/stdout/`launchd`/门控等在默认折叠 **「开发者与引擎诊断」** |
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单）；含 **券商快照**摘要与「连接 / 刷新 TWS」（同 Dashboard，只读；GET 不自动连 IBKR） |

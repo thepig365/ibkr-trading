@@ -182,6 +182,48 @@ M: dict[str, dict[str, str]] = {
         "en": "TWS / reconcile hints failing — refresh Open Orders / Paper Reconcile safely.",
         "zh": "本地对账提示失败 — 请使用安全 CLI 刷新 Open Orders / Paper Reconcile。",
     },
+    "dashboard.action_tws_broker_not_checked": {
+        "en": "Broker snapshot not refreshed — click Connect / Refresh TWS (read-only) to align local records with broker truth.",
+        "zh": "尚未刷新券商快照 — 请点击「连接 / 刷新 TWS」（只读）以核对本地与券商状态。",
+    },
+    "dashboard.journal_core_heading": {
+        "en": "Trading journal core",
+        "zh": "交易日记核心",
+    },
+    "dashboard.journal_core_blurb": {
+        "en": "Primary health: cumulative R from closed trades. USD equity only when every closed trade has explicit realized USD in JSON.",
+        "zh": "策略健康主指标为已平仓累计 R；美元资金曲线仅当每笔已平仓在 JSON 中均有明确已实现美元盈亏时才显示。",
+    },
+    "dashboard.cum_r_curve_title": {"en": "Cumulative R curve", "zh": "累计R曲线"},
+    "dashboard.cum_r_curve_empty": {
+        "en": "Not enough closed trades yet. The R curve will appear after exit records are available.",
+        "zh": "已平仓样本不足。记录到平仓后，R曲线会显示。",
+    },
+    "dashboard.usd_equity_title": {"en": "USD equity curve", "zh": "美元资金曲线"},
+    "dashboard.usd_equity_hidden": {
+        "en": "USD equity curve is hidden until reliable realized USD P&L exists for all closed trades.",
+        "zh": "美元资金曲线会在可靠的已实现美元盈亏记录出现后显示。",
+    },
+    "dashboard.usd_reports_link": {
+        "en": "Full analytics on Reports",
+        "zh": "完整分析见 Reports",
+    },
+    "dashboard.edge_health_title": {"en": "Edge health", "zh": "Edge 健康度"},
+    "dashboard.edge_total_r": {"en": "Total R", "zh": "累计R"},
+    "dashboard.edge_curr_dd": {"en": "Current drawdown R", "zh": "当前回撤R"},
+    "dashboard.edge_max_dd": {"en": "Max drawdown R", "zh": "最大回撤R"},
+    "dashboard.edge_closed_n": {"en": "Closed trades", "zh": "已平仓笔数"},
+    "dashboard.edge_win_rate": {"en": "Win rate", "zh": "胜率"},
+    "dashboard.edge_avg_r": {"en": "Average R", "zh": "平均R"},
+    "dashboard.edge_not_enough": {
+        "en": "Not enough closed trades yet.",
+        "zh": "已平仓样本不足。",
+    },
+    "dashboard.edge_stats_need_two": {
+        "en": "Win rate and average R need at least two closed trades.",
+        "zh": "胜率与平均R至少需要两笔已平仓交易。",
+    },
+    "dashboard.skipped_breakdown_title": {"en": "Skipped reasons (top)", "zh": "跳过原因（Top）"},
     "dashboard.data_quality_title": {"en": "Data Quality", "zh": "数据质量"},
     "dashboard.no_trade_records_yet": {"en": "No trade records yet.", "zh": "暂无交易记录。"},
     "dashboard.dq_closed_exit": {"en": "Closed trades with exit data", "zh": "已有平仓数据"},

@@ -57,6 +57,14 @@ def test_drawdown_from_r_curve() -> None:
     ja = build_journal_analytics(rows)
     assert ja.max_drawdown_r is not None
     assert ja.max_drawdown_r >= 0
+    assert ja.current_drawdown_r is not None
+
+
+def test_current_drawdown_zero_at_equity_high() -> None:
+    ja = build_journal_analytics(
+        [_closed("2026-05-01T10:00:00", "A", 10.0, 9.5, 12.0, "2026-05-01T15:00:00")]
+    )
+    assert ja.current_drawdown_r == 0.0
 
 
 def test_skipped_reason_counts() -> None:

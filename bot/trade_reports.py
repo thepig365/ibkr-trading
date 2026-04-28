@@ -142,6 +142,7 @@ class JournalAnalytics:
     expectancy_r: float | None = None
     profit_factor_r: float | None = None
     max_drawdown_r: float | None = None
+    current_drawdown_r: float | None = None
     has_reliable_pnl_usd: bool = False
     cumulative_r_points: list[tuple[str, float]] = field(default_factory=list)
     cumulative_pnl_points: list[tuple[str, float]] = field(default_factory=list)
@@ -316,9 +317,10 @@ def build_journal_analytics(records: list[TradeLedgerRecord]) -> JournalAnalytic
         out.cumulative_r_svg = svg_line_series(list(zip(xr, yn_c)), stroke="#22c55e")
         out.drawdown_r_svg = svg_line_series(list(zip(xr, ydd)), stroke="#f97316")
 
-    # max drawdown R (from running peak)
+    # max drawdown R (from running peak); last point = drawdown vs peak after last trade
     max_dd = max(dd_pts) if dd_pts else 0.0
     out.max_drawdown_r = float(max_dd)
+    out.current_drawdown_r = float(dd_pts[-1]) if dd_pts else None
 
     # daily R
     daily: dict[str, list[float]] = {}
@@ -623,6 +625,35 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
             out["explain_submitted_no_broker_positions"] = True
     elif snap is None and submitted_n > 0:
         pass
+
+    ja = build_journal_analytics(rows)
+    enough_closed = ja.closed_trades >= 1
+    enough_stats = ja.closed_trades >= 2
+    out["journal"] = {
+        "cum_r_svg": ja.cumulative_r_svg or "",
+        "cum_r_show": enough_closed and bool(ja.cumulative_r_svg),
+        "usd_svg": ja.cumulative_pnl_svg or "",
+        "usd_show": bool(ja.has_reliable_pnl_usd),
+        "edge": {
+            "enough_closed": enough_closed,
+            "enough_stats": enough_stats,
+            "total_r": ja.total_r_closed,
+            "current_dd_r": ja.current_drawdown_r,
+            "max_dd_r": ja.max_drawdown_r,
+            "closed_n": ja.closed_trades,
+            "win_rate": ja.win_rate_closed,
+            "avg_r": ja.avg_r_closed,
+        },
+        "skipped_top": sorted(
+            ja.skipped_reason_counts.items(), key=lambda x: (-x[1], x[0])
+        )[:12],
+    }
+
+    ar = list(out.get("action_required") or [])
+    if snap is None:
+        ar.append("tws_broker_not_checked")
+    out["action_required"] = ar
+
     return out
 
 

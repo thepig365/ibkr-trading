@@ -90,6 +90,99 @@
     </div>
 
     <div class="section mt-16">
+      <h2>{{ t('dashboard.journal_core_heading') }}</h2>
+      <p class="text-dim text-small" style="margin:0 0 14px 0;">{{ t('dashboard.journal_core_blurb') }}</p>
+      {% set j = trader_dash.journal %}
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title">{{ t('dashboard.cum_r_curve_title') }}</div>
+          {% if j.cum_r_show %}
+            <div style="overflow:auto;">{{ j.cum_r_svg|safe }}</div>
+          {% else %}
+            <p class="text-small text-dim" style="margin:0;">{{ t('dashboard.cum_r_curve_empty') }}</p>
+          {% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.usd_equity_title') }}</div>
+          {% if j.usd_show %}
+            <div style="overflow:auto;">{{ j.usd_svg|safe }}</div>
+            <p class="text-small mt-8" style="margin:0;">
+              <a href="{{ ret(url_for('reports_page')) }}">{{ t('dashboard.usd_reports_link') }}</a>
+            </p>
+          {% else %}
+            <p class="text-small text-dim" style="margin:0;">{{ t('dashboard.usd_equity_hidden') }}</p>
+          {% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.edge_health_title') }}</div>
+          {% set e = j.edge %}
+          {% if e.enough_closed %}
+            <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
+              <li>{{ t('dashboard.edge_total_r') }}: <strong>{% if e.total_r is not none %}{{ "%.2f"|format(e.total_r) }}{% else %}—{% endif %}</strong></li>
+              <li>{{ t('dashboard.edge_curr_dd') }}: <strong>{% if e.current_dd_r is not none %}{{ "%.2f"|format(e.current_dd_r) }}{% else %}—{% endif %}</strong></li>
+              <li>{{ t('dashboard.edge_max_dd') }}: <strong>{% if e.max_dd_r is not none %}{{ "%.2f"|format(e.max_dd_r) }}{% else %}—{% endif %}</strong></li>
+              <li>{{ t('dashboard.edge_closed_n') }}: <strong>{{ e.closed_n }}</strong></li>
+              <li>{{ t('dashboard.edge_win_rate') }}:
+                {% if e.enough_stats and e.win_rate is not none %}
+                  <strong>{{ "%.1f"|format(e.win_rate * 100.0) }}%</strong>
+                {% else %}
+                  <span class="text-dim">—</span>
+                {% endif %}
+              </li>
+              <li>{{ t('dashboard.edge_avg_r') }}:
+                {% if e.enough_stats and e.avg_r is not none %}
+                  <strong>{{ "%.2f"|format(e.avg_r) }}</strong>
+                {% else %}
+                  <span class="text-dim">—</span>
+                {% endif %}
+              </li>
+              {% if not e.enough_stats and e.enough_closed %}
+              <li class="text-dim text-small" style="list-style:none;margin-left:-12px;">{{ t('dashboard.edge_stats_need_two') }}</li>
+              {% endif %}
+            </ul>
+          {% else %}
+            <p class="text-small text-dim" style="margin:0;">{{ t('dashboard.edge_not_enough') }}</p>
+          {% endif %}
+        </div>
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title">{{ t('dashboard.data_quality_title') }}</div>
+          {% if trader_dash.data_quality.no_trade_records %}
+            <p class="text-dim text-small">{{ t('dashboard.no_trade_records_yet') }}</p>
+          {% else %}
+            <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
+              <li>{{ t('dashboard.dq_closed_exit') }}: <strong>{{ trader_dash.data_quality.closed_with_exit }}</strong></li>
+              <li>{{ t('dashboard.dq_missing_exit') }}: <strong>{{ trader_dash.data_quality.missing_exit }}</strong></li>
+              <li>{{ t('dashboard.dq_charts_ok') }}: <strong>{{ trader_dash.data_quality.charts_available }}</strong></li>
+              <li>{{ t('dashboard.dq_charts_miss') }}: <strong>{{ trader_dash.data_quality.charts_missing_candles }}</strong></li>
+              <li>{{ t('dashboard.dq_usd_rel') }}:
+                {% if trader_dash.data_quality.reliable_usd_pnl is none %}
+                  <span class="text-dim">—</span>
+                {% elif trader_dash.data_quality.reliable_usd_pnl %}
+                  <strong>{{ t('journal.yes') }}</strong>
+                {% else %}
+                  <strong>{{ t('journal.no') }}</strong>
+                {% endif %}
+              </li>
+            </ul>
+            {% if trader_dash.data_quality.charts_missing_candles > 0 %}
+              <p class="text-dim text-small mt-8">{{ t('dashboard.charts_incomplete_explainer') }}</p>
+            {% endif %}
+          {% endif %}
+        </div>
+        {% if j.skipped_top %}
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title">{{ t('dashboard.skipped_breakdown_title') }}</div>
+          <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
+            {% for reason, cnt in j.skipped_top %}
+            <li><code>{{ reason }}</code> — {{ cnt }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="section mt-16">
       <h2 style="margin-bottom:8px;">{{ t('dashboard.connect_tws_btn') }}</h2>
       <p class="text-dim text-small" style="margin:0 0 10px 0;">{{ t('dashboard.connect_tws_sub') }}</p>
       <div class="form-row" style="gap:8px;">
@@ -159,6 +252,8 @@
               {{ t('dashboard.action_engine_gates') }}
             {% elif a == 'tws_hints_issue' %}
               {{ t('dashboard.action_tws_hints') }}
+            {% elif a == 'tws_broker_not_checked' %}
+              {{ t('dashboard.action_tws_broker_not_checked') }}
             {% else %}
               {{ a }}
             {% endif %}
@@ -215,19 +310,6 @@
         </div>
       {% else %}
         <div class="text-dim text-small">—</div>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>{{ t('dashboard.perf_pending_heading') }}</h2>
-    <div class="card">
-      {% if trader_dash.performance_pending %}
-        <div class="text-small">{{ t('dashboard.mini_performance_pending_text') }}</div>
-      {% elif trader_dash.mini_r_svg %}
-        <div style="overflow:auto;">{{ trader_dash.mini_r_svg|safe }}</div>
-      {% else %}
-        <div class="text-dim text-small">{{ t('dashboard.mini_performance_pending_text') }}</div>
       {% endif %}
     </div>
   </div>
@@ -392,31 +474,6 @@
     <div class="card">
       <div class="card-title">Open positions</div>
       <div class="card-value">{{ positions|length }}</div>
-    </div>
-    <div class="card" style="grid-column: 1 / -1;">
-      <div class="card-title">{{ t('dashboard.data_quality_title') }}</div>
-      {% if trader_dash.data_quality.no_trade_records %}
-        <p class="text-dim text-small">{{ t('dashboard.no_trade_records_yet') }}</p>
-      {% else %}
-        <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
-          <li>{{ t('dashboard.dq_closed_exit') }}: <strong>{{ trader_dash.data_quality.closed_with_exit }}</strong></li>
-          <li>{{ t('dashboard.dq_missing_exit') }}: <strong>{{ trader_dash.data_quality.missing_exit }}</strong></li>
-          <li>{{ t('dashboard.dq_charts_ok') }}: <strong>{{ trader_dash.data_quality.charts_available }}</strong></li>
-          <li>{{ t('dashboard.dq_charts_miss') }}: <strong>{{ trader_dash.data_quality.charts_missing_candles }}</strong></li>
-          <li>{{ t('dashboard.dq_usd_rel') }}:
-            {% if trader_dash.data_quality.reliable_usd_pnl is none %}
-              <span class="text-dim">—</span>
-            {% elif trader_dash.data_quality.reliable_usd_pnl %}
-              <strong>{{ t('journal.yes') }}</strong>
-            {% else %}
-              <strong>{{ t('journal.no') }}</strong>
-            {% endif %}
-          </li>
-        </ul>
-        {% if trader_dash.data_quality.charts_missing_candles > 0 %}
-          <p class="text-dim text-small mt-8">{{ t('dashboard.charts_incomplete_explainer') }}</p>
-        {% endif %}
-      {% endif %}
     </div>
   </div>
 
