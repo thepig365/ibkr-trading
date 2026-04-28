@@ -36,7 +36,9 @@ def _parse_ts_day(ts: str | None) -> date | None:
         return None
 
 
-def _hour_bucket_utc(ts: str | None) -> int | None:
+def _hour_bucket_ny(ts: str | None) -> int | None:
+    """Hour-of-day 0–23 in **America/New_York**, from any ISO-ish timestamp."""
+
     if not ts or not str(ts).strip():
         return None
     s = str(ts).strip()
@@ -83,6 +85,45 @@ def _closed_with_pnl(rec: TradeLedgerRecord) -> tuple[bool, float | None]:
     return p is not None, p
 
 
+def all_closed_trades_have_reliable_usd(records: list[TradeLedgerRecord]) -> bool:
+    """True only if every *closed* row has explicit realized USD in JSON (same rule as P/L curve)."""
+
+    closed = [r for r in records if r.status_slug == "closed"]
+    if not closed:
+        return False
+    for r in closed:
+        ok, _p = _closed_with_pnl(r)
+        if not ok:
+            return False
+    return True
+
+
+def _svg_bars_counts(hour_to_n: dict[int, int], *, width: int = 440, height: int = 105, fill: str = "#94a3b8") -> str:
+    """Simple bar chart for non-negative integer counts by hour key."""
+
+    if not hour_to_n:
+        return ""
+    keys = sorted(hour_to_n.keys())
+    vals = [float(hour_to_n[k]) for k in keys]
+    mv = max(vals) if vals else 1.0
+    if mv < 1e-12:
+        mv = 1.0
+    bw = 380 / max(1, len(vals))
+    rects = []
+    for i, v in enumerate(vals):
+        h = (v / mv) * 85
+        x = 30 + i * bw
+        rects.append(
+            f'<rect x="{x:.1f}" y="{95 - h:.1f}" width="{bw * 0.8:.1f}" height="{h:.1f}" fill="{fill}" />'
+        )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" role="img">'
+        + "".join(rects)
+        + "</svg>"
+    )
+
+
 @dataclass
 class JournalAnalytics:
     """Serializable analytics payload for UI / JSON."""
@@ -108,7 +149,8 @@ class JournalAnalytics:
     daily_pnl: dict[str, float] = field(default_factory=dict)
     r_histogram: dict[str, int] = field(default_factory=dict)
     performance_by_symbol: dict[str, dict[str, float]] = field(default_factory=dict)
-    performance_by_hour: dict[str, dict[str, float]] = field(default_factory=dict)
+    performance_by_exit_hour: dict[str, dict[str, float]] = field(default_factory=dict)
+    decisions_by_submitted_hour: dict[str, int] = field(default_factory=dict)
     skipped_reason_counts: dict[str, int] = field(default_factory=dict)
     cumulative_r_svg: str = ""
     cumulative_pnl_svg: str = ""
@@ -116,7 +158,8 @@ class JournalAnalytics:
     daily_r_svg: str = ""
     r_distribution_svg: str = ""
     perf_symbol_svg: str = ""
-    perf_hour_svg: str = ""
+    perf_exit_hour_svg: str = ""
+    decisions_submitted_hour_svg: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -205,6 +248,10 @@ def build_journal_analytics(records: list[TradeLedgerRecord]) -> JournalAnalytic
             out.skipped_trades += 1
             rk = (rec.skipped_reason_raw or "unknown").strip() or "unknown"
             out.skipped_reason_counts[rk] = out.skipped_reason_counts.get(rk, 0) + 1
+            sh = _hour_bucket_ny(rec.submitted_time)
+            if sh is not None:
+                sk = str(sh)
+                out.decisions_by_submitted_hour[sk] = out.decisions_by_submitted_hour.get(sk, 0) + 1
         elif rec.status_slug == "pending":
             out.pending_trades += 1
         elif rec.status_slug == "closed" and _closed_with_r(rec):
@@ -216,6 +263,10 @@ def build_journal_analytics(records: list[TradeLedgerRecord]) -> JournalAnalytic
 
     if out.closed_trades == 0:
         out.empty_state = True
+        if out.decisions_by_submitted_hour:
+            out.decisions_submitted_hour_svg = _svg_bars_counts(
+                {int(k): int(v) for k, v in out.decisions_by_submitted_hour.items()}
+            )
         return out
 
     rs = [r for _, r, _ in closed_r]
@@ -300,15 +351,16 @@ def build_journal_analytics(records: list[TradeLedgerRecord]) -> JournalAnalytic
             "avg_r": float(sum(lst) / len(lst)),
         }
 
-    hr_acc: dict[int, list[float]] = {}
+    # R performance: bucket by **exit** time (NY hour). Fallback to submitted only if exit missing (should not happen for closed_r).
+    hr_exit: dict[int, list[float]] = {}
     for ts_k, rv, rec in closed_r:
-        hb = _hour_bucket_utc(rec.submitted_time)
+        hb = _hour_bucket_ny(rec.exit_time or rec.submitted_time)
         if hb is None:
             continue
-        hr_acc.setdefault(hb, []).append(rv)
-    for h in sorted(hr_acc.keys()):
-        lst = hr_acc[h]
-        out.performance_by_hour[str(h)] = {
+        hr_exit.setdefault(hb, []).append(rv)
+    for h in sorted(hr_exit.keys()):
+        lst = hr_exit[h]
+        out.performance_by_exit_hour[str(h)] = {
             "count": float(len(lst)),
             "total_r": float(sum(lst)),
             "avg_r": float(sum(lst) / len(lst)),
@@ -351,9 +403,9 @@ def build_journal_analytics(records: list[TradeLedgerRecord]) -> JournalAnalytic
             + "</svg>"
         )
 
-    hrs_order = sorted(out.performance_by_hour.keys(), key=lambda x: int(x))
-    if len(hrs_order) >= 2:
-        vals = [out.performance_by_hour[h]["total_r"] for h in hrs_order]
+    ex_order = sorted(out.performance_by_exit_hour.keys(), key=lambda x: int(x))
+    if len(ex_order) >= 1:
+        vals = [out.performance_by_exit_hour[h]["total_r"] for h in ex_order]
         mv = max(abs(min(vals)), abs(max(vals)), 1e-9)
         bw = 380 / max(1, len(vals))
         rects = []
@@ -364,10 +416,15 @@ def build_journal_analytics(records: list[TradeLedgerRecord]) -> JournalAnalytic
             rects.append(
                 f'<rect x="{x:.1f}" y="{95 - h:.1f}" width="{bw * 0.8:.1f}" height="{h:.1f}" fill="{color}" />'
             )
-        out.perf_hour_svg = (
+        out.perf_exit_hour_svg = (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="440" height="105" viewBox="0 0 440 105">'
             + "".join(rects)
             + "</svg>"
+        )
+
+    if out.decisions_by_submitted_hour:
+        out.decisions_submitted_hour_svg = _svg_bars_counts(
+            {int(k): int(v) for k, v in out.decisions_by_submitted_hour.items()}
         )
 
     # P/L USD curve (only when every closed trade has numeric P/L)
@@ -402,6 +459,32 @@ def build_journal_analytics_for_project(project_root: Path | str) -> JournalAnal
     return build_journal_analytics(rows)
 
 
+def build_data_quality_payload(
+    records: list[TradeLedgerRecord], ledger_counts: dict[str, Any]
+) -> dict[str, Any]:
+    """Counts for the dashboard Data Quality card (honest, file-only)."""
+
+    total = len(records)
+    closed_with_exit = sum(1 for r in records if r.status_slug == "closed")
+    missing_exit = sum(
+        1 for r in records if r.status_slug in ("open", "pending", "protection_incomplete")
+    )
+    reliable_usd: bool | None
+    if closed_with_exit == 0:
+        reliable_usd = None
+    else:
+        reliable_usd = all_closed_trades_have_reliable_usd(records)
+
+    return {
+        "no_trade_records": total == 0,
+        "closed_with_exit": closed_with_exit,
+        "missing_exit": missing_exit,
+        "charts_available": int(ledger_counts.get("charts_available", 0)),
+        "charts_missing_candles": int(ledger_counts.get("charts_missing_candles", 0)),
+        "reliable_usd_pnl": reliable_usd,
+    }
+
+
 @dataclass
 class DashboardTradeContext:
     """Compact trader-facing dashboard snapshot."""
@@ -411,6 +494,7 @@ class DashboardTradeContext:
     cumulative_r_total: float | None
     latest_trades: list[dict[str, Any]]
     ledger_counts: dict[str, Any]
+    data_quality: dict[str, Any]
     action_required: list[str]
     mini_r_svg: str
     ny_today: str
@@ -483,6 +567,7 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
         cumulative_r_total=float(s) if closed_series else None,
         latest_trades=latest,
         ledger_counts=counts,
+        data_quality=build_data_quality_payload(rows, counts),
         action_required=actions,
         mini_r_svg=mini,
         ny_today=today_ny,
@@ -492,6 +577,8 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
 
 __all__ = [
     "JournalAnalytics",
+    "all_closed_trades_have_reliable_usd",
+    "build_data_quality_payload",
     "build_journal_analytics",
     "build_journal_analytics_for_project",
     "build_dashboard_trade_context",

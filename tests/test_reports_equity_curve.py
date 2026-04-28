@@ -30,12 +30,17 @@ def test_reports_shows_cumulative_r_section_en(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/reports")
     assert r.status_code == 200
     assert "Trading journal analytics" in r.text
-    assert ("Not enough closed trades yet." in r.text) or ("Cumulative R curve" in r.text)
-    if "Cumulative R curve" in r.text:
+    assert ("Not enough closed trades yet." in r.text) or ("Cumulative R Curve" in r.text)
+    if "Cumulative R Curve" in r.text:
         assert "<svg" in r.text.lower()
+    if "USD Equity Curve" in r.text:
+        assert "USD equity curve is hidden because reliable realized USD" in r.text
+    assert "Equity curve (USD)" not in r.text
 
 
 def test_reports_journal_analytics_zh(tmp_path: Path) -> None:
     r = _client(tmp_path).get("/reports?lang=zh")
     assert r.status_code == 200
-    assert "交易日记分析" in r.text or "累计 R 曲线" in r.text
+    assert "交易日记分析" in r.text
+    assert "已平仓样本不足" in r.text
+    assert "记录到平仓交易后" in r.text

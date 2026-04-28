@@ -32,6 +32,7 @@ def test_dashboard_trader_command_center_en(tmp_path: Path) -> None:
     assert "Trader command center" in r.text
     assert "Quick links" in r.text
     assert "Latest trades" in r.text
+    assert "Data Quality" in r.text
 
 
 def test_dashboard_trader_zh_labels(tmp_path: Path) -> None:

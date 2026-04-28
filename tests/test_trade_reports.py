@@ -5,6 +5,8 @@ from __future__ import annotations
 from bot.trade_ledger import raw_dict_to_trade_record
 from bot.trade_reports import (
     JournalAnalytics,
+    all_closed_trades_have_reliable_usd,
+    build_data_quality_payload,
     build_journal_analytics,
     realized_pnl_usd_from_raw,
 )
@@ -121,8 +123,8 @@ def test_profit_factor_r_none_when_no_losing_closed() -> None:
     assert ja.total_r_closed is not None and ja.total_r_closed > 0
 
 
-def test_performance_by_hour_bucket() -> None:
-    """NY hour grouping uses submitted_time string."""
+def test_performance_by_exit_hour_uses_exit_time_not_submitted() -> None:
+    """R-by-hour uses exit_time (NY), not entry submission time."""
 
     r = raw_dict_to_trade_record(
         "/tmp/mock.jsonl",
@@ -141,4 +143,72 @@ def test_performance_by_hour_bucket() -> None:
         },
     )
     ja = build_journal_analytics([r])
-    assert ja.performance_by_hour
+    assert ja.performance_by_exit_hour
+    assert len(ja.performance_by_exit_hour) == 1
+
+
+def test_decisions_by_submitted_hour_skipped_only() -> None:
+    s1 = raw_dict_to_trade_record(
+        "/tmp/a.jsonl",
+        1,
+        {
+            "symbol": "S",
+            "timestamp": "2026-06-01T14:05:00+00:00",
+            "submitted": False,
+            "skipped_reasons": ["x"],
+            "strategy_id": "x",
+            "signal_category": "x",
+            "direction": "long",
+        },
+    )
+    s2 = raw_dict_to_trade_record(
+        "/tmp/a.jsonl",
+        2,
+        {
+            "symbol": "T",
+            "timestamp": "2026-06-01T14:06:00+00:00",
+            "submitted": False,
+            "skipped_reasons": ["y"],
+            "strategy_id": "x",
+            "signal_category": "x",
+            "direction": "long",
+        },
+    )
+    ja = build_journal_analytics([s1, s2])
+    assert sum(ja.decisions_by_submitted_hour.values()) == 2
+    assert len(ja.decisions_by_submitted_hour) >= 1
+
+
+def test_data_quality_payload_counts() -> None:
+    o = raw_dict_to_trade_record(
+        "/tmp/x.jsonl",
+        0,
+        {"symbol": "O", "timestamp": "2026-01-01T10:00:00", "submitted": True, "strategy_id": "s", "signal_category": "", "direction": "long"},
+    )
+    dq = build_data_quality_payload(
+        [o],
+        {"charts_available": 0, "charts_missing_candles": 1},
+    )
+    assert dq["missing_exit"] == 1
+    assert dq["no_trade_records"] is False
+
+
+def test_all_closed_have_reliable_usd_helper() -> None:
+    r = raw_dict_to_trade_record(
+        "/tmp/mock.jsonl",
+        1,
+        {
+            "symbol": "US",
+            "timestamp": "2026-04-01T10:00:00",
+            "submitted": True,
+            "strategy_id": "x",
+            "signal_category": "x",
+            "direction": "long",
+            "entry": 100.0,
+            "stop": 99.0,
+            "exit_time": "2026-04-01T15:00:00",
+            "exit_price": 101.0,
+            "realized_pnl_usd": 10.0,
+        },
+    )
+    assert all_closed_trades_have_reliable_usd([r])

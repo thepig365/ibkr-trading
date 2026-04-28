@@ -16,7 +16,8 @@
     <h2>{{ t('reports.journal_analytics_title') }}</h2>
     <p class="text-dim text-small" style="margin:0 0 12px 0;">{{ t('reports.journal_analytics_intro') }}</p>
     {% if journal_analytics.empty_state %}
-      <p class="pill warn text-small" style="display:inline-block;margin-bottom:12px;">{{ t('reports.not_enough_closed_trades') }}</p>
+      <p class="pill warn text-small" style="display:inline-block;margin-bottom:8px;">{{ t('reports.not_enough_closed_trades') }}</p>
+      <p class="text-dim text-small" style="margin:0 0 12px 0;">{{ t('reports.not_enough_closed_trades_detail') }}</p>
     {% endif %}
     {% if journal_analytics.skipped_reason_counts %}
       <div class="card mb-12" style="margin-bottom: 14px;">
@@ -26,6 +27,17 @@
             <li class="text-mono"><strong>{{ k }}</strong>: {{ v }}</li>
           {% endfor %}
         </ul>
+      </div>
+    {% endif %}
+    {% if journal_analytics.empty_state and journal_analytics.decisions_by_submitted_hour %}
+      <div class="card" style="margin-bottom: 14px;">
+        <div class="card-title">{{ t('reports.decisions_by_submitted_hour') }}</div>
+        <p class="text-dim text-small" style="margin:0 0 8px 0;">{{ t('reports.decisions_by_submitted_hour_blurb') }}</p>
+        {% if journal_analytics.decisions_submitted_hour_svg %}
+          <div style="overflow:auto;">{{ journal_analytics.decisions_submitted_hour_svg|safe }}</div>
+        {% else %}
+          <p class="text-dim text-small">—</p>
+        {% endif %}
       </div>
     {% endif %}
     {% if not journal_analytics.empty_state %}
@@ -38,7 +50,7 @@
           {% endif %}
         </div>
         <div class="card">
-          <div class="card-title">{{ t('reports.equity_curve') }}</div>
+          <div class="card-title">{{ t('reports.usd_equity_curve') }}</div>
           {% if journal_analytics.has_reliable_pnl_usd %}
             <div style="overflow:auto;">{{ journal_analytics.cumulative_pnl_svg|safe }}</div>
           {% else %}
@@ -63,10 +75,21 @@
           {% if journal_analytics.perf_symbol_svg %}<div style="overflow:auto;">{{ journal_analytics.perf_symbol_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
         </div>
         <div class="card">
-          <div class="card-title">{{ t('reports.performance_hour') }}</div>
-          {% if journal_analytics.perf_hour_svg %}<div style="overflow:auto;">{{ journal_analytics.perf_hour_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
+          <div class="card-title">{{ t('reports.performance_exit_hour') }}</div>
+          <p class="text-dim text-small" style="margin:0 0 8px 0;">{{ t('reports.performance_exit_hour_blurb') }}</p>
+          {% if journal_analytics.perf_exit_hour_svg %}<div style="overflow:auto;">{{ journal_analytics.perf_exit_hour_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
         </div>
+        {% if journal_analytics.decisions_by_submitted_hour %}
+        <div class="card">
+          <div class="card-title">{{ t('reports.decisions_by_submitted_hour') }}</div>
+          <p class="text-dim text-small" style="margin:0 0 8px 0;">{{ t('reports.decisions_by_submitted_hour_blurb') }}</p>
+          {% if journal_analytics.decisions_submitted_hour_svg %}<div style="overflow:auto;">{{ journal_analytics.decisions_submitted_hour_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
+        </div>
+        {% endif %}
       </div>
+    {% endif %}
+    {% if ledger_summary.charts_missing_candles > 0 %}
+      <p class="text-dim text-small mt-8">{{ t('reports.charts_missing_explainer') }}</p>
     {% endif %}
   </div>
 

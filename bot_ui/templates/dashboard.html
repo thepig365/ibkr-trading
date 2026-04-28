@@ -40,6 +40,31 @@
         <div class="card-value">{{ trader_dash.ledger_counts.charts_missing_candles }}</div>
       </div>
       <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">{{ t('dashboard.data_quality_title') }}</div>
+        {% if trader_dash.data_quality.no_trade_records %}
+          <p class="text-dim text-small">{{ t('dashboard.no_trade_records_yet') }}</p>
+        {% else %}
+          <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
+            <li>{{ t('dashboard.dq_closed_exit') }}: <strong>{{ trader_dash.data_quality.closed_with_exit }}</strong></li>
+            <li>{{ t('dashboard.dq_missing_exit') }}: <strong>{{ trader_dash.data_quality.missing_exit }}</strong></li>
+            <li>{{ t('dashboard.dq_charts_ok') }}: <strong>{{ trader_dash.data_quality.charts_available }}</strong></li>
+            <li>{{ t('dashboard.dq_charts_miss') }}: <strong>{{ trader_dash.data_quality.charts_missing_candles }}</strong></li>
+            <li>{{ t('dashboard.dq_usd_rel') }}:
+              {% if trader_dash.data_quality.reliable_usd_pnl is none %}
+                <span class="text-dim">—</span>
+              {% elif trader_dash.data_quality.reliable_usd_pnl %}
+                <strong>{{ t('journal.yes') }}</strong>
+              {% else %}
+                <strong>{{ t('journal.no') }}</strong>
+              {% endif %}
+            </li>
+          </ul>
+          {% if trader_dash.data_quality.charts_missing_candles > 0 %}
+            <p class="text-dim text-small mt-8">{{ t('dashboard.charts_incomplete_explainer') }}</p>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="card" style="grid-column: 1 / -1;">
         <div class="card-title">{{ t('dashboard.trader_action') }}</div>
         {% if trader_dash.action_required %}
           <ul class="text-small" style="margin:4px 0 0 18px;">
