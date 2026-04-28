@@ -32,6 +32,7 @@ from rich.table import Table
 from .broker import Broker
 from .config import AppConfig, load_config
 from .ibkr_client import IBKRClient, IBKRClientError, LiveTradingBlocked
+from .ibkr_connection import PUBLIC_COLLISION_HINT, connect_readonly_roster_retry
 from .market_regime import MarketInputs, evaluate_regime
 from .watchlist_builder import (
     DEFAULT_STATIC_CORE,
@@ -174,53 +175,108 @@ def _configure_logging(cfg: AppConfig, verbose: bool) -> None:
 
 
 def _connect(
-    cfg: AppConfig, *, readonly: bool = True, for_cli: bool = True
+    cfg: AppConfig,
+    *,
+    readonly: bool = True,
+    for_cli: bool = True,
+    roster: str = "broker_readonly",
 ) -> IBKRClient:
-    """Connect to IBKR.
+    """Connect to IBKR for read-only CLI flows.
+
+    Routes to non-default ``client_id`` buckets (:mod:`bot.ibkr_connection`)
+    and retries transient **client-id collision** signatures (Ib 326 /
+    ``already in use``) up to three times — unlike long-lived paper-engine
+    clients that intentionally keep ``IBKR_CLIENT_ID`` from the environment.
 
     * ``for_cli=True`` (default): print a panel and use ``typer.Exit``
-      for operator-facing commands.
-    * ``for_cli=False``: used from batch/scanner code that must not
-      raise ``typer.Exit`` (e.g. MTF run embedded in
-      :class:`MultiStrategyEngine`, which would otherwise swallow
-      ``ClickException``/``Exit`` as a generic error). Renders the
-      same panel to *stderr* only, then re-raises the original
-      exception so callers can record warnings and keep stdout clean
-      for ``--json`` consumers.
+      when the connection ultimately fails or live trading is blocked.
+    * ``for_cli=False``: renders to *stderr*, then callers may propagate.
     """
-    client = IBKRClient(cfg)
+
     err_console = Console(stderr=True)
-    try:
-        client.connect(readonly=readonly)
-    except LiveTradingBlocked as exc:
+
+    if not readonly:
+        client = IBKRClient(cfg)
+        try:
+            client.connect(readonly=False)
+        except LiveTradingBlocked as exc:
+            if for_cli:
+                console.print(
+                    Panel.fit(
+                        f"[bold red]Live trading blocked:[/bold red] {exc}",
+                        style="red",
+                    )
+                )
+                raise typer.Exit(code=2)
+            err_console.print(
+                Panel.fit(
+                    f"[bold red]Live trading blocked:[/bold red] {exc}",
+                    style="red",
+                )
+            )
+            raise
+        except IBKRClientError as exc:
+            if for_cli:
+                console.print(
+                    Panel.fit(
+                        f"[bold red]Connection error:[/bold red] {exc}",
+                        style="red",
+                    )
+                )
+                raise typer.Exit(code=1)
+            err_console.print(
+                Panel.fit(
+                    f"[bold red]Connection error:[/bold red] {exc}",
+                    style="red",
+                )
+            )
+            raise
+        return client
+
+    outcome = connect_readonly_roster_retry(cfg, roster)
+    if outcome.live_blocked is not None:
+        exc = outcome.live_blocked
         if for_cli:
             console.print(
                 Panel.fit(
-                    f"[bold red]Live trading blocked:[/bold red] {exc}", style="red"
+                    f"[bold red]Live trading blocked:[/bold red] {exc}",
+                    style="red",
                 )
             )
             raise typer.Exit(code=2)
         err_console.print(
             Panel.fit(
-                f"[bold red]Live trading blocked:[/bold red] {exc}", style="red"
+                f"[bold red]Live trading blocked:[/bold red] {exc}",
+                style="red",
             )
         )
-        raise
-    except IBKRClientError as exc:
+        raise exc
+
+    if outcome.client is None:
+        body = outcome.fatal_message or PUBLIC_COLLISION_HINT
         if for_cli:
-            console.print(
-                Panel.fit(
-                    f"[bold red]Connection error:[/bold red] {exc}", style="red"
-                )
-            )
+            console.print(Panel.fit(f"[yellow]{body}[/yellow]", title="IBKR"))
             raise typer.Exit(code=1)
-        err_console.print(
-            Panel.fit(
-                f"[bold red]Connection error:[/bold red] {exc}", style="red"
-            )
+        err_console.print(Panel.fit(f"[yellow]{body}[/yellow]", title="IBKR"))
+        raise IBKRClientError(body)
+
+    if outcome.log_lines and for_cli:
+        blob = (
+            "\n".join(outcome.log_lines)
+            if len(outcome.log_lines) > 1
+            else outcome.log_lines[-1]
         )
-        raise
-    return client
+        console.print(f"[dim]{blob}[/dim]")
+    elif outcome.log_lines:
+        blob = (
+            "\n".join(outcome.log_lines)
+            if len(outcome.log_lines) > 1
+            else outcome.log_lines[-1]
+        )
+        err_console.print(f"[dim]{blob}[/dim]")
+
+    assert outcome.client is not None  # narrowed
+    return outcome.client
 
 
 def _bootstrap() -> tuple[AppConfig, Journal]:
@@ -827,11 +883,14 @@ def _build_universe_candidates(
     notes: list[str] = []
     client = existing_client
     if use_ibkr and client is None:
-        try:
-            client = _connect(cfg)
-        except (IBKRClientError, LiveTradingBlocked) as exc:
-            notes.append(f"IBKR connect failed: {exc}")
-            client = None
+        outcome = connect_readonly_roster_retry(cfg, "watchlist")
+        notes.extend(outcome.log_lines)
+        if outcome.live_blocked is not None:
+            notes.append(f"IBKR connect refused: {outcome.live_blocked}")
+        elif outcome.client is not None:
+            client = outcome.client
+        else:
+            notes.append(outcome.fatal_message or "IBKR unavailable for watchlist.")
 
     candidates: list[WatchlistCandidate] = []
     for sym in seed_universe:
@@ -1388,7 +1447,7 @@ def _gather_candles(
         return _load_candles_from_csv(csv_path), f"csv:{csv_path}", client
     if use_ibkr:
         if client is None:
-            client = _connect(cfg)
+            client = _connect(cfg, roster="candles")
         if timeframe_spec is not None:
             rows = client.get_bars_for_timeframe(symbol, timeframe_spec)
             src = (
@@ -1925,7 +1984,7 @@ def scan_smc_watchlist(
                     continue
             elif use_ibkr:
                 if client is None:
-                    client = _connect(cfg)
+                    client = _connect(cfg, roster="candles")
                 rows = client.get_bars_for_timeframe(symbol, tf_spec)
                 source = (
                     f"ibkr:{tf_spec.bar_size}"
@@ -2317,7 +2376,7 @@ def _mtf_connect_and_fetch(
     w: list[str] = []
     b = MtfCandleBundle()
     try:
-        client = _connect(cfg, for_cli=False)
+        client = _connect(cfg, for_cli=False, roster="candles")
     except (IBKRClientError, LiveTradingBlocked) as exc:
         w.append(f"ibkr_connect: {exc}")
         return b, w, None
@@ -2925,7 +2984,7 @@ def fetch_candles_cmd(
     bars: list[dict] = []
     client = None
     try:
-        client = _connect(cfg, readonly=True)
+        client = _connect(cfg, roster="candles")
         try:
             bars = client.get_intraday_bars(
                 sym,

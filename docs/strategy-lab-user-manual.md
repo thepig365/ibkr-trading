@@ -47,6 +47,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **`source` 字段**：`static` 表示那次构建未拉 IBKR 日线 → 常为「—」；`ibkr` 表示那次已用 **只读日线** 计算指标。
 - **Reason「static_core」**：表示该标的始终来自配置的 **固定核心**（大盘股/指数 ETF 等）；**并非错误**。若离线重建且仅用核心池，表格可能全部是 `static_core`，**Rebuild 仍可能「看起来没变」**，但命令仍成功、文件时间会更新。
 - **显式刷新指标**：需要使用白名单 **`build-watchlist --ibkr …`**（UI 上与「用 IBKR 日线重建」按钮一致）；**无**市价单，**不改变**交易策略逻辑。
+- **IBKR Error 326（client id 已被占用）**：若 **自动纸监督器 / 其它脚本** 已在用同一 `IBKR_CLIENT_ID` 连 TWS，再跑只读 **`build-watchlist --ibkr`** 可能报错；代码侧已对「只读会话」使用**独立默认 client id 段**并在冲突时**有限重试**。纸面引擎仍可保留环境里的**纸面引擎 client id**（常见为 `1`）；详见 `docs/troubleshooting.md` 专节。
 - （若已启用中英 UI）中英文切换详见 §1.1；技术字段仍可混排英文。
 
 ### 2.1 人性化 UI（读法）

@@ -32,7 +32,8 @@ def fetch_1min_range_for_backtest(
         CandleCacheError,
         save_candles_csv,
     )
-    from ..ibkr_client import IBKRClient
+    from ..ibkr_client import IBKRClientError
+    from ..ibkr_connection import connect_readonly_roster_retry
     from ..smc_timeframes import resolve_timeframe_spec
 
     sym = (symbol or "").strip().upper()
@@ -47,8 +48,14 @@ def fetch_1min_range_for_backtest(
 
     client: Any = None
     try:
-        client = IBKRClient(cfg)
-        client.connect(readonly=True)
+        oc = connect_readonly_roster_retry(cfg, "edge")
+        if oc.live_blocked:
+            LOG.warning("edge fetch: blocked: %s", oc.live_blocked)
+            return False
+        if oc.client is None:
+            LOG.warning("edge fetch: IBKR connect failed: %s", oc.fatal_message)
+            return False
+        client = oc.client
         bars: list[dict] = []
         try:
             bars = client.get_intraday_bars(

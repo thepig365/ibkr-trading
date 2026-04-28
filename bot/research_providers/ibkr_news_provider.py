@@ -243,11 +243,15 @@ def connect_for_news(cfg: "AppConfig") -> "IBKRClient":
     in the IBKR client (and therefore does not satisfy the architecture
     test "no IBKR import on UI startup" in any way).
     """
-    from ..ibkr_client import IBKRClient  # noqa: PLC0415
+    from ..ibkr_client import IBKRClientError  # noqa: PLC0415
+    from ..ibkr_connection import connect_readonly_roster_retry  # noqa: PLC0415
 
-    client = IBKRClient(cfg)
-    client.connect(readonly=True)
-    return client
+    oc = connect_readonly_roster_retry(cfg, "research")
+    if oc.live_blocked is not None:
+        raise oc.live_blocked
+    if oc.client is None:
+        raise IBKRClientError(oc.fatal_message or "IBKR unavailable for IBKR news")
+    return oc.client
 
 
 def _coerce_iso_utc(value: Any) -> str:

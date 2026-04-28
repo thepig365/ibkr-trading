@@ -85,20 +85,17 @@ def _fetch_1m_from_ibkr(
     wts = str(spec.what_to_show or "TRADES")
     client: IBKRClient | None = None
     try:
-        client = IBKRClient(cfg)
-        try:
-            client.connect(readonly=True, timeout=12.0)
-        except LiveTradingBlocked as exc:
-            out["error"] = str(exc)
+        from ..ibkr_connection import connect_readonly_roster_retry  # noqa: PLC0415
+
+        oc = connect_readonly_roster_retry(cfg, "candles", ib_connect_timeout=12.0)
+        if oc.live_blocked is not None:
+            out["error"] = str(oc.live_blocked)
             return out
-        except (IBKRClientError, OSError, ConnectionError) as exc:
+        if oc.client is None:
             out["tws_unavailable"] = True
-            out["error"] = f"could not connect to TWS/IB Gateway: {exc}"
+            out["error"] = oc.fatal_message or "could not connect for oneclick fetch"
             return out
-        except Exception as exc:  # noqa: BLE001
-            out["tws_unavailable"] = True
-            out["error"] = str(exc)
-            return out
+        client = oc.client
         try:
             bars = client.get_intraday_bars(
                 sym,

@@ -5,6 +5,15 @@
 
 ---
 
+## IBKR Error 326 · client id already in use（API 会话 ID 冲突）
+
+- **现象**：控制台或 Recent commands 报错含 **326**、`client id is already in use`、`already in use`，或紧随其后出现 **`TimeoutError()`**——本质往往是 **上一次 API 会话仍占用同一 `(host, port, clientId)`**。  
+- **原因**：Interactive Brokers **同一时刻只允许一个会话**使用该三元组；若 **纸面自动化监督器 / 另一个 bot 进程 / 上一轮未断开的脚本**已在用 **`IBKR_CLIENT_ID`（常见为 1）**，再跑一次 **只做只读的 CLI**（如 `build-watchlist --ibkr`）若仍去抢同一个 ID，就会失败。**这不是交易策略错误**，也不是隐含下单失败。  
+- **本仓库处理**：Strategy Lab **只读** CLI（看盘、拉缓存 K 线、`build-watchlist --ibkr`、部分 fetch）在进程内会为不同用途路由到 **独立默认 client id 段**（见 `bot/ibkr_client_ids.py`），并对「类 326」的占用提示在**只读连接**上做 **至多 3 次顺延重试**。**长期跑的纸引擎/下单链**仍可继续使用环境中的默认纸面会话 ID（通常仍是 **1**，由 `.env`/配置决定）；两条线尽量**互不抢同一个 ID**。  
+- **自检**：同一时间少开并行监听；结束前序 CLI/Telegram/listener；确认 TWS 未卡死会话。仍可手动调整 `IBKR_CLIENT_ID`，但需保证**全局不冲突**。
+
+---
+
 ## TWS 弹窗：「需要访问公网 api.ibkr.com，但当前网络已阻止」
 
 - **和本机 Socket API 不是一回事**：本 bot 的常规路径是 **`127.0.0.1:7497`（或你配置的 `IBKR_HOST`/`IBKR_PORT`）** 上运行的 TWS/IB Gateway，经 **TWS API（ib_async / ib_insync）** 通信。这**不依赖**你在浏览器里访问 `https://api.ibkr.com`。  

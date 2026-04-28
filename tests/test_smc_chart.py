@@ -401,6 +401,9 @@ def test_scan_smc_use_account_values_does_not_place_orders(
         def get_daily_bars(self, *a, **k):  # pragma: no cover - unused
             return []
 
+    import bot.ibkr_client as ibkr_mod
+
+    monkeypatch.setattr(ibkr_mod, "IBKRClient", _StubClient)
     monkeypatch.setattr(cli_module, "IBKRClient", _StubClient)
 
     def _boom(*_a, **_kw):  # pragma: no cover - must never be called
