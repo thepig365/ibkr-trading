@@ -16,6 +16,7 @@ from bot.reports.report_email_status import load_report_email_status
 from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH
 from bot.journal_trade_charts_pipeline import read_last_trade_chart_batch_summary
+from bot.trade_ledger import build_trade_records, ledger_summary_counts
 from bot.reports.telegram_report_dedup import read_state
 from bot.ux.humanize import humanize_skip_reason
 
@@ -133,6 +134,16 @@ def reports_page(request: Request) -> HTMLResponse:
         None,
     )
     ctx["trade_chart_batch_summary"] = read_last_trade_chart_batch_summary(root)
+
+    ledger_rows = build_trade_records(root)
+    ctx["ledger_summary"] = ledger_summary_counts(ledger_rows, root)
+    ctx["ledger_latest_submitted"] = next(
+        (r for r in ledger_rows if r.submitted_to_broker or r.raw_json.get("submitted")),
+        None,
+    )
+    ctx["ledger_latest_open"] = next((r for r in ledger_rows if r.status_slug == "open"), None)
+    ctx["ledger_latest_closed"] = next((r for r in ledger_rows if r.status_slug == "closed"), None)
+    ctx["ledger_latest_skipped"] = next((r for r in ledger_rows if r.status_slug == "skipped"), None)
 
     fa = root / FULL_AUTO_STATE_RELPATH
     ctx["full_auto_supervisor_state"] = {}

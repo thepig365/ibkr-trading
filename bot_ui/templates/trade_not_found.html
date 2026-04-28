@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ t('trades.not_found') }}{% endblock %}
+{% block content %}
+  <div class="section">
+    <h1>{{ t('trades.not_found') }}</h1>
+    <p class="text-mono">{{ unknown_trade_id }}</p>
+    <p><a href="{{ ret(url_for('trades_page')) }}">{{ t('trades.back_list') }}</a></p>
+  </div>
+{% endblock %}

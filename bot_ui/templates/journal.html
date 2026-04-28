@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ t('page.journal_t') }}{% endblock %}
-{% block subtitle %}<div class="page-sub"><strong>{{ t('journal.paper_only') }}</strong> — {{ t('journal.sub_readonly') }}</div>{% endblock %}
+{% block subtitle %}
+  <div class="page-sub"><strong>{{ t('journal.paper_only') }}</strong> — {{ t('journal.sub_readonly') }}</div>
+  <p class="text-small" style="margin:12px 0 0 0; max-width:52rem; line-height:1.45; padding:12px 14px; border:1px solid var(--border, #ccc); border-radius:6px;">
+    {{ t('journal.trade_records_banner') }}
+    <a href="{{ ret(url_for('trades_page')) }}">{{ t('nav.trades') }}</a>
+  </p>
+{% endblock %}
 
 {% block content %}
   {% set j = journal %}
@@ -108,7 +114,7 @@
                 </td>
                 {% set jc = journal_chart_cell(r) %}
                 <td class="text-small">
-                  <div><a href="{{ ret(url_for('journal_trade_review', trade_id=r.trade_id)) }}">{{ t('journal.review') }}</a></div>
+                  <div><a href="{{ ret(url_for('trade_detail_page', trade_id=r.trade_id)) }}">{{ t('journal.review') }}</a></div>
                   {% if jc.tier == 'available' %}
                     <div><a href="{{ ret(request.url_for('journal_trade_chart_png', trade_id=r.trade_id)) }}">{{ t('journal.chart_cell_available_short') }}</a></div>
                   {% elif jc.tier == 'ready_to_draw' %}

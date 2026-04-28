@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ t('page.trades') }}{% endblock %}
+{% block subtitle %}<div class="page-sub">{{ t('trades.sub') }}</div>{% endblock %}
+
+{% block content %}
+  {% set lc = ledger_counts %}
+  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));">
+    <div class="card"><div class="card-title">{{ t('trades.summary_total') }}</div><div class="card-value">{{ trade_rows_all_count }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_submitted') }}</div><div class="card-value">{{ lc.submitted_rows }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_open') }}</div><div class="card-value">{{ lc.open }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_closed') }}</div><div class="card-value">{{ lc.closed }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_skipped') }}</div><div class="card-value">{{ lc.skipped }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_incomplete') }}</div><div class="card-value">{{ lc.protection_incomplete }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_pending') }}</div><div class="card-value">{{ lc.pending }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_charts') }}</div><div class="card-value">{{ lc.charts_available }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_missing_candles') }}</div><div class="card-value">{{ lc.charts_missing_candles }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_realized_sum') }}</div><div class="card-value">{{ "%.2f"|format(lc.realized_r_sum or 0) }} <span class="text-dim text-small">(n={{ lc.realized_r_count }})</span></div></div>
+  </div>
+
+  <div class="section mt-12">
+    <p class="text-small text-dim"><a href="{{ ret(url_for('journal_page')) }}">{{ t('trades.audit_journal') }}</a></p>
+
+    <form method="get" class="form-row flex-wrap" style="gap:8px; align-items:flex-end; margin-bottom:12px;">
+      <label class="text-small">{{ t('journal.filter_view') }}</label>
+      <select name="filter" class="text-small">
+        <option value="all" {% if journal_filter=='all' %}selected{% endif %}>{{ t('journal.f_all') }}</option>
+        <option value="open" {% if journal_filter=='open' %}selected{% endif %}>{{ t('trades.f_open') }}</option>
+        <option value="closed" {% if journal_filter=='closed' %}selected{% endif %}>{{ t('trades.filter_closed') }}</option>
+        <option value="skipped" {% if journal_filter=='skipped' %}selected{% endif %}>{{ t('journal.f_skipped') }}</option>
+        <option value="protection_incomplete" {% if journal_filter=='protection_incomplete' %}selected{% endif %}>{{ t('journal.f_incomplete') }}</option>
+        <option value="pending" {% if journal_filter=='pending' %}selected{% endif %}>{{ t('trades.summary_pending') }}</option>
+      </select>
+      <select name="direction" class="text-small">
+        <option value="all" {% if journal_direction=='all' %}selected{% endif %}>{{ t('trades.dir_all') }}</option>
+        <option value="long" {% if journal_direction=='long' %}selected{% endif %}>{{ t('journal.f_long') }}</option>
+        <option value="short" {% if journal_direction=='short' %}selected{% endif %}>{{ t('journal.f_short') }}</option>
+      </select>
+      <select name="chart" class="text-small">
+        <option value="all" {% if journal_chart_filter=='all' %}selected{% endif %}>{{ t('trades.chart_all_short') }}</option>
+        <option value="yes" {% if journal_chart_filter=='yes' %}selected{% endif %}>{{ t('trades.chart_avail_opt') }}</option>
+        <option value="missing" {% if journal_chart_filter=='missing' %}selected{% endif %}>{{ t('trades.chart_miss_opt') }}</option>
+        <option value="no" {% if journal_chart_filter=='no' %}selected{% endif %}>{{ t('trades.chart_none_opt') }}</option>
+      </select>
+      <input name="symbol" value="{{ trades_symbol }}" placeholder="{{ t('journal.col_symbol') }}" class="text-mono text-small" style="max-width:92px;" />
+      <button type="submit" class="btn ghost" style="padding:4px 10px;">{{ t('trades.apply_filters') }}</button>
+    </form>
+
+    {% if not ledger_rows %}
+      <p class="text-dim text-small">{{ t('journal.empty_hint') }}</p>
+    {% else %}
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>{{ t('trades.th_submitted') }}</th>
+              <th>{{ t('trades.th_symbol') }}</th>
+              <th>{{ t('trades.th_direction') }}</th>
+              <th>{{ t('trades.th_status') }}</th>
+              <th>{{ t('trades.th_entry') }}</th>
+              <th>{{ t('trades.th_exit') }}</th>
+              <th>{{ t('trades.th_stop') }}</th>
+              <th>{{ t('trades.th_target') }}</th>
+              <th>{{ t('trades.th_planned_rr') }}</th>
+              <th>{{ t('trades.th_result_r') }}</th>
+              <th>{{ t('trades.th_reason') }}</th>
+              <th>{{ t('trades.th_chart') }}</th>
+              <th>{{ t('trades.col_view_trade') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in ledger_rows %}
+              <tr>
+                <td class="text-mono text-small">{{ (r.submitted_time or '')[:19] }}</td>
+                <td><strong>{{ r.symbol }}</strong></td>
+                <td>{{ (r.direction or '-')|upper }}</td>
+                <td>{{ t(trade_status_key(r.status_slug)) }}</td>
+                <td>{% if r.entry_price is not none %}{{ "%.2f"|format(r.entry_price) }}{% else %}—{% endif %}</td>
+                <td>
+                  {% if r.exit_price is not none and r.exit_time %}
+                    {{ "%.2f"|format(r.exit_price) }}
+                  {% else %}
+                    {{ t('trades.exit_not_recorded') }}
+                  {% endif %}
+                </td>
+                <td>{% if r.stop_price is not none %}{{ "%.2f"|format(r.stop_price) }}{% else %}—{% endif %}</td>
+                <td>{% if r.target_price is not none %}{{ "%.2f"|format(r.target_price) }}{% else %}—{% endif %}</td>
+                <td>{% if r.planned_rr is not none %}{{ "%.2f"|format(r.planned_rr) }}{% else %}—{% endif %}</td>
+                <td>{% if r.realized_r is not none %}{{ "%.2f"|format(r.realized_r) }}{% else %}—{% endif %}</td>
+                <td class="text-small">
+                  {% if r.status_slug == 'skipped' %}
+                    {{ skipped_human(r) }}
+                  {% elif r.status_slug == 'closed' %}
+                    {{ t(close_reason_key(r.close_reason)) }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td class="text-small">
+                  {% if trade_review_chart_png_exists(r.trade_id) %}
+                    <a href="{{ ret(url_for('trades_trade_chart_png', trade_id=r.trade_id)) }}">{{ t('trades.link_chart') }}</a>
+                  {% elif not ledger_candles_probe(r) and r.chart_status != 'not_applicable' %}
+                    <span class="text-dim">{{ t('trades.link_missing_candles') }}</span>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td class="text-small">
+                  <a href="{{ ret(url_for('trade_detail_page', trade_id=r.trade_id)) }}">{{ t('trades.view_trade') }}</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

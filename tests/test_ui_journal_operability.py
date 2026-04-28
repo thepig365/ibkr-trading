@@ -73,7 +73,7 @@ def test_journal_renders_paper_row_with_bracket_and_sizing(tmp_path: Path) -> No
     assert "Est. notional" in t or "500" in t
     assert "55" in t or "strict" in t
     assert "1001" in t or "Prot" in t
-    assert "Review" in t
+    assert "View Trade" in t
 
     r2 = _client(tmp_path).get("/journal?filter=incomplete&symbol=NVDA")
     assert r2.status_code == 200
@@ -96,7 +96,7 @@ def test_journal_review_link_includes_stable_trade_id(tmp_project: Path) -> None
     ].trade_id
     r = _client(tmp_project).get("/journal")
     assert r.status_code == 200, r.text
-    assert "Review" in r.text
+    assert "View Trade" in r.text
     assert tid in r.text
 
 
@@ -105,4 +105,4 @@ def test_journal_lang_zh_shows_sizing_fold_and_review_label(tmp_project: Path) -
     r = _client(tmp_project).get("/journal?lang=zh")
     assert r.status_code == 200, r.text
     assert "展开仓位细节" in r.text
-    assert "复盘" in r.text
+    assert "查看本笔交易" in r.text

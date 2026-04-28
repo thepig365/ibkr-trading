@@ -70,7 +70,7 @@ def test_journal_main_table_columns_and_details_hidden(client_and_project):
     html = r.text
     assert "Show sizing details" in html
     assert "final_quantity" in html  # from sizing_audit_json in expanded pre
-    assert "Review" in html
+    assert "View Trade" in html
     assert tid in html
 
 

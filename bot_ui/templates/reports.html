@@ -4,6 +4,7 @@
 <div class="page-sub">
   {{ t('reports.sub') }}
   <a href="{{ ret(url_for('dashboard')) }}">Dashboard</a> ·
+  <a href="{{ ret(url_for('trades_page')) }}">{{ t('reports.link_trade_records') }}</a> ·
   <a href="{{ ret('/paper') }}">Paper</a> ·
   <a href="{{ ret('/journal') }}">Journal</a> ·
   <a href="{{ ret('/research') }}">Research</a>
@@ -55,12 +56,23 @@
         {% if report_hub.hub_paper_daily_json_relpath %}<div class="text-mono text-small mt-8"><code>{{ report_hub.hub_paper_daily_json_relpath }}</code></div>{% endif %}
       </div>
       <div class="card">
+        <div class="card-title">{{ t('reports.ledger_card_title') }}</div>
+        <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.5;">
+          <li>{% if ledger_latest_submitted %}<a href="{{ ret(url_for('trade_detail_page', trade_id=ledger_latest_submitted.trade_id)) }}">{{ t('reports.latest_submitted') }}</a> · <strong>{{ ledger_latest_submitted.symbol }}</strong>{% else %}<span class="text-dim">—</span>{% endif %}</li>
+          <li>{% if ledger_latest_open %}<a href="{{ ret(url_for('trade_detail_page', trade_id=ledger_latest_open.trade_id)) }}">{{ t('reports.latest_open') }}</a> · <strong>{{ ledger_latest_open.symbol }}</strong>{% else %}<span class="text-dim">—</span>{% endif %}</li>
+          <li>{% if ledger_latest_closed %}<a href="{{ ret(url_for('trade_detail_page', trade_id=ledger_latest_closed.trade_id)) }}">{{ t('reports.latest_closed') }}</a> · <strong>{{ ledger_latest_closed.symbol }}</strong>{% else %}<span class="text-dim">—</span>{% endif %}</li>
+          <li>{% if ledger_latest_skipped %}<a href="{{ ret(url_for('trade_detail_page', trade_id=ledger_latest_skipped.trade_id)) }}">{{ t('reports.latest_skipped') }}</a> · <strong>{{ ledger_latest_skipped.symbol }}</strong>{% else %}<span class="text-dim">—</span>{% endif %}</li>
+          <li class="text-dim">{{ t('reports.ledger_missing_candles_hint', n=ledger_summary.charts_missing_candles) }}</li>
+          <li><a href="{{ ret(url_for('trades_page')) }}">{{ t('reports.open_trade_records') }}</a></li>
+        </ul>
+      </div>
+      <div class="card">
         <div class="card-title">{{ t('reports.journal_block') }}</div>
         {% if journal_trade_samples and journal_trade_samples|length > 0 %}
           <ul class="text-small" style="margin:0;padding-left:18px;">
             {% for r in journal_trade_samples %}
               <li>
-                <a href="{{ ret('/journal/trade/' ~ r.trade_id) }}"><strong>{{ r.symbol }}</strong></a>
+                <a href="{{ ret(url_for('trade_detail_page', trade_id=r.trade_id)) }}"><strong>{{ r.symbol }}</strong></a>
                 · <code>{{ r.timestamp[:16] }}Z</code>
               </li>
             {% endfor %}
@@ -83,9 +95,9 @@
         {% if jr_review_sent or jr_review_skipped or jr_review_incomplete %}
           <p class="text-small mt-8"><strong>{{ t('reports.latest_trade_reviews') }}</strong></p>
           <ul class="text-small" style="margin:4px 0 0 18px;">
-            {% if jr_review_sent %}<li><a href="{{ ret('/journal/trade/' ~ jr_review_sent.trade_id) }}">{{ t('reports.jr_latest_sent') }} {{ jr_review_sent.symbol }}</a></li>{% endif %}
-            {% if jr_review_skipped %}<li><a href="{{ ret('/journal/trade/' ~ jr_review_skipped.trade_id) }}">{{ t('reports.jr_latest_skipped') }} {{ jr_review_skipped.symbol }}</a></li>{% endif %}
-            {% if jr_review_incomplete %}<li><a href="{{ ret('/journal/trade/' ~ jr_review_incomplete.trade_id) }}">{{ t('reports.jr_latest_incomplete') }} {{ jr_review_incomplete.symbol }}</a></li>{% endif %}
+            {% if jr_review_sent %}<li><a href="{{ ret(url_for('trade_detail_page', trade_id=jr_review_sent.trade_id)) }}">{{ t('reports.jr_latest_sent') }} {{ jr_review_sent.symbol }}</a></li>{% endif %}
+            {% if jr_review_skipped %}<li><a href="{{ ret(url_for('trade_detail_page', trade_id=jr_review_skipped.trade_id)) }}">{{ t('reports.jr_latest_skipped') }} {{ jr_review_skipped.symbol }}</a></li>{% endif %}
+            {% if jr_review_incomplete %}<li><a href="{{ ret(url_for('trade_detail_page', trade_id=jr_review_incomplete.trade_id)) }}">{{ t('reports.jr_latest_incomplete') }} {{ jr_review_incomplete.symbol }}</a></li>{% endif %}
           </ul>
         {% endif %}
         <div class="text-dim text-small mt-8"><a href="{{ ret('/journal') }}">Journal</a> · <a href="{{ ret('/paper') }}">Paper</a></div>

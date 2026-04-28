@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ t('page.trades') }} · {{ tr.symbol }}{% endblock %}
+{% block subtitle %}<div class="page-sub">{{ t('trades.sub') }}</div>{% endblock %}
+
+{% block content %}
+  <div class="section">
+    <p>
+      <a href="{{ ret(url_for('trades_page')) }}">{{ t('trades.back_list') }}</a>
+      · <a href="{{ ret(url_for('journal_page')) }}">{{ t('trades.audit_journal') }}</a>
+    </p>
+    {% if generated_flag %}
+      <p class="pill good" style="display:inline-block;">{{ t('journal.chart_file_updated') }}</p>
+    {% endif %}
+    {% if chart_notice %}
+      <p class="pill warn" style="display:inline-block;">{{ chart_notice }}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>{{ t('trades.header_title') }}</h2>
+    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+      <li><strong>{{ tr.symbol }}</strong> · {{ t('trades.trade_scope_note') }}</li>
+      <li>{{ t('journal.col_direction') }}: {{ (tr.direction or '-')|upper }}</li>
+      <li>{{ t('journal.col_status') }}: <strong>{{ t(trade_status_key) }}</strong></li>
+      <li>{{ t('trades.strategy') }}: <code>{{ tr.strategy }}</code></li>
+      <li>{{ t('journal.hdr_mode') }}:
+        {% if tr.mode_signal == 'DAY_TRADE_READY_STRICT' %}strict
+        {% elif tr.mode_signal == 'DAY_TRADE_READY_AGGRESSIVE' %}aggressive
+        {% else %}{{ tr.mode_signal or '—' }}{% endif %}
+      </li>
+      <li>{{ t('trades.lbl_submitted_at') }}: <code>{{ (tr.submitted_time or '')[:26] }}</code></li>
+      <li class="text-mono text-dim" style="font-size:0.85rem;">trade_id {{ tr.trade_id }}</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('trades.execution_timeline') }}</h2>
+    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+      <li>{{ t('trades.lbl_submitted_at') }}: {% if tr.submitted_time %}{{ tr.submitted_time[:26] }}{% else %}—{% endif %}</li>
+      <li>{{ t('trades.lbl_entry_time') }}: {% if tr.entry_time %}{{ tr.entry_time }}{% else %}—{% endif %}</li>
+      <li>{{ t('trades.lbl_exit_time') }}: {% if tr.exit_time %}{{ tr.exit_time }}{% else %}—{% endif %}</li>
+      <li>{{ t('trades.lbl_close_classification') }}:
+        {% if tr.status_slug == 'closed' %}
+          {{ t(close_reason_i18n) }}
+        {% else %}—{% endif %}
+      </li>
+      {% if tr.exit_price is none or not tr.exit_time %}
+      <li class="text-dim">{{ t('trades.exit_not_recorded') }}</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('trades.price_plan') }}</h2>
+    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+      <li>{{ t('journal.lbl_entry') }}: {% if tr.entry_price is not none %}{{ "%.2f"|format(tr.entry_price) }}{% else %}—{% endif %}</li>
+      <li>{{ t('journal.lbl_stop') }}: {% if tr.stop_price is not none %}{{ "%.2f"|format(tr.stop_price) }}{% else %}—{% endif %}</li>
+      <li>{{ t('journal.lbl_target') }}: {% if tr.target_price is not none %}{{ "%.2f"|format(tr.target_price) }}{% else %}—{% endif %}</li>
+      <li>{{ t('trades.lbl_exit_px') }}:
+        {% if tr.exit_price is not none and tr.exit_time %}
+          {{ "%.2f"|format(tr.exit_price) }}
+        {% else %}
+          <span class="text-dim">{{ t('trades.exit_not_recorded') }}</span>
+        {% endif %}
+      </li>
+      <li>{{ t('journal.lbl_rr') }}: {% if tr.planned_rr is not none %}{{ "%.2f"|format(tr.planned_rr) }}{% else %}—{% endif %}</li>
+      <li>{{ t('trades.th_result_r') }}: {% if tr.realized_r is not none %}{{ "%.2f"|format(tr.realized_r) }}{% else %}—{% endif %}</li>
+      <li>{{ t('journal.col_qty') }}: {% if tr.qty is not none %}{{ "%.0f"|format(tr.qty) }}{% else %}—{% endif %}</li>
+      <li>{{ t('journal.col_notional') }}: {% if tr.notional is not none %}${{ "{:,.0f}".format(tr.notional) }}{% else %}—{% endif %}</li>
+      <li>{{ t('journal.lbl_risk_per_share') }}: {% if risk_per_share is not none %}{{ "%.4f"|format(risk_per_share) }}{% else %}—{% endif %}</li>
+      <li>{{ t('journal.lbl_reward_per_share') }}: {% if reward_per_share is not none %}{{ "%.4f"|format(reward_per_share) }}{% else %}—{% endif %}</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('trades.sec_chart') }}</h2>
+    <p class="text-dim text-small">{{ t('trades.chart_rules_hint') }}</p>
+    {% if has_chart %}
+      <p><img src="{{ ret(trade_chart_png_url) }}" alt="{{ t('journal.alt_chart') }}" style="max-width:100%;height:auto;border:1px solid var(--border);" /></p>
+      <form method="get" style="margin-top:12px;">
+        <input type="hidden" name="preview_chart" value="1"/>
+        <button type="submit" class="btn ghost">{{ t('journal.generate_chart_btn') }}</button>
+      </form>
+    {% else %}
+      {% if has_local_day_cache %}
+        <p class="text-dim text-small">{{ t('journal.chart_local_only_hint') }}</p>
+        <form method="get">
+          <input type="hidden" name="preview_chart" value="1"/>
+          <button type="submit" class="btn">{{ t('journal.generate_chart_btn') }}</button>
+        </form>
+      {% else %}
+        <p class="pill warn">{{ t('journal.trade_no_candles') }}</p>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="section"><h2>{{ t('trades.sec_engine') }}</h2>
+    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+      <li>{{ tr.edge_summary or '—' }}</li>
+      <li>{{ t('journal.lbl_submitted_yesno') }}
+        {% if tr.raw_json.get('submitted') %}{{ t('journal.yes') }}{% else %}{{ t('journal.no') }}{% endif %}
+        {% if tr.submitted_to_broker %} · TWS {% endif %}
+      </li>
+      {% if tr.status_slug == 'skipped' %}
+        <li>{{ skipped_human }}</li>
+      {% endif %}
+      {% if tr.raw_json.get('broker_errors') %}
+        {% for m in tr.raw_json.get('broker_errors') %}
+          <li class="text-dim">{{ t('journal.lbl_broker_line') }} {{ m }}</li>
+        {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="section"><h2>{{ t('trades.ict_labels_section') }}</h2>
+    <p class="text-small">{{ tr.ict_labels or '—' }}</p>
+    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+      <li>HTF: {% if tr.ict_htf is none %}—{% elif tr.ict_htf %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
+      <li>5m: {% if tr.ict_5m is none %}—{% elif tr.ict_5m %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
+      <li>1m: {% if tr.ict_1m is none %}—{% elif tr.ict_1m %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
+    </ul>
+  </div>
+
+  <div class="section"><h2>{{ t('trades.sec_protection') }}</h2>
+    {% if tr.bracket_status and tr.bracket_status|lower != 'complete' %}
+      <p class="pill warn">{{ t('journal.protection_incomplete_warn') }}</p>
+    {% endif %}
+    <p class="text-small text-mono">
+      parent {{ tr.parent_entry_order_id or '—' }} · SL {{ tr.stop_order_id or '—' }} · TP {{ tr.target_order_id or '—' }}
+      · bracket {{ tr.bracket_status or '—' }}
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('trades.section_notes') }}</h2>
+    <p class="text-dim text-small">{{ t('trades.notes_placeholder') }}</p>
+  </div>
+
+  <div class="section">
+    <details>
+      <summary>{{ t('trades.sec_raw') }}</summary>
+      {% if raw_json_truncated_hints %}
+      <details class="mt-8"><summary>{{ t('trades.raw_sizing_fold') }}</summary>
+        <pre class="code text-small">{{ raw_json_truncated_hints }}</pre>
+      </details>
+      {% endif %}
+      <pre class="code text-small mt-8" style="max-height:380px;overflow:auto;white-space:pre-wrap;">{{ raw_audit_json }}</pre>
+    </details>
+  </div>
+{% endblock %}

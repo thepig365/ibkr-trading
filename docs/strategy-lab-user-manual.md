@@ -31,7 +31,8 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单） |
-| Journal | `/journal` | 纸单审计与回测成交只读日志 |
+| **Trade Records（交易记录）** | **`/trades`** | **交易员视角**的按笔记录：提交/入出/止损目标、结果 R、本地 trade chart（**仅使用已缓存的 1 分钟 K 线**；页面**不**连接 IBKR）；无 exit 数据时显示「尚未记录平仓」，**不会编造**平仓价 |
+| Journal（技术流水 / 审计） | `/journal` | 引擎 **JSONL 技术流水**与回测表格：可展开 **仓位/原始键**；如需「每笔一眼看完」请优先用 **`/trades`** |
 | Strategies | `/strategies` | 策略注册表与多策略扫描入口 |
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |
 | Backtest | `/backtest` | ICT/SMC 日内回测配置与运行（引擎在 CLI/Worker） |
@@ -64,7 +65,8 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | **Research → Pre-Market Brief** | 最近一份盘前简报的**时间、 tone、各新闻源状态、邮件是否已发**；可用按钮**生成/邮件**（不连 TWS 直至你点受控命令） |
 | **Signals（ICT）** | 每行是 **Ready to test / Watching / Blocked** 等口语状态 + 下一条件；**不是**交易指令 |
 | **Paper** | **现在能否做纸面试**（文件侧门控 + 可选「不确定」= 缺信号/TWS 不可见等）、**风险上限**、**最近一笔纸单结果** |
-| **Journal** | 该行是 **Sent / Skipped**、**保护是否完整**、**券商错码**（表头用语已口语化，底层键仍在 JSON/列中） |
+| **Journal（技术流水）** | 引擎原始 **Sent / Skipped**、**括号是否完整**、**错码**（偏审计）；**交易复盘**请用 **`/trades`** |
+| **Trade Records** | 每笔 **一行**、可读时间轴、**止损/目标/计划 R:R**、图表链接；过滤为**本机**行集 |
 | **Reports** | 磁盘上报告与**最新盘前简报文件**的索引；**生成**走白名单 CLI |
 
 ### 2.3 盘前简报（Pre-Market Brief）

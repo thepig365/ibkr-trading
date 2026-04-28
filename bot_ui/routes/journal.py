@@ -136,7 +136,7 @@ def journal_trade_review(
     loc = get_locale(request)
     chart_notice: str | None = None
     if preview_chart == 1:
-        out = generate_trade_journal_chart_png(root, tid, force=True)
+        out = generate_trade_journal_chart_png(root, tid, force=True, locale=loc)
         if out.ok:
             q = urlencode({"generated": "1"})
             return RedirectResponse(

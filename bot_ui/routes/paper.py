@@ -94,7 +94,7 @@ def paper_page(request: Request) -> HTMLResponse:
     first_row = jv.paper_orders[0] if jv.paper_orders else None
     trade_href = None
     if first_row is not None and getattr(first_row, "trade_id", ""):
-        trade_href = f"/journal/trade/{first_row.trade_id}"
+        trade_href = f"/trades/{first_row.trade_id}"
     ctx["paper_ux"] = build_paper_page_ux(
         max_notional_per_order_usd=float(ip.max_notional_per_order_usd),
         max_daily_notional_usd=float(ip.max_daily_notional_usd),

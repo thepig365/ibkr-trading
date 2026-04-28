@@ -5,6 +5,13 @@
 
 ---
 
+## 交易记录 `/trades` 没有图 · 显示「缺少 K 线」
+
+- **正常现象**：Trade chart **只读** `data/candles/<SYMBOL>/1min/<DATE>.csv`，**打开 `/trades` 不会请求 IBKR**。若该交易日**没有**对应缓存文件，就不会有 PNG，也**不代表**「策略一定失败」——只是**本地没有画图材料**。  
+- **处理**：按需用 **Backtest / 数据覆盖页** 等在**你显式操作时**拉取或生成缓存（仍属只读/白名单流程；**无**市价下单入口）。  
+- **Exit 未显示**：JSONL 里若没有同时记录 **exit_time** 与 **exit_price**，界面会写 **「尚未记录平仓」**，**不会**推算或补全离场价。  
+- **与 Journal 区别**：`/journal` 为 **技术/审计流水**；`/trades` 为 **交易员友好**按笔视图。
+
 ## IBKR Error 326 · client id already in use（API 会话 ID 冲突）
 
 - **现象**：控制台或 Recent commands 报错含 **326**、`client id is already in use`、`already in use`，或紧随其后出现 **`TimeoutError()`**——本质往往是 **上一次 API 会话仍占用同一 `(host, port, clientId)`**。  
