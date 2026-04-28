@@ -31,6 +31,7 @@ def test_trades_page_shows_completion_buttons_zh(cli_project: TestClient) -> Non
     r = cli_project.get("/trades?lang=zh")
     assert r.status_code == 200
     assert "补齐交易复盘图" in r.text
+    assert "用本地K线生成交易图" in r.text
 
 
 def test_reports_page_shows_complete_trade_chart_action(cli_project: TestClient) -> None:

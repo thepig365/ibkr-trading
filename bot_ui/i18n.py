@@ -323,14 +323,25 @@ M: dict[str, dict[str, str]] = {
         "en": "Local-only: generate PNGs from cached 1m candles. Fetch mode: read-only IBKR bars for missing cache days — explicit click only; never on normal page load.",
         "zh": "本地模式：用已有本地 1 分钟缓存生成 PNG。补齐模式：对缺失缓存日只读拉取 IBKR — 仅在显式点击时使用；不会在普通浏览页面自动请求。",
     },
-    "trades.complete_charts_local_btn": {"en": "Complete charts (local cache only)", "zh": "补齐图表（仅本地缓存）"},
+    "trades.complete_charts_local_btn": {
+        "en": "Generate charts from local candles",
+        "zh": "用本地K线生成交易图",
+    },
     "trades.complete_charts_fetch_btn": {
-        "en": "Fetch missing local 1m from IBKR & complete charts",
-        "zh": "从 IBKR 补齐缺失的本地 1分钟K线并生成图表",
+        "en": "Fetch IBKR 1m candles for traded tickers & generate charts (read-only, no orders)",
+        "zh": "从 IBKR 补齐已交易标的 1分钟K线并生成图（只读·不下单）",
+    },
+    "trades.complete_charts_safe_blurb": {
+        "en": "Read-only IBKR historical bars (separate client-id roster). No orders. No trading engine. Use explicit buttons or CLI/EOD only — not on page GET.",
+        "zh": "IBKR 仅为只读历史数据（独立 client id）。不下单、不启动交易引擎。仅在显式按钮或 CLI/收市报告流程中拉取；页面打开不会连接 IBKR。",
     },
     "trades.chart_completion_action": {
-        "en": "Run “Complete trade charts” (local or fetch mode) to pull cached 1m candles and generate this PNG, then reload this page.",
-        "zh": "请使用「补齐交易复盘图」（本地或补齐模式）缓存 1 分钟 K 线并生成 PNG，然后刷新本页。",
+        "en": "No local candles yet. Click “Complete trade charts” (local or IBKR read-only mode), then reload.",
+        "zh": "暂无本地 K 线。请点击「补齐交易复盘图」（本地或 IBKR 只读补齐），完成后再刷新本页。",
+    },
+    "trades.detail_no_candles_yet": {
+        "en": "No local candles yet. Click Complete Trade Charts on /trades or /reports to fetch IBKR 1m candles for traded symbols (read-only), then reload.",
+        "zh": "尚无本地 K 线。请在「交易记录」或「报告」页点击「补齐交易复盘图」，从 IBKR 只读拉取已交易标的的 1 分钟 K 线并生成图，然后刷新。",
     },
     "trades.back_list": {"en": "← Trade Records", "zh": "← 交易记录"},
     "trades.sec_summary": {"en": "1 · Trade summary", "zh": "1 · 交易摘要"},

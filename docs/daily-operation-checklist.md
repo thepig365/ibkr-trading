@@ -23,7 +23,7 @@
 - [ ] 7. **Edge** — 建立画像（默认缓存）  
 - [ ] 8. **Paper** — Readiness / Activation；**不**在无意向时点 First Paper Pass  
 - [ ] 9. 仅当准备好：`First Paper Pass` 一次受控试单（不启 loop）  
-- [ ] 10. **交易记录 `/trades`** — 按笔复盘；**出图**依赖 `data/reports/trade_charts/<trade_id>.png`。若缺 **本地 1m 缓存**，可在 **`/trades` 或 `/reports`** 用白名单 **Complete trade charts**（仅本地），或在**你显式操作时**用 **「从 IBKR 补齐缺失本地 1m」** 模式 / CLI `complete-trade-charts --fetch-missing-candles`（**不下单**）；**普通浏览页面不会自动连 IBKR**。需要**原始引擎字段**时再看 **Journal `/journal`（技术流水）**  
+- [ ] 10. **交易记录 `/trades`** — 按笔复盘；PNG 在 `data/reports/trade_charts/`，K 线在 `data/candles/.../1min/`（**IBKR 历史经只读写入**）。**收市**若跑了带 **`--report-on-exit`** 的纸面引擎，一般会按配置自动 **只读补齐**缺失日再出图（可关）。平时也可在 **`/trades` / `/reports`** 白名单 **Complete trade charts**（纯本地或 IBKR 补齐模式）或 CLI。**页面 GET 不会拉 IBKR**。需要**原始审计字段**再看 **Journal `/journal`**  
 - [ ] 11. **Reports（主报告台）** — 在 **`/reports`** 看「今日汇总」、纸面日/周、回测/edge、研究/盘前/新闻状态；**Daily / Weekly 生成**与路径以页面为准；**邮件不必需**。可选在 **Settings** / **Reports** 看各 **data/** 子目录占用的空间（`data/candles`、**`data/backtests`** 为本地回测用，git 忽略、不上传 GitHub；纸单审计/运行时目录勿手删）  
 - [ ] 12. 收工：**Intraday Paper OFF**（如曾打开）、Stop UI  
 

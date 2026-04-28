@@ -196,11 +196,19 @@ class IntradayPaperConfig(BaseModel):
 
 
 class TradeChartsCompletionSettings(BaseModel):
-    """Tradervue-style PNG completion (local cache; optional EOD-only IBKR 1m fetch)."""
+    """Tradervue-style PNG completion (local cache; optional EOD IBKR read-only 1m fetch).
+
+    Defaults favor **paper** workflows: after a session, report-on-exit can pull missing
+    1m bars into ``data/candles/`` using the **read-only candles client-id roster**, then
+    render PNGs. Operators may set ``fetch_missing_candles_on_report_exit: false`` in
+    ``settings.local.yaml`` to disable automatic IBKR touch on EOD.
+    """
 
     auto_generate_on_report_exit: bool = True
-    fetch_missing_candles_on_report_exit: bool = False
+    fetch_missing_candles_on_report_exit: bool = True
     max_trades_per_run: int = 50
+    candle_window_before_minutes: int = 30
+    candle_window_after_minutes: int = 90
 
     @field_validator("max_trades_per_run")
     @classmethod
@@ -208,6 +216,14 @@ class TradeChartsCompletionSettings(BaseModel):
         n = int(v)
         if not 1 <= n <= 500:
             raise ValueError("trading.trade_charts.max_trades_per_run must be 1..500")
+        return n
+
+    @field_validator("candle_window_before_minutes", "candle_window_after_minutes")
+    @classmethod
+    def _win_mins(cls, v: int) -> int:
+        n = int(v)
+        if not 1 <= n <= 1440:
+            raise ValueError("trading.trade_charts candle window minutes must be 1..1440")
         return n
 
     model_config = {"extra": "ignore"}

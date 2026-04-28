@@ -31,7 +31,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单） |
-| **Trade Records（交易记录）** | **`/trades`** | **交易员视角**的按笔记录：提交/入出/止损目标、结果 R、本地 trade chart（**仅使用已缓存的 1 分钟 K 线**；页面**不**连接 IBKR）；无 exit 数据时显示「尚未记录平仓」，**不会编造**平仓价 |
+| **Trade Records（交易记录）** | **`/trades`** | **交易员视角**按笔复盘；图表使用落盘在 `data/candles/.../1min/*.csv` 的 **1 分钟 K 线**（数据**来源于 IBKR**，经**只读**历史拉取、`fetch-candles`、或 **report-on-exit** 补档后本地保存）；**`/trades` 页面 GET 不连 IBKR**；无 exit 时「尚未记录平仓」，**不编造** |
 | Journal（技术流水 / 审计） | `/journal` | 引擎 **JSONL 技术流水**与回测表格：可展开 **仓位/原始键**；如需「每笔一眼看完」请优先用 **`/trades`** |
 | Strategies | `/strategies` | 策略注册表与多策略扫描入口 |
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |
@@ -426,10 +426,10 @@ Edge、新闻、表内分数、相对成交量**不能**单独触发下单。缺
 - **主表**：面向阅读的列包括时间、标的、多空、模式（strict/aggressive）、发送/跳过/部分状态、入场/止损/目标价、计划 R:R、数量、名义金额、括号保护是否完整、ICT 链（HTF/5m/1m）、Edge 分数/推荐模式、**可读**跳过原因，以及 **Review** 链接。工程化字段（sizing 细节、minTick、原始 E/SL/TP、订单号、完整 JSON 等）收在各行 **Details** 折叠里，原文不丢。  
 - **Sent / Skipped / Protection incomplete**：分别对应「已提交或部分到 TWS」「有 skipped 原因」「`bracket_integrity`≠complete」。不完整保护在列表行与复盘页上会**显眼提示**。  
 - **Trade Review**（`/journal/trade/<trade_id>`）：每条 JSONL 行有稳定 **`trade_id`**（由时间、标的、方向、条目、跳过原因等派生哈希）。复盘页列出身份、价位、风险/每份股、盈亏比、ICT 链、Edge、保护与订单号、可读跳过原因（原文仍在 Details）；含到 Journal / Reports / Paper 的导航。  
-- **图表**：**从不**在 Strategy Lab 内「页面一打开就自动向 IBKR 拉 K 线」。当本机已有对应 **NY 日的本地 1m 缓存**（`data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv`）时：**（1）** 打开 **Journal** 时最多对**最近若干条**符合条件且尚未有 PNG 的流水**尝试**在本机生成（仍只读本地 CSV，不连券商）；**（2）** 纸面引擎在 **`--report-on-exit`** 跑完并写入纸面日报后，默认会跑 **`complete_trade_charts`（本地缓存）**批量补图；是否在 EOD 顺带用只读历史 API **补齐缺失的本地 1m**，由 `config/settings.yaml` → `trading.trade_charts.fetch_missing_candles_on_report_exit` 控制（默认 **false**）。
-- **Tradervue 式补图管线**：**交易记录** `/trades` 与 **Reports** 提供白名单按钮 **Complete trade charts**，等效 CLI：  
-  `python3 -m bot.cli complete-trade-charts --latest --limit 50 [--fetch-missing-candles] [--dry-run] [--json]`（别名 `tradervue-complete-charts` / `complete-journal-charts`）。**仅本地**：只把已有 CSV 烘焙成 **`data/reports/trade_charts/<trade_id>.png`**。**加 `--fetch-missing-candles`**：对缺失会话日先从 IBKR **只读**拉 **1m**（与 `fetch-candles --ibkr` 同数据平面，client id roster **`candles`**），再出图——**仍为显式 CLI/按钮触发，不是浏览器 GET**。  
-  另可：`generate-trade-chart` / `generate-trade-charts --latest`（**不**自带 IBKR fetch）。单笔：`generate-trade-chart`（同 `journal-generate-trade-chart`）`--trade-id <id> [--json] [--force] ...`。  
+- **图表与 K 线来源**：业务上 **K 线原始数据来自 IBKR**；落盘后在本地 **`data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv`**（gitignored），再由 **`data/reports/trade_charts/<trade_id>.png`** 展示。**从不**在 Strategy Lab 内「**普通页面一打开**就自动向 IBKR 拉 K 线」。当本机已有对应 **NY 日 1m CSV** 时：**（1）** 打开 **Journal** 时在限定条数内**尝试**从本地缓存生成 PNG（不连券商）；**（2）** 纸面引擎 **`--report-on-exit`** 在写完纸面日报 JSON 后，会跑 **`complete_trade_charts`**：**默认** `trading.trade_charts.fetch_missing_candles_on_report_exit` 为 **true**——对**已发生交易**但缺当天本地 1m 的标的，用 **只读** `reqHistoricalData`（独立 **candles** client id 段）补齐本地缓存，再生成 trade chart；单个标的拉取失败会**软失败**不打断日报。**若不想**在 EOD 自动连 IBKR，在 `config/settings.local.yaml` 将该项设为 **false**。窗口长度见 `candle_window_before_minutes` / `candle_window_after_minutes`（影响 PNG 绘图窗口，与 `generate_trade_journal_chart_png` 一致）。
+- **Tradervue 式补图管线**：**`/trades`** 与 **`/reports`** 白名单按钮 **Complete trade charts**；CLI：  
+  `python3 -m bot.cli complete-trade-charts --latest --limit 50 [--local-only | --fetch-missing-candles] [--window-before-minutes N] [--window-after-minutes N] [--dry-run] [--json]`（别名 `tradervue-complete-charts` / `complete-journal-charts`）。**`--local-only`**：绝不连 IBKR，只用已有 `data/candles/`。**`--fetch-missing-candles`**：缺日文件时只读拉 1m（roster **`candles`**）再出 PNG。以上均为**显式** CLI/按钮/EOD 流程，**不是浏览器 GET**。  
+  另可：`generate-trade-chart` / `generate-trade-charts --latest`（**不**自带缺日 IBKR fetch）。单笔：`generate-trade-chart`（同 `journal-generate-trade-chart`）`--trade-id <id> ...`。  
 
   **Past trades**：历史上缺的图可在以后**先有本地缓存**后再补——不是「交易失败」，只是当时磁盘上还没有该日 **`1min` CSV**。**Exit**：若 JSONL **未同时**记下 `exit_time` 与 `exit_price`，图与界面会标示 **Exit not recorded** /「尚未记录平仓」，**不从止损/止盈价推测离场**。  
 **Journal 图表列**会用「图表可用 / 缺少K线 / 等待中 / —」等标明原因。  

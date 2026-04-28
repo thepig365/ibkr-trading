@@ -67,17 +67,21 @@ def _engine_post_exit_report(
         auto_on = bool(getattr(tc_opt, "auto_generate_on_report_exit", True)) if tc_opt else True
         if auto_on:
             lim = int(getattr(tc_opt, "max_trades_per_run", 50) if tc_opt else 50)
-            fetch_on = bool(getattr(tc_opt, "fetch_missing_candles_on_report_exit", False) if tc_opt else False)
+            fetch_on = bool(getattr(tc_opt, "fetch_missing_candles_on_report_exit", True) if tc_opt else True)
+            bw = int(getattr(tc_opt, "candle_window_before_minutes", 30) if tc_opt else 30)
+            aw = int(getattr(tc_opt, "candle_window_after_minutes", 90) if tc_opt else 90)
             trade_charts_batch = complete_trade_charts(
                 root,
                 latest=True,
                 limit=lim,
                 fetch_missing_candles=fetch_on,
+                before_mins=bw,
+                after_mins=aw,
                 cfg=cfg,
             )
         else:
             trade_charts_batch = {"skipped": "auto_generate_on_report_exit_false"}
-    except (OSError, RuntimeError, TypeError, ValueError, KeyError):
+    except Exception:  # noqa: BLE001 — chart completion must never block daily report write
         logger.warning("post-exit trade chart batch skipped", exc_info=True)
         trade_charts_batch = {"error": "batch_unavailable"}
 

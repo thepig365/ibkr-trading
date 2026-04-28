@@ -71,8 +71,10 @@ trading:
     allow_aggressive_without_edge_profile: false
   trade_charts:
     auto_generate_on_report_exit: true
-    fetch_missing_candles_on_report_exit: false
+    fetch_missing_candles_on_report_exit: true
     max_trades_per_run: 50
+    candle_window_before_minutes: 30
+    candle_window_after_minutes: 90
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

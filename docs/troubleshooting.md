@@ -7,11 +7,11 @@
 
 ## 交易记录 `/trades` 没有图 · 显示「缺少 K 线」
 
-- **正常现象**：Trade chart **只读** `data/candles/<SYMBOL>/1min/<DATE>.csv`，**打开 `/trades` 不会请求 IBKR**。若该交易日**没有**对应缓存文件，就不会有 PNG，也**不代表**「策略一定失败」——只是**本地没有画图材料**。  
-- **处理**：按需用 **Backtest / 数据覆盖页** 等在**你显式操作时**拉取或生成缓存（仍属只读/白名单流程；**无**市价下单入口）。  
+- **数据来源**：1m K 线来自 **IBKR 历史**（或你曾用 `fetch-candles` 等方式写入），**存盘**在 `data/candles/<SYMBOL>/1min/<DATE>.csv`，再用于生成 `data/reports/trade_charts/<trade_id>.png`。**打开 `/trades`（GET）不会自动连 IBKR**。若该交易日磁盘上**尚无**该 CSV，列表会显示缺少 K 线/尚无图——可先等 **纸面引擎 `--report-on-exit`**（默认会尝试只读补齐缺失日后再出图，失败则软跳过），或在 **`/trades` / `/reports`** 点 **Complete trade charts**，或 CLI `complete-trade-charts --fetch-missing-candles`。  
+- **Past trades**：日后只要补齐对应 **NY 日** 的 `1min` CSV，仍可再生成 PNG。  
 - **Exit 未显示**：JSONL 里若没有同时记录 **exit_time** 与 **exit_price**，界面会写 **「尚未记录平仓」**，**不会**推算或补全离场价。  
 - **与 Journal 区别**：`/journal` 为 **技术/审计流水**；`/trades` 为 **交易员友好**按笔视图。
-- **Completing charts（`complete-trade-charts`）**：本地模式只写 PNG，不连 IBKR。加 **`--fetch-missing-candles`** 时才会用只读历史 API 写 `data/candles/.../1min/*.csv`（与 **`fetch-candles --ibkr`** 同源，roster **`candles`**），**仍不下单**。纸上引擎 **`--report-on-exit`** 默认只跑**本地**补图；若要在 EOD 顺带拉缺失日 K 线，需在 `settings.local.yaml` 等处将 `trading.trade_charts.fetch_missing_candles_on_report_exit` 设为 **true**。
+- **Completing charts（`complete-trade-charts`）**：**`--local-only`** 只读本地 `data/candles/`，不连 IBKR。加 **`--fetch-missing-candles`** 时才会用只读历史 API 写缺失日 `data/candles/.../1min/*.csv`（roster **`candles`**），**仍不下单**。纸上引擎 **`--report-on-exit`**：若 `trading.trade_charts.fetch_missing_candles_on_report_exit` 为 **true**（**跟踪默认 `config/settings.yaml`**），会在日报落盘后尝试自动补齐；设为 **false** 则 EOD 只做本地已有缓存的出图（可在 `settings.local.yaml` 覆盖）。
 
 ## IBKR Error 326 · client id already in use（API 会话 ID 冲突）
 

@@ -3903,6 +3903,25 @@ def complete_trade_charts_cmd(
         "--fetch-missing-candles",
         help="Fill missing local 1m caches via IBKR read-only historical bars (never places orders).",
     ),
+    local_only: bool = typer.Option(
+        False,
+        "--local-only",
+        help="Never connect to IBKR — only use existing data/candles caches (overrides --fetch-missing-candles).",
+    ),
+    window_before_minutes: Optional[int] = typer.Option(
+        None,
+        "--window-before-minutes",
+        min=1,
+        max=1440,
+        help="Minutes of 1m bars before anchor in PNG (default: settings.trading.trade_charts).",
+    ),
+    window_after_minutes: Optional[int] = typer.Option(
+        None,
+        "--window-after-minutes",
+        min=1,
+        max=1440,
+        help="Minutes after anchor in PNG (default: settings.trading.trade_charts).",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print one JSON summary (stdout only)."),
     dry_run: bool = typer.Option(
         False,
@@ -3929,27 +3948,42 @@ def complete_trade_charts_cmd(
         console.print("[red]Use exactly one of: --latest  OR  --date YYYY-MM-DD[/red]")
         raise typer.Exit(2)
 
+    if local_only and fetch_missing_candles:
+        console.print("[red]Use only one of --local-only or --fetch-missing-candles[/red]")
+        raise typer.Exit(2)
+
     if fetch_missing_candles and dry_run:
         console.print("[yellow]Note: --dry-run ignores --fetch-missing-candles (no IBKR calls).[/yellow]")
 
-    mode_line = "[cyan]MODE: local cache + chart generation only — no IBKR[/cyan]"
-    if fetch_missing_candles and not dry_run:
-        mode_line = (
-            "[cyan]MODE: IBKR read-only historical 1m fetch enabled (roster candles) · NO ORDERS[/cyan]"
-        )
+    tc_cfg = cfg.settings.trading.trade_charts
+    wb = int(window_before_minutes) if window_before_minutes is not None else int(tc_cfg.candle_window_before_minutes)
+    wa = int(window_after_minutes) if window_after_minutes is not None else int(tc_cfg.candle_window_after_minutes)
+
     if dry_run:
         mode_line = "[cyan]MODE: dry-run — no writes, no IBKR[/cyan]"
+    elif local_only:
+        mode_line = "[cyan]MODE: local-only — existing data/candles only · no IBKR[/cyan]"
+    elif fetch_missing_candles:
+        mode_line = (
+            "[cyan]MODE: IBKR read-only historical 1m fetch (roster candles) · NO ORDERS[/cyan]"
+        )
+    else:
+        mode_line = "[cyan]MODE: local cache + chart generation — no IBKR fetch for missing days[/cyan]"
     console.print(mode_line)
 
     td = trade_date.strip()[:10] if trade_date else None
+    fm = "local_only" if local_only else None
     summary = complete_trade_charts(
         cfg.project_root,
         date=td if not latest else None,
         latest=bool(latest),
         limit=int(limit),
         fetch_missing_candles=bool(fetch_missing_candles) and not bool(dry_run),
+        fetch_mode=fm,
         symbols=sym_list,
         dry_run=bool(dry_run),
+        before_mins=wb,
+        after_mins=wa,
         cfg=cfg,
     )
 
@@ -3966,8 +4000,11 @@ def complete_trade_charts_cmd(
 
     console.print(
         f"[green]selected[/green] {summary.get('selected_count')} · "
+        f"[cyan]symbols[/cyan] {len(summary.get('symbols_seen') or [])} · "
         f"[cyan]charts available[/cyan] {summary.get('available_count')} · "
         f"[green]generated[/green] {summary.get('generated_count')} · "
+        f"[magenta]fetch ok[/magenta] {summary.get('candle_fetch_success_count')} / "
+        f"{summary.get('candle_fetch_attempted_count')} · "
         f"[yellow]missing candles[/yellow] {summary.get('missing_candles_count')} · "
         f"[dim]no-exit labels[/dim] {summary.get('no_exit_count')} · "
         f"[red]errors[/red] {summary.get('error_count')}"

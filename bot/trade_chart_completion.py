@@ -2,6 +2,7 @@
 
 * ``fetch_missing_candles=True`` may connect read-only (roster ``candles``) — never places orders.
 * UI / normal GET handlers must not call this with fetch; use CLI or explicit UI button only.
+* EOD (``automatic_paper_engine`` report-on-exit) may call with fetch per ``settings.trading.trade_charts``.
 
 See :func:`complete_trade_charts` for the pipeline summary.
 """
@@ -10,10 +11,9 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .config import AppConfig, load_config
 from .journal_trade_charts_pipeline import (
@@ -29,6 +29,19 @@ from .trade_journal_chart import (
 from .trade_ledger import TradeLedgerRecord, build_trade_records
 
 logger = logging.getLogger(__name__)
+
+FetchMode = Literal["local_only", "ibkr_readonly"]
+
+
+def _effective_fetch(
+    fetch_missing_candles: bool,
+    fetch_mode: FetchMode | str | None,
+) -> bool:
+    if fetch_mode == "local_only":
+        return False
+    if fetch_mode == "ibkr_readonly":
+        return True
+    return bool(fetch_missing_candles)
 
 
 def _trade_eligible_for_chart(rec: TradeLedgerRecord) -> bool:
@@ -75,7 +88,6 @@ def _select_records(
     for rec in rows:
         if not _trade_eligible_for_chart(rec):
             continue
-        # Skip pure noise: unknown without submission and without planned prices
         if rec.status_slug == "unknown" and not _meaningful_planned(rec):
             continue
         if sym_filter and (rec.symbol or "").upper() not in sym_filter:
@@ -102,6 +114,8 @@ def _fetch_1min_symbol_date(
     use_rth: bool = True,
 ) -> bool:
     """Read-only IBKR historical bars → ``data/candles/.../1min``. Returns True if cache likely updated."""
+
+    from datetime import datetime
 
     from .backtests.candle_cache import CandleCacheError, save_candles_csv
     from .ibkr_connection import connect_readonly_roster_retry
@@ -170,13 +184,17 @@ class TradeChartCompletionSummary:
     """Serializable result from :func:`complete_trade_charts`."""
 
     selected_count: int = 0
+    symbols_seen: list[str] = field(default_factory=list)
+    candle_fetch_attempted_count: int = 0
+    candle_fetch_success_count: int = 0
     generated_count: int = 0
     available_count: int = 0
     missing_candles_count: int = 0
-    fetched_candles_symbols: list[str] = None  # type: ignore[assignment]
-    fetch_failed_symbols: list[str] = None  # type: ignore[assignment]
+    fetched_candles_symbols: list[str] = field(default_factory=list)
+    fetch_failed_symbols: list[str] = field(default_factory=list)
     error_count: int = 0
     chart_dir: str = ""
+    candle_dir: str = ""
     no_exit_count: int = 0
     closed_count: int = 0
     open_count: int = 0
@@ -184,18 +202,12 @@ class TradeChartCompletionSummary:
     would_generate_count: int = 0
     would_fetch_count: int = 0
     mode: str = "local_only"
+    fetch_mode_resolved: str = "local_only"
     dry_run: bool = False
     fetch_missing_candles: bool = False
 
-    def __post_init__(self) -> None:
-        if self.fetched_candles_symbols is None:
-            self.fetched_candles_symbols = []
-        if self.fetch_failed_symbols is None:
-            self.fetch_failed_symbols = []
-
     def to_dict(self) -> dict[str, Any]:
-        d = asdict(self)
-        return d
+        return asdict(self)
 
 
 def _has_full_exit(rec: TradeLedgerRecord) -> bool:
@@ -210,28 +222,36 @@ def complete_trade_charts(
     latest: bool = False,
     limit: int = 50,
     fetch_missing_candles: bool = False,
+    fetch_mode: FetchMode | str | None = None,
     symbols: list[str] | None = None,
     read_only: bool = True,
     dry_run: bool = False,
+    before_mins: int = 30,
+    after_mins: int = 60,
     cfg: AppConfig | None = None,
 ) -> dict[str, Any]:
     """Build normalized records, optionally fetch missing 1m caches, then generate PNGs.
 
-    IBKR is contacted **only** when ``fetch_missing_candles=True`` and local day file is missing.
-    ``read_only`` is reserved for future use; fetches always use read-only historical data paths.
-
-    Returns a JSON-serializable dict (see :class:`TradeChartCompletionSummary`).
+    IBKR is contacted only when the effective fetch flag is true and local day file is missing.
+    ``before_mins`` / ``after_mins`` are passed to :func:`generate_trade_journal_chart_png`.
     """
 
-    _ = read_only  # explicit API; all implemented fetches are read-only historical bars
+    _ = read_only
     root = Path(project_root).resolve()
     chart_dir = str((root / "data" / "reports" / "trade_charts").resolve())
+    candle_dir = str((root / "data" / "candles").resolve())
+
+    would_fetch_ibkr = _effective_fetch(fetch_missing_candles, fetch_mode)
+    do_fetch = would_fetch_ibkr and not bool(dry_run)
+    resolved_mode_label = "ibkr_readonly" if would_fetch_ibkr else "local_only"
 
     summary = TradeChartCompletionSummary(
         chart_dir=chart_dir,
+        candle_dir=candle_dir,
         dry_run=bool(dry_run),
         fetch_missing_candles=bool(fetch_missing_candles),
-        mode="ibkr_readonly_fetch" if fetch_missing_candles else "local_only",
+        fetch_mode_resolved=resolved_mode_label,
+        mode="ibkr_readonly_fetch" if would_fetch_ibkr else "local_only",
     )
 
     if not latest and not date:
@@ -256,10 +276,18 @@ def complete_trade_charts(
         symbols=symbols,
     )
     summary.selected_count = len(selected)
+    sym_seen: set[str] = set()
+    for rec in selected:
+        s = (rec.symbol or "").strip().upper()
+        if s:
+            sym_seen.add(s)
+    summary.symbols_seen = sorted(sym_seen)
 
     app_cfg = cfg if cfg is not None else load_config()
+    wb = max(1, min(int(before_mins), 1440))
+    wa = max(1, min(int(after_mins), 1440))
 
-    fetched_set: set[str] = set()
+    fetched_keys: set[str] = set()
     failed_set: set[str] = set()
 
     for rec in selected:
@@ -295,18 +323,24 @@ def complete_trade_charts(
         if dry_run:
             if not has_candles:
                 summary.missing_candles_count += 1
-                if fetch_missing_candles:
+                if would_fetch_ibkr:
                     summary.would_fetch_count += 1
             else:
                 summary.would_generate_count += 1
             continue
 
-        if not has_candles and fetch_missing_candles:
+        if not has_candles and do_fetch:
             key = f"{sym}:{ny_d}"
-            if key not in fetched_set:
-                ok = _fetch_1min_symbol_date(app_cfg, sym, ny_d, ny_d, use_rth=True)
-                fetched_set.add(key)
+            if key not in fetched_keys:
+                summary.candle_fetch_attempted_count += 1
+                fetched_keys.add(key)
+                try:
+                    ok = _fetch_1min_symbol_date(app_cfg, sym, ny_d, ny_d, use_rth=True)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("trade_chart_completion: fetch failed %s %s: %s", sym, ny_d, exc)
+                    ok = False
                 if ok:
+                    summary.candle_fetch_success_count += 1
                     summary.fetched_candles_symbols.append(sym)
                 else:
                     failed_set.add(sym)
@@ -317,7 +351,15 @@ def complete_trade_charts(
             summary.missing_candles_count += 1
             continue
 
-        res = generate_trade_journal_chart_png(root, tid, force=False, locale="en")
+        try:
+            res = generate_trade_journal_chart_png(
+                root, tid, force=False, locale="en", before_mins=wb, after_mins=wa
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("trade_chart_completion: chart gen failed tid=%s: %s", tid, exc)
+            summary.error_count += 1
+            continue
+
         if res.ok and res.png_path is not None:
             low = (res.message or "").lower()
             if "already exists" in low:
@@ -334,10 +376,11 @@ def complete_trade_charts(
             else:
                 summary.error_count += 1
 
-    # Persist last summary for Reports UI (same path as batch)
     out_dict = summary.to_dict()
+    out_dict["fetch_mode"] = summary.fetch_mode_resolved
     out_dict["fetched_candles_symbols"] = sorted(set(summary.fetched_candles_symbols))
     out_dict["fetch_failed_symbols"] = sorted(set(failed_set))
+
     rtp = root / TRADE_CHART_BATCH_RUNTIME_RELPATH
     if not dry_run:
         try:

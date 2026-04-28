@@ -157,8 +157,8 @@
       {% with command='paper-weekly-report', args='--latest', label='Generate weekly report', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='edge-profile-report', args='--latest', label='Edge report (path)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
       {% with command='backtest-report', args='--latest', label='Backtest report (latest)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
-      {% with command='complete-trade-charts', args='--latest --limit 50 --json', label=t('reports.complete_trade_charts_title') ~ ' (local)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
-      {% with command='complete-trade-charts', args='--latest --limit 50 --fetch-missing-candles --json', label=t('reports.complete_trade_charts_title') ~ ' (+IBKR)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='complete-trade-charts', args='--latest --limit 50 --local-only --window-before-minutes 30 --window-after-minutes 90 --json', label=t('reports.complete_trade_charts_title') ~ ' (local)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='complete-trade-charts', args='--latest --limit 50 --fetch-missing-candles --window-before-minutes 30 --window-after-minutes 90 --json', label=t('reports.complete_trade_charts_title') ~ ' (+IBKR)', return_to='/reports', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
     </div>
     <p class="text-dim text-small">{{ t('reports.complete_trade_charts_blurb') }}</p>
     <p class="text-dim text-small mt-12">

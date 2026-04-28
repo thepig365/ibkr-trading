@@ -45,8 +45,8 @@
     {% else %}
       <p class="text-dim text-small">{{ t('trades.chart_completion_action') }}</p>
       <div class="mt-8" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-        {% with command='complete-trade-charts', label=t('trades.complete_charts_local_btn'), return_to='/trades/' ~ tr.trade_id, args='--latest --limit 50', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
-        {% with command='complete-trade-charts', label=t('trades.complete_charts_fetch_btn'), return_to='/trades/' ~ tr.trade_id, args='--latest --limit 50 --fetch-missing-candles', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='complete-trade-charts', label=t('trades.complete_charts_local_btn'), return_to='/trades/' ~ tr.trade_id, args='--latest --limit 50 --local-only --window-before-minutes 30 --window-after-minutes 90', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='complete-trade-charts', label=t('trades.complete_charts_fetch_btn'), return_to='/trades/' ~ tr.trade_id, args='--latest --limit 50 --fetch-missing-candles --window-before-minutes 30 --window-after-minutes 90', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
       </div>
       {% if has_local_day_cache %}
         <p class="text-dim text-small mt-8">{{ t('journal.chart_local_only_hint') }}</p>
@@ -55,7 +55,7 @@
           <button type="submit" class="btn">{{ t('journal.generate_chart_btn') }}</button>
         </form>
       {% else %}
-        <p class="pill warn mt-8">{{ t('journal.trade_no_candles') }}</p>
+        <p class="pill warn mt-8">{{ t('trades.detail_no_candles_yet') }}</p>
       {% endif %}
     {% endif %}
   </div>

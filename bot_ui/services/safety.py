@@ -2159,8 +2159,11 @@ def validate_complete_trade_charts_args(
     saw_json = False
     dry_run = False
     fetch_miss = False
+    local_only_flag = False
     limit_seen = False
     sym_arg: str | None = None
+    win_b: int | None = None
+    win_a: int | None = None
 
     i = 0
     while i < len(args):
@@ -2199,6 +2202,38 @@ def validate_complete_trade_charts_args(
             fetch_miss = True
             i += 1
             continue
+        if tok == "--local-only":
+            if local_only_flag:
+                return False, f"{command}: duplicate --local-only"
+            local_only_flag = True
+            i += 1
+            continue
+        if tok == "--window-before-minutes":
+            if win_b is not None:
+                return False, f"{command}: duplicate --window-before-minutes"
+            if i + 1 >= len(args):
+                return False, f"{command}: --window-before-minutes needs an integer"
+            try:
+                win_b = int(str(args[i + 1]).strip())
+            except ValueError:
+                return False, f"{command}: --window-before-minutes must be an integer"
+            if not 1 <= win_b <= 1440:
+                return False, f"{command}: --window-before-minutes must be 1–1440"
+            i += 2
+            continue
+        if tok == "--window-after-minutes":
+            if win_a is not None:
+                return False, f"{command}: duplicate --window-after-minutes"
+            if i + 1 >= len(args):
+                return False, f"{command}: --window-after-minutes needs an integer"
+            try:
+                win_a = int(str(args[i + 1]).strip())
+            except ValueError:
+                return False, f"{command}: --window-after-minutes must be an integer"
+            if not 1 <= win_a <= 1440:
+                return False, f"{command}: --window-after-minutes must be 1–1440"
+            i += 2
+            continue
         if tok == "--limit":
             if limit_seen:
                 return False, f"{command}: duplicate --limit"
@@ -2230,6 +2265,8 @@ def validate_complete_trade_charts_args(
             False,
             f"{command}: require exactly one of --latest or --date YYYY-MM-DD",
         )
+    if local_only_flag and fetch_miss:
+        return False, f"{command}: use only one of --local-only or --fetch-missing-candles"
     return True, ""
 
 
