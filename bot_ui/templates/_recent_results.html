@@ -1,5 +1,6 @@
 {# Reusable: show last N command runs from the LocalCommandRunner ring buffer. #}
 {% if recent_results %}
+{% set hints = recent_cmd_hints|default([]) %}
 <div class="section">
   <h2>Recent commands</h2>
   <table>
@@ -30,6 +31,11 @@
         </td>
         <td class="num">{{ "%.2f"|format(r.duration_seconds or 0) }}</td>
       </tr>
+      {% if hints|length > loop.index0 and hints[loop.index0] %}
+      <tr>
+        <td colspan="4" class="text-small text-dim" style="padding-top:0;">{{ hints[loop.index0] }}</td>
+      </tr>
+      {% endif %}
       {% if r.stdout or r.stderr %}
       <tr>
         <td colspan="4">

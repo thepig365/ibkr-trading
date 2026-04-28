@@ -62,10 +62,29 @@ class WatchlistView:
     source: str = ""
     symbols: list[WatchlistEntry] = field(default_factory=list)
     file_path: str | None = None
+    #: Top-level keys from ``*-dynamic-watchlist.json`` ("relative_volume", …).
+    missing_data: list[str] = field(default_factory=list)
+    #: File mtime when ``file_path`` points at a real file (UTC, display string).
+    file_mtime_utc: str = ""
 
     @property
     def is_empty(self) -> bool:
         return not self.symbols
+
+    @property
+    def symbols_with_price(self) -> int:
+        return sum(1 for s in self.symbols if s.latest_price is not None)
+
+    @property
+    def symbols_only_static_core_reason(self) -> bool:
+        """Every row tagged only ``static_core`` (fixed core universe, no liquidity buckets)."""
+        if not self.symbols:
+            return False
+        for s in self.symbols:
+            reasons = sorted({str(x) for x in s.reason})
+            if reasons != ["static_core"]:
+                return False
+        return True
 
 
 @dataclass(frozen=True)
@@ -598,6 +617,15 @@ def _safe_read_json(path: Path) -> dict[str, Any] | None:
     return data
 
 
+def _file_mtime_utc_iso(path: Path) -> str:
+    try:
+        st = path.stat()
+        dt = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc)
+        return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    except OSError:
+        return ""
+
+
 def _safe_read_text(path: Path, *, max_bytes: int = 1_000_000) -> str | None:
     if not path.exists() or not path.is_file():
         return None
@@ -830,9 +858,14 @@ class LocalFileStateStore:
         path = self._latest_watchlist_path()
         if path is None:
             return WatchlistView()
+        mtime = _file_mtime_utc_iso(path)
         data = _safe_read_json(path)
         if not data:
-            return WatchlistView(file_path=str(path))
+            return WatchlistView(file_path=str(path), file_mtime_utc=mtime)
+        missing_top: list[str] = []
+        md = data.get("missing_data")
+        if isinstance(md, list):
+            missing_top = [str(x) for x in md if x is not None]
         items_raw = data.get("symbols") or []
         symbols: list[WatchlistEntry] = []
         for item in items_raw:
@@ -865,6 +898,8 @@ class LocalFileStateStore:
             source=str(data.get("source") or ""),
             symbols=symbols,
             file_path=str(path),
+            missing_data=missing_top,
+            file_mtime_utc=mtime,
         )
 
     def _latest_watchlist_path(self) -> Path | None:

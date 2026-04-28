@@ -363,6 +363,24 @@ def test_local_runner_list_recent_returns_newest_first(tmp_path: Path) -> None:
     assert [r.request.command for r in recent] == ["build-watchlist", "paper-reconcile"]
 
 
+def test_validate_build_watchlist_rejects_unknown_tokens() -> None:
+    ok, err = validate_request(
+        CommandRequest(command="build-watchlist", args=("--evil", "payload"))
+    )
+    assert not ok
+    assert "unexpected" in err.lower()
+
+
+def test_validate_build_watchlist_accepts_ibkr_and_limit() -> None:
+    ok, err = validate_request(
+        CommandRequest(
+            command="build-watchlist",
+            args=("--ibkr", "--limit", "50", "--ibkr-days", "90"),
+        )
+    )
+    assert ok, err
+
+
 # ---------------------------------------------------------------------------
 # Remote placeholder
 # ---------------------------------------------------------------------------

@@ -1802,6 +1802,44 @@ def validate_backtest_oneclick_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return True, ""
 
 
+def validate_build_watchlist_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Whitelist flags for ``build-watchlist`` (offline rebuild or IBKR daily bars).
+
+    Matches Typer CLI: ``--ibkr``, ``--limit N``, ``--ibkr-days N``, ``--save`` / ``--no-save``.
+    """
+    standalone = frozenset({"--ibkr", "--save", "--no-save"})
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t in standalone:
+            i += 1
+            continue
+        if t == "--limit":
+            if i + 1 >= len(args):
+                return False, "build-watchlist: --limit requires a value."
+            try:
+                n = int(args[i + 1])
+            except ValueError:
+                return False, "build-watchlist: --limit must be an integer."
+            if n < 1:
+                return False, "build-watchlist: --limit must be >= 1."
+            i += 2
+            continue
+        if t == "--ibkr-days":
+            if i + 1 >= len(args):
+                return False, "build-watchlist: --ibkr-days requires a value."
+            try:
+                d = int(args[i + 1])
+            except ValueError:
+                return False, "build-watchlist: --ibkr-days must be an integer."
+            if not (1 <= d <= 366):
+                return False, "build-watchlist: --ibkr-days must be in [1, 366]."
+            i += 2
+            continue
+        return False, f"build-watchlist: unexpected token {t!r}."
+    return True, ""
+
+
 def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
     """Dispatch to the per-command validator. Default: accept (no extra rules)."""
     if command == "ibkr-news-fetch":
@@ -1830,6 +1868,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_candle_coverage_args(args)
     if command == "backtest-oneclick":
         return validate_backtest_oneclick_args(args)
+    if command == "build-watchlist":
+        return validate_build_watchlist_args(args)
     if command == "backtest-intraday-smc":
         return validate_backtest_intraday_smc_args(args)
     if command == "backtest-intraday-smc-watchlist":

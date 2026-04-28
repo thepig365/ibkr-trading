@@ -1,36 +1,78 @@
 {% extends "base.html" %}
 {% block title %}{{ t('page.watchlist_p') }}{% endblock %}
-{% block subtitle %}<div class="page-sub">Latest dynamic watchlist file. Buttons run allowlisted CLI commands.</div>{% endblock %}
+{% block subtitle %}
+<div class="page-sub">{{ t('watchlist.subtitle') }}</div>
+{% endblock %}
 
 {% block content %}
   <div class="section">
-    <h2>Actions</h2>
-    <div class="form-row">
-      {% with command='build-watchlist', label='Rebuild watchlist', return_to='/watchlist', btn_class='' %}
+    <h2>{{ t('watchlist.card_how') }}</h2>
+    <div class="card text-small" style="max-width: 52rem;">
+      <p style="margin-top:0;">{{ t('watchlist.criteria_intro') }}</p>
+      <p>{{ t('watchlist.criteria_univ') }}</p>
+      <ul class="text-dim" style="margin: 8px 0 12px 1rem;">
+        <li><strong>{{ t('watchlist.type_label') }}</strong>:
+          {% if watchlist.source == 'ibkr' %}
+            {{ t('watchlist.type_ibkr') }}
+          {% elif watchlist.source == 'static' %}
+            {{ t('watchlist.type_static') }}
+          {% else %}
+            <span class="text-mono">{{ watchlist.source or '—' }}</span>
+          {% endif %}
+        </li>
+        <li>{{ t('watchlist.price_not_on_load') }}</li>
+        <li>{{ t('watchlist.refresh_how') }}</li>
+        <li>{{ t('watchlist.reason_static_core') }}</li>
+        {% if watchlist.symbols_only_static_core_reason %}
+          <li><strong>{{ t('watchlist.rebuild_semantics') }}</strong></li>
+        {% endif %}
+      </ul>
+      <p class="text-dim" style="margin:0;">
+        {{ t('watchlist.last_file') }}: <span class="text-mono">{{ watchlist.file_path or '—' }}</span>
+        {% if watchlist.file_mtime_utc %}· {{ watchlist.file_mtime_utc }}{% endif %}
+        · {{ t('watchlist.row_count', n=(watchlist.symbols|length)) }}
+        {% if watchlist.symbols %}· {{ t('watchlist.symbol_price_stats', shown=watchlist.symbols_with_price, total=(watchlist.symbols|length)) }}{% endif %}
+      </p>
+      {% if watchlist.missing_data %}
+      <p class="text-dim" style="margin:8px 0 0 0;">{{ t('watchlist.missing_metrics') }}:
+        {% for m in watchlist.missing_data %}<span class="pill warn text-mono">{{ m }}</span> {% endfor %}
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{{ t('watchlist.h2_actions') }}</h2>
+    <p class="text-small text-dim" style="margin-top:0;">{{ t('watchlist.btn_ibkr_note') }}</p>
+    <div class="form-row" style="flex-wrap: wrap; gap: 8px; align-items: center;">
+      {% with command='build-watchlist', label=t('watchlist.btn_rebuild'), return_to='/watchlist', btn_class='' %}
         {% include "_command_form.html" %}
       {% endwith %}
-      {% with command='build-watchlist', args='--limit 30', label='Rebuild (limit 30)', return_to='/watchlist', btn_class='ghost' %}
+      {% with command='build-watchlist', args='--limit 30', label=t('watchlist.btn_rebuild_lim'), return_to='/watchlist', btn_class='ghost' %}
+        {% include "_command_form.html" %}
+      {% endwith %}
+      {% with command='build-watchlist', args='--ibkr --limit 50', label=t('watchlist.btn_ibkr'), return_to='/watchlist', btn_class='ghost' %}
         {% include "_command_form.html" %}
       {% endwith %}
     </div>
-    <div class="text-small text-dim">
-      Source file: <span class="text-mono">{{ watchlist.file_path or '—' }}</span>
+    <div class="text-small text-dim mt-8">
+      <span class="text-mono">build-watchlist --ibkr</span> — read-only daily bars only; retriggers universe ranking — not a separate quote API.
     </div>
   </div>
 
   <div class="section">
     <h2>Symbols ({{ watchlist.symbols|length }})</h2>
     {% if watchlist.is_empty %}
-      <div class="empty">No watchlist available yet. Click "Rebuild watchlist" above.</div>
+      <div class="empty">No watchlist JSON on disk yet. Use Actions above.</div>
     {% else %}
       <table>
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th class="num">Latest price</th>
-            <th class="num">Rel vol</th>
-            <th>Reason</th>
-            <th>Blocked</th>
+            <th>{{ t('watchlist.th_symbol') }}</th>
+            <th class="num">{{ t('watchlist.th_price') }}</th>
+            <th class="num">{{ t('watchlist.th_rv') }}</th>
+            <th>{{ t('watchlist.th_reason') }}</th>
+            <th>{{ t('watchlist.th_blocked') }}</th>
           </tr>
         </thead>
         <tbody>

@@ -155,6 +155,67 @@ M: dict[str, dict[str, str]] = {
     "page.edge_p": {"en": "Edge", "zh": "Edge"},
     "page.signals_p": {"en": "Signals", "zh": "信号"},
     "page.watchlist_p": {"en": "Watchlist", "zh": "自选股"},
+    "watchlist.subtitle": {
+        "en": "Latest data/watchlists/*-dynamic-watchlist.json. GET /watchlist does not open IBKR/TWS.",
+        "zh": "读取最新 data/watchlists/*-dynamic-watchlist.json。打开本页面不会连接 IBKR/TWS。",
+    },
+    "watchlist.card_how": {"en": "What you are seeing", "zh": "本页含义"},
+    "watchlist.criteria_intro": {
+        "en": "Selection comes from config/watchlist.yaml: a fixed static core plus optional buckets (liquidity, relative volume, volatility) when IBKR daily bars exist.",
+        "zh": "标的来自 config/watchlist.yaml：固定 static_core；若存在 IBKR 日线再合并成交量/量比/波动等分层。",
+    },
+    "watchlist.criteria_univ": {
+        "en": "Universe defaults: liquid US tech / semiconductor / mega-cap plus index ETFs (SPY/QQQ/…) for ICT/SMC scanning & backtests — research only.",
+        "zh": "默认偏美股高流动性科技与半导体等大盘 + 指数 ETF（如 SPY/QQQ），作为 ICT/SMC 扫描与回测股票池 — 仅研究用途。",
+    },
+    "watchlist.price_not_on_load": {
+        "en": "Prices are not fetched on page load. Latest price / Rel vol show only if the saved JSON already contains them (from a build that pulled daily bars).",
+        "zh": "页面加载不会拉价。只有 JSON 里已有字段时才会显示最新价/量比（来自曾拉取过日线的构建）。",
+    },
+    "watchlist.refresh_how": {
+        "en": "To fill metrics, run an explicit allowlisted rebuild with IBKR read-only daily bars (button below). No market orders; no strategy engine.",
+        "zh": "要补全指标，请点下面白名单按钮，用 IBKR 只读日线重建；无市价单、不跑策略引擎。",
+    },
+    "watchlist.type_label": {"en": "Watchlist file `source`", "zh": "文件字段 source"},
+    "watchlist.type_static": {
+        "en": "static — offline build (no IBKR daily bars in that run). Price columns are usually —.",
+        "zh": "static — 离线构建（该次未拉 IBKR 日线）。价格列多为 —。",
+    },
+    "watchlist.type_ibkr": {
+        "en": "ibkr — that run connected for read-only daily bars; prices/Rel vol populated when bars succeeded.",
+        "zh": "ibkr — 该次构建了只读日线；成功拉到 K 线时才会填价格/量比。",
+    },
+    "watchlist.reason_static_core": {
+        "en": "Reason \"static_core\" means the symbol is always included from config static_core (mega-cap / index core).",
+        "zh": "Reason 列为 static_core：来自配置里的固定核心池（大盘股/指数等）。",
+    },
+    "watchlist.rebuild_semantics": {
+        "en": "If every row shows only static_core and you rebuild without `--ibkr`, symbols may stay the same — JSON file still updates timestamp and Recent commands shows OK.",
+        "zh": "若各行仅有 static_core 且离线重建，符号集可能不变；文件时间仍会更新，“最近命令”也会显示 OK。",
+    },
+    "watchlist.last_file": {"en": "File on disk", "zh": "磁盘文件"},
+    "watchlist.row_count": {"en": "{n} symbols in table", "zh": "表格共 {n} 个标的"},
+    "watchlist.symbol_price_stats": {
+        "en": "{shown} / {total} symbols with latest_price in JSON",
+        "zh": "JSON 含 latest_price：{shown} / {total}",
+    },
+    "watchlist.missing_metrics": {"en": "Batch missing_data", "zh": "缺失字段摘要"},
+    "watchlist.h2_actions": {"en": "Actions", "zh": "操作"},
+    "watchlist.btn_rebuild": {"en": "Rebuild watchlist (offline)", "zh": "重建自选股（离线）"},
+    "watchlist.btn_rebuild_lim": {"en": "Rebuild (offline, limit 30)", "zh": "离线重建（上限 30）"},
+    "watchlist.btn_ibkr": {
+        "en": "Rebuild with IBKR daily bars (read-only)",
+        "zh": "用 IBKR 日线重建（只读行情）",
+    },
+    "watchlist.btn_ibkr_note": {
+        "en": "Uses the same CLI as dashboard: fills latest_price / rel vol when TWS/paper is reachable. Never places trades.",
+        "zh": "与控制台一致：纸面 TWS 可达时才填最新价与量比；不发单。",
+    },
+    "watchlist.th_symbol": {"en": "Symbol", "zh": "标的"},
+    "watchlist.th_price": {"en": "Latest price", "zh": "最新价"},
+    "watchlist.th_rv": {"en": "Rel vol", "zh": "量比"},
+    "watchlist.th_reason": {"en": "Reason", "zh": "原因"},
+    "watchlist.th_blocked": {"en": "Blocked", "zh": "被拦"},
     "page.logs_p": {"en": "Logs", "zh": "运行日志"},
     "page.journal_t": {"en": "Trade Journal", "zh": "交易流水"},
     "page.edge_t": {"en": "Ticker edge profiles", "zh": "标的 Edge 画像"},

@@ -28,7 +28,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | 页面 | 路径 | 用途 |
 |------|------|------|
 | Dashboard | `/dashboard` | 总览、快捷状态 |
-| Watchlist | `/watchlist` | 关注列表与动态/静态表相关说明 |
+| Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单） |
 | Journal | `/journal` | 纸单审计与回测成交只读日志 |
@@ -39,6 +39,15 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Reports | `/reports` | **主报告台**：日/周/研究/回测/edge/盘前/新闻状态汇总；生成走白名单；**全文以 UI + 本地文件为准**，邮件为可选 |
 | Logs | `/logs` | 近期命令与事件（只读、脱敏） |
 | Settings / Doctor | `/settings` | 安全说明、白名单命令、运行时标志、诊断类按钮；**本手册链接** |
+
+### 2.1a Watchlist（自选股 JSON）
+
+- **是什么**：仓库内 **`data/watchlists/*-dynamic-watchlist.json`** 描述「今日研究关注股票池」（来自 `config/watchlist.yaml` 的静态核心 + 若有 IBKR 日线则还有流动性/量比/波动等分层），供 ICT/SMC 扫描与回测篮子参考；**不是订单列表**。
+- **打开页面不会报价**：`/watchlist` **GET 不连接 IBKR**。表格里的 **Latest price / Rel vol** 仅在 JSON **已写入**这些字段时出现（通常来自一次成功的 **`python3 -m bot.cli build-watchlist --ibkr`**）。
+- **`source` 字段**：`static` 表示那次构建未拉 IBKR 日线 → 常为「—」；`ibkr` 表示那次已用 **只读日线** 计算指标。
+- **Reason「static_core」**：表示该标的始终来自配置的 **固定核心**（大盘股/指数 ETF 等）；**并非错误**。若离线重建且仅用核心池，表格可能全部是 `static_core`，**Rebuild 仍可能「看起来没变」**，但命令仍成功、文件时间会更新。
+- **显式刷新指标**：需要使用白名单 **`build-watchlist --ibkr …`**（UI 上与「用 IBKR 日线重建」按钮一致）；**无**市价单，**不改变**交易策略逻辑。
+- （若已启用中英 UI）中英文切换详见 §1.1；技术字段仍可混排英文。
 
 ### 2.1 人性化 UI（读法）
 
