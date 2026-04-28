@@ -8,10 +8,13 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
+from bot.journal_trade_charts_pipeline import (
+    ensure_trade_chart_if_possible,
+    journal_chart_cell,
+    journal_page_auto_ensure_row_charts,
+)
 from bot.journal_trade_lookup import find_paper_order_payload_by_trade_id
 from bot.trade_journal_chart import (
-    candles_available_for_journal_row,
-    candles_available_for_trade,
     generate_trade_journal_chart_png,
     trade_review_chart_png_path,
 )
@@ -80,17 +83,7 @@ def journal_page(
     ctx = base_context(request, active="journal")
     root: Path = request.app.state.project_root
     loc = get_locale(request)
-
-    def _chart_exists(tid: str) -> bool:
-        return trade_review_chart_png_path(root, tid).is_file()
-
-    def _can_gen_chart(row: object) -> bool:
-        tid = getattr(row, "trade_id", "") or ""
-        if not tid:
-            return False
-        if _chart_exists(tid):
-            return False
-        return candles_available_for_journal_row(root, row)
+    journal_page_auto_ensure_row_charts(root, journal.paper_orders)
 
     ctx.update(
         {
@@ -101,8 +94,7 @@ def journal_page(
             "journal_direction": (direction or "all").strip().lower(),
             "journal_chart_filter": (chart_filter or "all").strip().lower(),
             "journal_session_scope": (session_scope or "all").strip().lower(),
-            "chart_png_exists": _chart_exists,
-            "can_generate_journal_chart": _can_gen_chart,
+            "journal_chart_cell": lambda r: journal_chart_cell(root, r),
             "humanize_skip": lambda s: humanize_skip_reason(s, locale=loc),
         }
     )
@@ -152,10 +144,14 @@ def journal_trade_review(
                 status_code=303,
             )
         chart_notice = out.message
+    else:
+        ensure_trade_chart_if_possible(root, tid, force=False)
 
     png_path = trade_review_chart_png_path(root, tid)
     has_chart = png_path.is_file()
     raw_payload = find_paper_order_payload_by_trade_id(root, tid) or {}
+    from bot.trade_journal_chart import candles_available_for_trade  # noqa: PLC0415
+
     has_local_day_cache = (
         candles_available_for_trade(root, raw_payload) if raw_payload else False
     )

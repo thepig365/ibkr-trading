@@ -89,6 +89,15 @@
           </ul>
         {% endif %}
         <div class="text-dim text-small mt-8"><a href="{{ ret('/journal') }}">Journal</a> · <a href="{{ ret('/paper') }}">Paper</a></div>
+        {% if trade_chart_batch_summary %}
+          <p class="text-small mt-8"><strong>{{ t('reports.trade_chart_batch_title') }}</strong></p>
+          <ul class="text-dim text-small" style="margin:4px 0 0 18px;">
+            <li>{{ t('journal.trade_charts_generated_note') }}: {{ trade_chart_batch_summary.generated_count|default(0) }}</li>
+            <li>{{ t('journal.missing_candle_data_note') }}: {{ trade_chart_batch_summary.missing_candles_count|default(0) }}</li>
+          </ul>
+          <div class="text-mono text-small mt-8"><code>{{ trade_chart_batch_summary.chart_dir|default('—') }}</code></div>
+          <p class="text-dim text-small mt-8">{{ t('reports.generate_trade_charts_hint') }}</p>
+        {% endif %}
       </div>
 
       <div class="card">

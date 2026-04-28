@@ -200,9 +200,10 @@
 
 ## Journal Trade Review 没有生成图表
 
-- **正常现象**：若该交易所在 **NY 历日**没有在 `data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv` 的本地 1m 缓存，Strategy Lab **不会在打开 Journal/复盘页时**替你连 IBKR 拉线。请先在 **Backtest / Data Coverage** 或按需使用白名单 **`fetch-candles`**（只读拉缓存）准备数据，再在复盘页点击 **生成复盘图 / Generate**，或 CLI：`journal-generate-trade-chart`（别名 `generate-trade-chart`）`--trade-id <id>`。  
-- **没有复盘图 ≠ 策略或下单「坏了」**——只说明本机暂无用于绘图的缓存。仍可用主表与 **Trade Review** 阅读文本原因、价位与保护状态。  
-- 生成图输出在 `data/reports/trade_charts/`（运行时目录，勿提交 git）。
+- **正常现象**：若该交易所在 **NY 历日**没有在 `data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv` 的本地 1m 缓存，Strategy Lab **绝不会**为出图而替你连 IBKR 拉线——无论 Journal 自动尝试、复盘页还是 `report-on-exit` 批量，都**仅**用本地缓存。请先在 **Backtest / Data Coverage** 或按需使用白名单 **`fetch-candles`**（只读拉缓存）准备数据，再打开 Journal / 跑 `generate-trade-charts --latest`，或复盘页 **生成复盘图**，或单条 CLI：`generate-trade-chart` / `journal-generate-trade-chart --trade-id <id>`。  
+- **没有复盘图 ≠ 策略或下单「坏了」**——只说明本机暂无用于绘图的缓存（主表会显示「缺少K线」一类状态）。仍可用主表与 **Trade Review** 阅读文本原因、价位与保护状态。  
+- **状态含义（主表 Chart 列大致对应）**：「图表可用」= 已有 PNG；「缺少K线」= 当日无本地 CSV；「等待中」= 保护未完整等尚不宜出图；不适用 = 跳过或未提交等。  
+- 生成图输出在 `data/reports/trade_charts/`；批量摘要可能落在 `data/runtime/trade_chart_batch_last.json`（均为运行时，勿提交 git）。
 
 ## 日额度已满 (daily cap)
 

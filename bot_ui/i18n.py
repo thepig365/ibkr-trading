@@ -385,6 +385,62 @@ M: dict[str, dict[str, str]] = {
         "en": "Chart file updated from local candles.",
         "zh": "已用本地蜡烛更新图表文件。",
     },
+    "journal.chart_cell_available_short": {
+        "en": "Chart available",
+        "zh": "图表可用",
+    },
+    "journal.chart_missing_candles_short": {
+        "en": "No candles",
+        "zh": "缺少K线",
+    },
+    "journal.chart_cell_pending": {
+        "en": "Chart pending",
+        "zh": "图表等待中",
+    },
+    "journal.cli_generate_trade_charts_hint": {
+        "en": "Batch: python3 -m bot.cli generate-trade-charts --latest --limit 50 --json",
+        "zh": "批量：generate-trade-charts --latest（仅本地蜡烛）",
+    },
+    "reports.trade_chart_batch_title": {
+        "en": "Journal trade charts (latest batch)",
+        "zh": "交易复盘图（最近一次批量）",
+    },
+    "reports.generate_trade_charts_hint": {
+        "en": "CLI: generate-trade-charts --latest --limit N --json (local candles only).",
+        "zh": "CLI：generate-trade-charts --latest（仅本地蜡烛）。",
+    },
+    "journal.generate_trade_charts_label": {
+        "en": "Generate trade charts",
+        "zh": "生成交易复盘图",
+    },
+    "journal.trade_charts_generated_note": {
+        "en": "Trade charts generated",
+        "zh": "交易复盘图已生成",
+    },
+    "journal.missing_candle_data_note": {
+        "en": "Missing candle data",
+        "zh": "缺少本地K线数据",
+    },
+    "paper.latest_chart_status": {
+        "en": "Latest journal trade chart",
+        "zh": "最近一条流水复盘图",
+    },
+    "paper.chart_status_available": {
+        "en": "Chart available",
+        "zh": "图表可用",
+    },
+    "paper.chart_status_missing_candles": {
+        "en": "Missing local candles",
+        "zh": "缺少本地K线",
+    },
+    "paper.chart_status_pending": {
+        "en": "Chart pending",
+        "zh": "图表等待中",
+    },
+    "paper.chart_status_na": {
+        "en": "Not applicable",
+        "zh": "不适用",
+    },
     "journal.cli_fetch_note": {
         "en": "Use fetch-candles only when you explicitly want IBKR-read-only cache fill.",
         "zh": "仅在主动需要时用 fetch-candles（只读缓存）补数据。",

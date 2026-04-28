@@ -125,7 +125,7 @@
 
 - [ ] 打开 **Journal** 看主表摘要；对需核对的行点击 **Review** 进入 **`/journal/trade/<trade_id>`**。  
 - [ ] 在 **Trade Review** 核对「发送/跳过」「入场/止损/目标」「括号保护与订单号」；跳过原因以可读句显示，技术原文在 Details。  
-- [ ] 若需要 **K 线复盘图**：确认存在对应日 **本地 1m 缓存**后再点「生成复盘图」或 `generate-trade-chart` / `journal-generate-trade-chart --trade-id <id>`（**不**在页面加载时自动连 IBKR）。无图时先看文字与价位，未必是故障。  
+- [ ] 若需要 **K 线复盘图**：先确保有对应 **NY 日的本地 1m 缓存**；Journal / report-on-exit 会**仅在有缓存时**尝试自动写 PNG，仍**绝不**从 UI 自动连 IBKR 拉线；也可 `generate-trade-chart --trade-id <id>` 或批量 `generate-trade-charts --latest --limit 50 --json`。  
 - [ ] **Reports** 页可快速跳到最近 Journal 条目与跳过摘要（只读链接）。  
 - [ ] 运行只读总览：  
   `python3 -m bot.cli engine-status --json`  

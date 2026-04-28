@@ -54,6 +54,16 @@
       {% else %}
         <p class="text-dim text-small">{{ t('paper.journal_no_tid') }}</p>
       {% endif %}
+      {% if latest_journal_chart_cell %}
+        {% set tc = latest_journal_chart_cell.tier %}
+        <p class="text-small text-dim mt-8">{{ t('paper.latest_chart_status') }}:
+          {% if tc == 'available' %}{{ t('paper.chart_status_available') }}
+          {% elif tc == 'missing_candles' %}{{ t('paper.chart_status_missing_candles') }}
+          {% elif tc == 'pending' %}{{ t('paper.chart_status_pending') }}
+          {% elif tc == 'ready_to_draw' %}{{ t('journal.link_generate') }}
+          {% else %}{{ t('paper.chart_status_na') }}{% endif %}
+        </p>
+      {% endif %}
       <div class="mt-8 text-dim text-small"><a href="{{ ret('/journal') }}">{{ t('paper.journal_hub') }}</a></div>
     </div>
   </div>

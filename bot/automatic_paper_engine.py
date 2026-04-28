@@ -59,10 +59,34 @@ def _engine_post_exit_report(
         json.dumps(payload, indent=2, ensure_ascii=False, default=str) + "\n",
         encoding="utf-8",
     )
+    trade_charts_batch: dict[str, Any] | None = None
+    try:
+        from .journal_trade_charts_pipeline import generate_trade_charts_batch  # noqa: PLC0415
+
+        trade_charts_batch = generate_trade_charts_batch(
+            root, mode_latest=True, report_date=None, limit=50
+        )
+    except (OSError, RuntimeError, TypeError, ValueError, KeyError):
+        logger.warning("post-exit trade chart batch skipped", exc_info=True)
+        trade_charts_batch = {"error": "batch_unavailable"}
+
+    tc_suffix = ""
+    if isinstance(trade_charts_batch, dict) and "error" not in trade_charts_batch:
+        g = int(trade_charts_batch.get("generated_count") or 0)
+        mc = int(trade_charts_batch.get("missing_candles_count") or 0)
+        if g or mc:
+            tc_suffix = (
+                f"\nTrade charts (local cache only): {g} generated · "
+                f"{mc} missing local candles."
+            )
+
     if telegram and had_activity and cfg.telegram.is_configured:
         try:
+            body = format_paper_daily_telegram_zh(payload)[:3200]
+            if tc_suffix:
+                body = (body + tc_suffix)[:3900]
             send_telegram_message(
-                format_paper_daily_telegram_zh(payload)[:3500],
+                body,
                 cfg=cfg,
                 journal=None,
             )
@@ -72,6 +96,7 @@ def _engine_post_exit_report(
         "report_date": d,
         "json_path": str(jp),
         "submitted_today": payload.get("summary", {}).get("submitted_to_broker_count"),
+        "trade_charts_batch": trade_charts_batch,
     }
 
 

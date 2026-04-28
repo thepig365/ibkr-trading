@@ -15,6 +15,7 @@ from bot.reports.news_monitor_readiness import build_news_monitor_readiness
 from bot.reports.report_email_status import load_report_email_status
 from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH
+from bot.journal_trade_charts_pipeline import read_last_trade_chart_batch_summary
 from bot.reports.telegram_report_dedup import read_state
 from bot.ux.humanize import humanize_skip_reason
 
@@ -131,6 +132,7 @@ def reports_page(request: Request) -> HTMLResponse:
         ),
         None,
     )
+    ctx["trade_chart_batch_summary"] = read_last_trade_chart_batch_summary(root)
 
     fa = root / FULL_AUTO_STATE_RELPATH
     ctx["full_auto_supervisor_state"] = {}

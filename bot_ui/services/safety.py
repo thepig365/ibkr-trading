@@ -108,6 +108,14 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Alias of journal-generate-trade-chart: render one trade-review PNG "
         "from local 1m candle cache only; no IBKR; no orders."
     ),
+    "generate-trade-charts": (
+        "Batch-generate Journal trade-review PNGs from local 1m caches; "
+        "uses --latest or --date; no IBKR; no orders."
+    ),
+    "journal-generate-trade-charts": (
+        "Alias of generate-trade-charts (batch PNGs under data/reports/trade_charts; "
+        "local cache only)."
+    ),
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -1944,6 +1952,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_premarket_brief_args(args)
     if command in {"journal-generate-trade-chart", "generate-trade-chart"}:
         return validate_generate_trade_chart_args(command, args)
+    if command in {"generate-trade-charts", "journal-generate-trade-charts"}:
+        return validate_generate_trade_charts_batch_args(command, args)
     return True, ""
 
 
@@ -2053,6 +2063,73 @@ def validate_generate_trade_chart_args(
     if not _JOURNAL_TRADE_CHART_TID_RE.match(tid):
         return False, (
             f"{command}: trade id must be a lowercase hex string (16–44 chars)."
+        )
+    return True, ""
+
+
+_DATE_RE_BATCH = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
+
+def validate_generate_trade_charts_batch_args(
+    command: str,
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Exactly one of ``--latest`` xor ``--date YYYY-MM-DD`` plus optional ``--limit N``."""
+
+    ok, err = _check_no_forbidden(command, args)
+    if not ok:
+        return ok, err
+
+    saw_latest = False
+    date_val: str | None = None
+    saw_json = False
+    limit_seen = False
+
+    i = 0
+    while i < len(args):
+        tok = args[i]
+        if tok == "--latest":
+            if saw_latest:
+                return False, f"{command}: duplicate --latest"
+            saw_latest = True
+            i += 1
+            continue
+        if tok == "--date":
+            if date_val is not None:
+                return False, f"{command}: duplicate --date"
+            if i + 1 >= len(args):
+                return False, f"{command}: --date needs YYYY-MM-DD"
+            date_val = str(args[i + 1]).strip()
+            if not _DATE_RE_BATCH.match(date_val):
+                return False, f"{command}: --date must be YYYY-MM-DD"
+            i += 2
+            continue
+        if tok == "--json":
+            if saw_json:
+                return False, f"{command}: duplicate --json"
+            saw_json = True
+            i += 1
+            continue
+        if tok == "--limit":
+            if limit_seen:
+                return False, f"{command}: duplicate --limit"
+            if i + 1 >= len(args):
+                return False, f"{command}: --limit requires a number"
+            try:
+                n = int(str(args[i + 1]).strip())
+            except ValueError:
+                return False, f"{command}: --limit must be integer"
+            if not 1 <= n <= 500:
+                return False, f"{command}: --limit must be 1–500"
+            limit_seen = True
+            i += 2
+            continue
+        return False, f"{command}: unexpected token {tok!r}"
+
+    if saw_latest == (date_val is not None):
+        return (
+            False,
+            f"{command}: require exactly one of --latest or --date YYYY-MM-DD",
         )
     return True, ""
 

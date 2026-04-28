@@ -3825,6 +3825,64 @@ def generate_trade_chart_cmd(
     raise typer.Exit(2)
 
 
+@app.command("generate-trade-charts")
+@app.command("journal-generate-trade-charts")
+def generate_trade_charts_batch_cmd(
+    trade_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="NYSE calendar session date YYYY-MM-DD — batch rows on that NY day.",
+    ),
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Recent paper journal trades (newest-first; local files only).",
+    ),
+    limit: int = typer.Option(
+        50,
+        "--limit",
+        min=1,
+        max=500,
+        help="Max rows considered (after filtering by mode).",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print batch summary JSON."),
+) -> None:
+    """Generate missing trade-review PNGs from local 1m caches (no IBKR; no orders).
+
+    Provide exactly one of ``--latest`` or ``--date YYYY-MM-DD``.
+    """
+    cfg = load_config()
+
+    from .journal_trade_charts_pipeline import generate_trade_charts_batch
+
+    if bool(latest) == (trade_date is not None):
+        console.print("[red]Use exactly one of: --latest  OR  --date YYYY-MM-DD[/red]")
+        raise typer.Exit(2)
+    if trade_date is not None:
+        td = trade_date.strip()[:10]
+        if len(td) != 10 or td[4] != "-" or td[7] != "-":
+            console.print("[red]--date must be YYYY-MM-DD[/red]")
+            raise typer.Exit(2)
+        summary = generate_trade_charts_batch(
+            cfg.project_root, mode_latest=False, report_date=td, limit=limit
+        )
+    else:
+        summary = generate_trade_charts_batch(
+            cfg.project_root, mode_latest=True, report_date=None, limit=limit
+        )
+    if json_out:
+        print(json.dumps(summary, ensure_ascii=False))
+        raise typer.Exit(0)
+    console.print(
+        f"[cyan]generated[/cyan]: {summary.get('generated_count')} · "
+        f"[green]PNG on disk[/green]: {summary.get('available_after')} · "
+        f"[yellow]missing candles[/yellow]: {summary.get('missing_candles_count')} · "
+        f"[red]errors[/red]: {summary.get('error_count')}"
+    )
+    console.print(f"[dim]{summary.get('chart_dir')}[/dim]")
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # Prompt 13L-alt: ticker edge profiles (research-only; no order placement)
 # ---------------------------------------------------------------------------

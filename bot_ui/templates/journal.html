@@ -106,12 +106,19 @@
                   {% elif r.broker_errors %}{% for m in r.broker_errors %}{{ m }} {% endfor %}
                   {% else %}—{% endif %}
                 </td>
+                {% set jc = journal_chart_cell(r) %}
                 <td class="text-small">
                   <div><a href="{{ ret(url_for('journal_trade_review', trade_id=r.trade_id)) }}">{{ t('journal.review') }}</a></div>
-                  {% if chart_png_exists(r.trade_id) %}
-                    <div><a href="{{ ret(request.url_for('journal_trade_chart_png', trade_id=r.trade_id)) }}">{{ t('journal.link_chart') }}</a></div>
-                  {% elif can_generate_journal_chart(r) %}
+                  {% if jc.tier == 'available' %}
+                    <div><a href="{{ ret(request.url_for('journal_trade_chart_png', trade_id=r.trade_id)) }}">{{ t('journal.chart_cell_available_short') }}</a></div>
+                  {% elif jc.tier == 'ready_to_draw' %}
                     <div><a href="{{ ret('/journal/trade/' ~ r.trade_id ~ '?preview_chart=1') }}">{{ t('journal.link_generate') }}</a></div>
+                  {% elif jc.tier == 'missing_candles' %}
+                    <div class="text-dim">{{ t('journal.chart_missing_candles_short') }}</div>
+                  {% elif jc.tier == 'pending' %}
+                    <div class="text-dim">{{ t('journal.chart_cell_pending') }}</div>
+                  {% elif jc.tier == 'not_applicable' %}
+                    <div class="text-dim">—</div>
                   {% endif %}
                 </td>
               </tr>

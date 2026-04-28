@@ -34,6 +34,7 @@ from bot.paper_activation import (
     PAPER_READINESS_STATE_RELPATH,
     build_paper_activation_status,
 )
+from bot.journal_trade_charts_pipeline import journal_chart_cell
 from bot.ux.paper_context import build_paper_page_ux
 
 from ..strategy_lab_context import get_catalog_and_selection
@@ -104,6 +105,9 @@ def paper_page(request: Request) -> HTMLResponse:
         intraday_loop=ctx["intraday_paper_loop"],
         first_journal_row=first_row,
         latest_trade_review_href=trade_href,
+    )
+    ctx["latest_journal_chart_cell"] = (
+        journal_chart_cell(root, first_row) if first_row is not None else None
     )
     try:
         ctx["auto_loop_readiness"] = build_auto_loop_readiness(
