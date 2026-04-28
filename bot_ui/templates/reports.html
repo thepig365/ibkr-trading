@@ -55,6 +55,35 @@
         {% if report_hub.hub_paper_daily_json_relpath %}<div class="text-mono text-small mt-8"><code>{{ report_hub.hub_paper_daily_json_relpath }}</code></div>{% endif %}
       </div>
       <div class="card">
+        <div class="card-title">{{ t('reports.journal_block') }}</div>
+        {% if journal_trade_samples and journal_trade_samples|length > 0 %}
+          <ul class="text-small" style="margin:0;padding-left:18px;">
+            {% for r in journal_trade_samples %}
+              <li>
+                <a href="{{ ret('/journal/trade/' ~ r.trade_id) }}"><strong>{{ r.symbol }}</strong></a>
+                · <code>{{ r.timestamp[:16] }}Z</code>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-dim text-small">—</div>
+        {% endif %}
+        {% if journal_incomplete_rows and journal_incomplete_rows|length > 0 %}
+          <p class="pill warn text-small mt-8" style="margin-top:8px;">
+            {{ 'Protection incomplete' }}:
+            {% for r in journal_incomplete_rows %}{{ r.symbol }}{% if not loop.last %} · {% endif %}{% endfor %}
+          </p>
+        {% endif %}
+        {% if journal_skipped_pairs and journal_skipped_pairs|length > 0 %}
+          <p class="text-small mt-8">{{ t('reports.journal_skipped') }}</p>
+          <ul class="text-dim text-small" style="margin:8px 0 0 18px;">
+            {% for sym, why in journal_skipped_pairs %}<li><strong>{{ sym }}</strong>: {{ why }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        <div class="text-dim text-small mt-8"><a href="{{ ret('/journal') }}">Journal</a> · <a href="{{ ret('/paper') }}">Paper</a></div>
+      </div>
+
+      <div class="card">
         <div class="card-title">Paper weekly</div>
         {% if report_hub.hub_paper_weekly %}
           <div class="text-small">{{ report_hub.hub_paper_weekly.week_start }} → {{ report_hub.hub_paper_weekly.week_end }}</div>

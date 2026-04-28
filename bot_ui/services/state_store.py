@@ -19,9 +19,14 @@ import json
 import os
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Protocol
+from zoneinfo import ZoneInfo
+
+from bot.journal_trade_id import compute_stable_trade_row_id
+
+_JOURNAL_NY_TZ = ZoneInfo("America/New_York")
 
 
 @dataclass(frozen=True)
@@ -430,6 +435,11 @@ class IntradayPaperOrderRow:
     parent_entry_order_id: int | None = None
     parent_sl_order_id: int | None = None
     parent_tp_order_id: int | None = None
+    trade_id: str = ""
+    sizing_audit_json: str = ""
+    raw_row_json_truncated: str = ""
+    journal_source_path: str = ""
+    journal_line_no: int = 0
 
 
 @dataclass(frozen=True)
@@ -560,8 +570,16 @@ class StateStore(Protocol):
     def get_first_paper_pass_snapshot(self) -> dict[str, Any]: ...
     def latest_paper_report_links(self) -> dict[str, str | None]: ...
     def get_journal_view(
-        self, *, limit: int = 200, view_filter: str = "all", symbol: str = ""
+        self,
+        *,
+        limit: int = 200,
+        view_filter: str = "all",
+        symbol: str = "",
+        direction: str = "all",
+        chart_filter: str = "all",
+        session_scope: str = "all",
     ) -> JournalView: ...
+    def lookup_paper_order_by_trade_id(self, trade_id: str) -> IntradayPaperOrderRow | None: ...
     def list_log_files(self) -> list[Path]: ...
     def tail_file(self, path: Path, max_bytes: int = 64_000) -> str: ...
 
@@ -595,6 +613,41 @@ LOOP_STATE_RELPATH = "data/runtime/auto_paper_loop_state.json"
 INTRADAY_AUTO_PAPER_ENABLED_RELPATH = "data/runtime/intraday_auto_paper_enabled"
 INTRADAY_LOOP_STATE_RELPATH = "data/runtime/intraday_auto_paper_loop_state.json"
 PAPER_ORDERS_DIRNAME = "data/paper_orders"
+
+
+def _journal_trade_ny_date(iso_ts: str) -> str | None:
+    raw = (iso_ts or "").strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_JOURNAL_NY_TZ).date().isoformat()
+
+
+def _prior_us_session_date_from_today_ny(reference_utc_now: datetime | None = None) -> str:
+    now = reference_utc_now or datetime.now(timezone.utc)
+    today_ny = now.astimezone(_JOURNAL_NY_TZ).date()
+    x = today_ny - timedelta(days=1)
+    while x.weekday() >= 5:
+        x -= timedelta(days=1)
+    return x.isoformat()
+
+
+def _trade_chart_png_exists(project_root: Path, tid: str) -> bool:
+    from bot.trade_journal_chart import trade_review_chart_png_path
+
+    tid = (tid or "").strip().lower()
+    if len(tid) < 16:
+        return False
+    p = trade_review_chart_png_path(project_root, tid)
+    return p.is_file()
+
 
 # Backwards-compatible filename constants (used by older imports/tests).
 KILL_SWITCH_FILE = "KILL_SWITCH"
@@ -1497,7 +1550,14 @@ class LocalFileStateStore:
     # Journal page (Prompt 13F PART E)
     # ------------------------------------------------------------------
     def get_journal_view(
-        self, *, limit: int = 200, view_filter: str = "all", symbol: str = ""
+        self,
+        *,
+        limit: int = 200,
+        view_filter: str = "all",
+        symbol: str = "",
+        direction: str = "all",
+        chart_filter: str = "all",
+        session_scope: str = "all",
     ) -> JournalView:
         """Aggregate UI-friendly view of paper orders + backtest trades.
 
@@ -1514,8 +1574,9 @@ class LocalFileStateStore:
             for p in paths:
                 files.append(str(p))
                 try:
+                    abs_p = str(p.resolve())
                     with p.open("r", encoding="utf-8") as f:
-                        for line in f:
+                        for line_no, line in enumerate(f):
                             line = line.strip()
                             if not line:
                                 continue
@@ -1525,7 +1586,12 @@ class LocalFileStateStore:
                                 continue
                             if not isinstance(obj, dict):
                                 continue
-                            row = _row_from_paper_order(obj, source_path=str(p))
+                            row = _row_from_paper_order(
+                                obj,
+                                source_path=str(p),
+                                line_no=line_no,
+                                source_abs=abs_p,
+                            )
                             if row is not None:
                                 rows.append(row)
                 except OSError:
@@ -1547,14 +1613,49 @@ class LocalFileStateStore:
                 if (r.bracket_integrity and r.bracket_integrity != "complete")
             ]
 
+        dd = (direction or "all").strip().lower()
+        if dd == "long":
+            rows = [r for r in rows if (r.direction or "").strip().lower() == "long"]
+        elif dd == "short":
+            rows = [r for r in rows if (r.direction or "").strip().lower() == "short"]
+
+        cf = (chart_filter or "all").strip().lower()
+        if cf == "yes":
+            rows = [
+                r
+                for r in rows
+                if _trade_chart_png_exists(self.project_root, r.trade_id)
+            ]
+        elif cf == "no":
+            rows = [
+                r
+                for r in rows
+                if not _trade_chart_png_exists(self.project_root, r.trade_id)
+            ]
+
+        sco = (session_scope or "all").strip().lower()
+        if sco == "today":
+            td = datetime.now(timezone.utc).astimezone(_JOURNAL_NY_TZ).date().isoformat()
+            rows = [
+                r
+                for r in rows
+                if (_journal_trade_ny_date(r.timestamp) or "") == td
+            ]
+        elif sco == "last_session":
+            want = _prior_us_session_date_from_today_ny()
+            rows = [
+                r for r in rows if (_journal_trade_ny_date(r.timestamp) or "") == want
+            ]
+
         if limit > 0:
-            rows = rows[:int(limit)]
+            rows = rows[: int(limit)]
 
         backtest_trades: list[BacktestTradeRow] = []
         backtest_csv_path: str | None = None
         bt = self.get_backtest_summary()
+        bt_limit = int(limit) if limit > 0 else 200
         if not bt.is_empty:
-            backtest_trades = list(bt.trades[:limit])
+            backtest_trades = list(bt.trades[:bt_limit])
             backtest_csv_path = bt.trades_csv_path
 
         return JournalView(
@@ -1563,6 +1664,40 @@ class LocalFileStateStore:
             paper_orders_files=files,
             backtest_trades_csv_path=backtest_csv_path,
         )
+
+    def lookup_paper_order_by_trade_id(self, trade_id: str) -> IntradayPaperOrderRow | None:
+        tid = (trade_id or "").strip().lower()
+        if len(tid) < 16:
+            return None
+        if self.paper_orders_dir.exists():
+            paths = sorted(self.paper_orders_dir.glob("*-intraday-paper-orders.jsonl"))
+            for p in paths:
+                try:
+                    abs_p = str(p.resolve())
+                    with p.open("r", encoding="utf-8") as f:
+                        for line_no, line in enumerate(f):
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                obj = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            if not isinstance(obj, dict):
+                                continue
+                            row = _row_from_paper_order(
+                                obj,
+                                source_path=str(p),
+                                line_no=line_no,
+                                source_abs=abs_p,
+                            )
+                            if row is None:
+                                continue
+                            if row.trade_id.lower() == tid:
+                                return row
+                except OSError:
+                    continue
+        return None
 
     # ------------------------------------------------------------------
     # Safety
@@ -1884,7 +2019,11 @@ def _read_runtime_flag_file(path: Path) -> tuple[bool, bool]:
 
 
 def _row_from_paper_order(
-    obj: dict[str, Any], *, source_path: str | None = None
+    obj: dict[str, Any],
+    *,
+    source_path: str | None = None,
+    line_no: int = 0,
+    source_abs: str = "",
 ) -> "IntradayPaperOrderRow | None":
     sym = str(obj.get("symbol") or "").upper().strip()
     if not sym:
@@ -1943,6 +2082,28 @@ def _row_from_paper_order(
     if not rm:
         rm = str(obj.get("recommended_mode") or "")
 
+    spath_abs = source_abs.strip() if source_abs else ""
+    if not spath_abs and source_path:
+        try:
+            spath_abs = str(Path(source_path).resolve())
+        except OSError:
+            spath_abs = str(source_path)
+    sizing_json = ""
+    saudit = obj.get("sizing_audit")
+    if isinstance(saudit, dict):
+        try:
+            sizing_json = json.dumps(saudit, ensure_ascii=False, sort_keys=True)
+        except TypeError:
+            sizing_json = ""
+    raw_preview = ""
+    try:
+        raw_preview = json.dumps(obj, ensure_ascii=False, sort_keys=True)
+    except TypeError:
+        raw_preview = str(obj)
+    if len(raw_preview) > 12_000:
+        raw_preview = raw_preview[:12_000] + "\n… (truncated)"
+    tid = compute_stable_trade_row_id(spath_abs, line_no, obj)
+
     return IntradayPaperOrderRow(
         timestamp=str(obj.get("timestamp") or obj.get("ts") or ""),
         strategy_id=str(obj.get("strategy_id") or ""),
@@ -1990,6 +2151,11 @@ def _row_from_paper_order(
         ),
         parent_sl_order_id=_iid(obj.get("parent_sl_order_id") or obj.get("stop_order_id")),
         parent_tp_order_id=_iid(obj.get("parent_tp_order_id") or obj.get("target_order_id")),
+        trade_id=tid,
+        sizing_audit_json=sizing_json,
+        raw_row_json_truncated=raw_preview,
+        journal_source_path=str(source_path) if source_path else "",
+        journal_line_no=int(line_no),
     )
 
 
@@ -2094,8 +2260,20 @@ class DatabaseStateStore:
         raise self._not_yet()
 
     def get_journal_view(  # pragma: no cover - stub
-        self, *, limit: int = 200, view_filter: str = "all", symbol: str = ""
+        self,
+        *,
+        limit: int = 200,
+        view_filter: str = "all",
+        symbol: str = "",
+        direction: str = "all",
+        chart_filter: str = "all",
+        session_scope: str = "all",
     ) -> JournalView:
+        raise self._not_yet()
+
+    def lookup_paper_order_by_trade_id(  # pragma: no cover - stub
+        self, trade_id: str
+    ) -> IntradayPaperOrderRow | None:
         raise self._not_yet()
 
     def list_log_files(self) -> list[Path]:  # pragma: no cover - stub

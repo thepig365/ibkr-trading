@@ -1,0 +1,16 @@
+{# Journal table helpers — keep logic trivial for readability. #}
+{% macro protection_pill(r) %}
+  {% if r.bracket_integrity == 'complete' %}<span class="pill good">complete</span>
+  {% elif r.bracket_integrity == 'incomplete' %}<span class="pill warn">incomplete</span>
+  {% elif r.bracket_integrity %}<span class="pill neutral">{{ r.bracket_integrity }}</span>
+  {% else %}—{% endif %}
+{% endmacro %}
+
+{% macro status_pill(r) %}
+  {% if r.submitted %}<span class="pill good">{{ 'Sent' }}</span>
+  {% elif r.submitted_to_broker %}<span class="pill warn">{{ 'Partial' }}</span>
+  {% elif r.skipped_reasons %}<span class="pill warn">{{ 'Skipped' }}</span>
+  {% else %}—{% endif %}
+{% endmacro %}
+
+{% macro ict_chain_line(r) %}H{% if r.higher_timeframe_context_ok %}✓{% else %}·{% endif %} · 5m{% if r.five_min_setup_found %}✓{% else %}·{% endif %} · 1m{% if r.one_min_trigger_found %}✓{% else %}·{% endif %}{% endmacro %}

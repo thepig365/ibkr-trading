@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ t('page.notfound') }} — {{ t('journal.trade_title') }}{% endblock %}
+{% block content %}
+  <div class="section">
+    <h1>{{ t('journal.not_found') }}</h1>
+    <p class="text-mono">{{ unknown_trade_id }}</p>
+    <p><a href="{{ ret(url_for('journal_page')) }}">{{ t('journal.trade_back') }}</a></p>
+  </div>
+{% endblock %}

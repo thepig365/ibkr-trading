@@ -46,6 +46,16 @@
         <p class="text-dim text-small">No paper-bracket rows in the journal yet.</p>
       {% endif %}
     </div>
+
+    <div class="card">
+      <div class="card-title">{{ t('paper.journal_review_card') }}</div>
+      {% if paper_ux.latest_trade_review_href %}
+        <p class="text-small"><a href="{{ ret(paper_ux.latest_trade_review_href) }}">{{ t('paper.journal_open_review') }}</a></p>
+      {% else %}
+        <p class="text-dim text-small">{{ t('paper.journal_no_tid') }}</p>
+      {% endif %}
+      <div class="mt-8 text-dim text-small"><a href="{{ ret('/journal') }}">{{ t('paper.journal_hub') }}</a></div>
+    </div>
   </div>
 
   <div class="grid">

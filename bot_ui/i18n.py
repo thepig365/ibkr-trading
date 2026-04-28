@@ -88,6 +88,16 @@ M: dict[str, dict[str, str]] = {
         "zh": "仅纸面账户。可查看是否允许纸面测试、测试预算与日内纸开关—不会下单。开关只影响由独立自动进程读取的本地标志文件。",
     },
     "paper.strategy_flash": {"en": "Paper trading strategy", "zh": "纸面交易策略"},
+    "paper.journal_review_card": {
+        "en": "Latest Journal trade review",
+        "zh": "最新一条 · 交易复盘",
+    },
+    "paper.journal_open_review": {"en": "Open trade review card", "zh": "打开复盘页"},
+    "paper.journal_no_tid": {
+        "en": "No trade id yet — run paper once or open the full Journal.",
+        "zh": "尚无 stable trade id — 先跑纸面或打开完整流水。",
+    },
+    "paper.journal_hub": {"en": "Open full Journal", "zh": "打开交易流水"},
     "paper.check_readiness": {
         "en": "Check Automatic Engine Readiness",
         "zh": "检查自动引擎就绪状态",
@@ -118,6 +128,14 @@ M: dict[str, dict[str, str]] = {
     "reports.backtest_edge": {"en": "Backtest & Edge reports", "zh": "回测与 Edge 报告"},
     "reports.telegram_email": {"en": "Telegram & email delivery", "zh": "Telegram 与邮件投递状态"},
     "reports.regen": {"en": "Regenerate reports (safe CLI)", "zh": "重新生成报告（安全 CLI）"},
+    "reports.journal_block": {
+        "en": "Paper Journal (latest rows)",
+        "zh": "纸面流水（节选）",
+    },
+    "reports.journal_skipped": {
+        "en": "Skipped reasons (readable)",
+        "zh": "跳过原因（可读摘要）",
+    },
     # backtest
     "page.backtest": {"en": "Backtest", "zh": "回测"},
     "backtest.sub": {
@@ -218,6 +236,89 @@ M: dict[str, dict[str, str]] = {
     "watchlist.th_blocked": {"en": "Blocked", "zh": "被拦"},
     "page.logs_p": {"en": "Logs", "zh": "运行日志"},
     "page.journal_t": {"en": "Trade Journal", "zh": "交易流水"},
+    "journal.paper_only": {"en": "Paper account only", "zh": "仅纸面账户"},
+    "journal.sub_readonly": {
+        "en": (
+            "A readable log of what the engine tried: sent to TWS, skipped, "
+            "or incomplete protection — from local files only; "
+            "no broker connection on load and no order buttons."
+        ),
+        "zh": (
+            "引擎动作的只读摘要：发往 TWS、跳过或保护不完整。"
+            "仅读本地文件；加载时不连券商，且无下单按钮。"
+        ),
+    },
+    "journal.card_paper_submissions": {"en": "Paper submissions", "zh": "纸面提交条数"},
+    "journal.no_jsonl": {
+        "en": "No paper-bracket JSONL yet. Run the intraday paper loop once to populate.",
+        "zh": "尚无纸面条目 JSONL。运行一次盘中纸面循环后会写入。",
+    },
+    "journal.card_backtest_latest": {"en": "Backtest trades (latest)", "zh": "回测成交（最新）"},
+    "journal.no_backtest_csv": {"en": "No backtest trades CSV.", "zh": "无回测 trades CSV。"},
+    "journal.h2_paper": {"en": "Paper bracket submissions", "zh": "纸面括号下单记录"},
+    "journal.filter_view": {"en": "View", "zh": "视图"},
+    "journal.f_all": {"en": "All", "zh": "全部"},
+    "journal.f_sent": {"en": "Sent", "zh": "已提交"},
+    "journal.f_skipped": {"en": "Skipped", "zh": "跳过"},
+    "journal.f_incomplete": {"en": "Protection incomplete", "zh": "保护不完整"},
+    "journal.f_long": {"en": "Long", "zh": "做多"},
+    "journal.f_short": {"en": "Short", "zh": "做空"},
+    "journal.f_has_chart": {"en": "Has chart", "zh": "有图"},
+    "journal.f_no_chart": {"en": "No chart", "zh": "无图"},
+    "journal.f_today": {"en": "Today only (NY)", "zh": "仅今日（NY）"},
+    "journal.f_last_session": {"en": "Last NY session date", "zh": "上一交易日（NY）"},
+    "journal.by_symbol": {"en": "By symbol", "zh": "按标的"},
+    "journal.empty_hint": {
+        "en": "Nothing here yet. Safe paper-engine runs populate this Journal from audit JSONL.",
+        "zh": "暂无记录。只有通过安全审计 JSONL 的纸面运行才会写入。",
+    },
+    "journal.col_time": {"en": "Time", "zh": "时间"},
+    "journal.col_symbol": {"en": "Symbol", "zh": "标的"},
+    "journal.col_direction": {"en": "Dir", "zh": "方向"},
+    "journal.col_mode": {"en": "Mode", "zh": "模式"},
+    "journal.col_status": {"en": "Status", "zh": "状态"},
+    "journal.col_entry": {"en": "Entry", "zh": "入场"},
+    "journal.col_stop": {"en": "Stop", "zh": "止损"},
+    "journal.col_target": {"en": "Target", "zh": "目标"},
+    "journal.col_qty": {"en": "Qty", "zh": "数量"},
+    "journal.col_notional": {"en": "Notional", "zh": "名义金额"},
+    "journal.col_protection": {"en": "Protection", "zh": "保护"},
+    "journal.col_edge": {"en": "Edge", "zh": "Edge"},
+    "journal.col_reason": {"en": "Reason", "zh": "原因"},
+    "journal.col_chart": {"en": "Chart", "zh": "图表"},
+    "journal.review": {"en": "Review", "zh": "复盘"},
+    "journal.details_engine": {
+        "en": "Sizing / ticks / IDs / raw technical details",
+        "zh": "仓位细节 / Tick / ID / 引擎原始明细",
+    },
+    "journal.footer_note": {
+        "en": "Showing the {n} most recent rows · paper-only · no live path from this page.",
+        "zh": "显示最近 {n} 条 · 仅纸面 · 本页无实盘路径。",
+    },
+    "journal.h2_backtest": {"en": "Backtest trades (latest)", "zh": "回测成交（最新）"},
+    "journal.backtest_empty": {
+        "en": "No backtest trades — run backtest-intraday-smc first.",
+        "zh": "无回测成交 — 请先运行 backtest-intraday-smc。",
+    },
+    "journal.trade_title": {"en": "Trade review", "zh": "交易复盘"},
+    "journal.trade_back": {"en": "Back to Journal", "zh": "返回流水"},
+    "journal.trade_identity": {"en": "Identity", "zh": "标识"},
+    "journal.trade_prices": {"en": "Prices & size", "zh": "价格与规模"},
+    "journal.trade_decision": {"en": "Engine decision", "zh": "引擎决策"},
+    "journal.trade_ict": {"en": "ICT chain", "zh": "ICT 链"},
+    "journal.trade_edge": {"en": "Edge", "zh": "Edge"},
+    "journal.trade_protection": {"en": "Bracket protection", "zh": "括号保护"},
+    "journal.trade_chart": {"en": "Chart (local candles)", "zh": "图表（本地 K 线）"},
+    "journal.trade_generate_chart": {
+        "en": "Generate trade chart (local cache only; no IBKR on click)",
+        "zh": "生成本地复盘图（仅用缓存；点击不连 IBKR）",
+    },
+    "journal.trade_no_candles": {
+        "en": "No local candle data for this trade. Use Backtest / Data Coverage to fetch candles when you choose to.",
+        "zh": "本地无该笔 K 线。请在需要时通过回测/数据覆盖页拉取（非自动）。",
+    },
+    "journal.trade_links": {"en": "Links", "zh": "链接"},
+    "journal.not_found": {"en": "Trade not found in local journal files.", "zh": "本地日志中找不到该笔交易。"},
     "page.edge_t": {"en": "Ticker edge profiles", "zh": "标的 Edge 画像"},
     "page.strategies_t": {"en": "Strategies — Control Center", "zh": "策略中心"},
     "page.notfound": {"en": "Not Found", "zh": "未找到"},

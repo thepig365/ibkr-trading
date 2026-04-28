@@ -100,6 +100,10 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "data-status": "Show disk usage for local data/ categories (read-only).",
     "data-cleanup": "List or remove old ephemeral files; UI may only use --dry-run.",
     "premarket-brief": "Generate Strategy Lab pre-market brief (read-only; never trades).",
+    "journal-generate-trade-chart": (
+        "Render one trade-review PNG under data/reports/trade_charts "
+        "from local 1m candle cache only; no IBKR; no orders."
+    ),
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -1934,6 +1938,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_data_cleanup_args(args)
     if command == "premarket-brief":
         return validate_premarket_brief_args(args)
+    if command == "journal-generate-trade-chart":
+        return validate_journal_generate_trade_chart_args(args)
     return True, ""
 
 
@@ -1960,6 +1966,30 @@ def validate_data_cleanup_args(args: tuple[str, ...]) -> tuple[bool, str]:
             "data-cleanup: --apply is CLI-only; use --dry-run from the UI.",
         )
     return False, "data-cleanup: use --dry-run from the UI (or CLI --apply)."
+
+
+_JOURNAL_TRADE_CHART_TID_RE = re.compile(r"^[a-f0-9]{16,44}$")
+
+
+def validate_journal_generate_trade_chart_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """Exactly ``--trade-id <hex>`` — local PNG only; connects to neither IBKR nor the engine."""
+    ok, err = _check_no_forbidden("journal-generate-trade-chart", args)
+    if not ok:
+        return ok, err
+    if len(args) != 2 or args[0] != "--trade-id":
+        return False, (
+            "journal-generate-trade-chart accepts only `--trade-id <id>` "
+            "(hex id from Strategy Lab Journal)."
+        )
+    tid = str(args[1]).strip().lower()
+    if not _JOURNAL_TRADE_CHART_TID_RE.match(tid):
+        return False, (
+            "journal-generate-trade-chart: trade id must be a lowercase hex string "
+            "(16–44 chars)."
+        )
+    return True, ""
 
 
 def validate_premarket_brief_args(args: tuple[str, ...]) -> tuple[bool, str]:

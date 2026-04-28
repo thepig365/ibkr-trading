@@ -120,6 +120,10 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
         "--mode", "strict_and_aggressive",
     ),
     "backtest-report": ("--latest",),
+    "journal-generate-trade-chart": (
+        "--trade-id",
+        "a" * 22,
+    ),
     "build-edge-profile": (
         "--symbol", "CRM",
         "--start", "2026-04-01",

@@ -16,6 +16,7 @@ from bot.reports.report_email_status import load_report_email_status
 from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH
 from bot.reports.telegram_report_dedup import read_state
+from bot.ux.humanize import humanize_skip_reason
 
 from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context
@@ -98,6 +99,24 @@ def reports_page(request: Request) -> HTMLResponse:
                 ctx["paper_audit_hint"] = str(cands[-1])
 
     ctx["report_hub"] = build_report_hub_ui_context(root)
+
+    jv = state.get_journal_view(limit=500, view_filter="all", symbol="")
+    ctx["journal_trade_samples"] = jv.paper_orders[:6]
+    ctx["journal_incomplete_rows"] = [
+        r
+        for r in jv.paper_orders
+        if (r.bracket_integrity or "").strip().lower() == "incomplete"
+    ][:6]
+    skipped_pairs: list[tuple[str, str]] = []
+    for r in jv.paper_orders:
+        if not r.skipped_reasons:
+            continue
+        skipped_pairs.append(
+            (r.symbol, humanize_skip_reason(r.skipped_reasons[0]))
+        )
+        if len(skipped_pairs) >= 6:
+            break
+    ctx["journal_skipped_pairs"] = skipped_pairs
 
     fa = root / FULL_AUTO_STATE_RELPATH
     ctx["full_auto_supervisor_state"] = {}

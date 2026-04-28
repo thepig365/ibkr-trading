@@ -418,10 +418,14 @@ Edge、新闻、表内分数、相对成交量**不能**单独触发下单。缺
 
 ---
 
-## 12. Journal 怎么看
+## 12. Journal、Trade Review 与本地复盘图
 
-- **Journal** 聚合并展示纸单 JSONL 与回测成交（见 state store 逻辑），只读。  
-- 不用于下单；无「市场单」入口。
+- **Journal**（`/journal`）聚合 `data/paper_orders/*-intraday-paper-orders.jsonl` 与最新回测 trades CSV（见 state store），**只读**；**不负责下单**，也没有市场单按钮。加载页面**不会**连接 IBKR。  
+- **主表**：面向阅读的列包括时间、标的、多空、模式（strict/aggressive）、发送/跳过/部分状态、入场/止损/目标价、计划 R:R、数量、名义金额、括号保护是否完整、ICT 链（HTF/5m/1m）、Edge 分数/推荐模式、**可读**跳过原因，以及 **Review** 链接。工程化字段（sizing 细节、minTick、原始 E/SL/TP、订单号、完整 JSON 等）收在各行 **Details** 折叠里，原文不丢。  
+- **Sent / Skipped / Protection incomplete**：分别对应「已提交或部分到 TWS」「有 skipped 原因」「`bracket_integrity`≠complete」。不完整保护在列表行与复盘页上会**显眼提示**。  
+- **Trade Review**（`/journal/trade/<trade_id>`）：每条 JSONL 行有稳定 **`trade_id`**（由时间、标的、方向、条目、跳过原因等派生哈希）。复盘页列出身份、价位、风险/每份股、盈亏比、ICT 链、Edge、保护与订单号、可读跳过原因（原文仍在 Details）；含到 Journal / Reports / Paper 的导航。  
+- **图表**：**不会**在打开 Journal / 复盘页时自动拉 IBKR。**仅当**你有对应日的 **本地 1m 缓存**（`data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv`，按 NY 历日文件名）且点击 **Generate trade chart**，或用白名单 CLI `journal-generate-trade-chart --trade-id <id>` 时，才会在 `data/reports/trade_charts/<trade_id>.png` 生成 PNG（运行时产物，gitignored）。图为「交易时间前后窗口」的收盘价折线，叠加入场/止损/目标与风险/回报区域；**没有本地 K 线时**页面会明确提示去 **Backtest / Data Coverage** 或按需使用 **fetch-candles**（只读拉缓存），**不是**交易故障。  
+- **筛选**：可按 Sent / Skipped / 保护不完整、多空、标的、**有/无已生成复盘图**、仅今日（NY）、**上一 NY 交易日** 等筛选，不改变引擎逻辑。
 
 ---
 

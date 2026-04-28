@@ -3767,6 +3767,27 @@ def backtest_report_cmd(
     raise typer.Exit(0)
 
 
+@app.command("journal-generate-trade-chart")
+def journal_generate_trade_chart_cmd(
+    trade_id: str = typer.Option(
+        ...,
+        "--trade-id",
+        help="Stable trade id from the Strategy Lab Journal (`/journal`).",
+    ),
+) -> None:
+    """Render one trade-review PNG from local 1m cache only (no IBKR; never places orders)."""
+    cfg = load_config()
+    root = cfg.project_root
+    from .trade_journal_chart import generate_trade_journal_chart_png
+
+    out = generate_trade_journal_chart_png(root, trade_id)
+    if out.ok:
+        console.print(f"[green]{out.message}[/green]")
+        raise typer.Exit(0)
+    console.print(f"[yellow]{out.message}[/yellow]")
+    raise typer.Exit(2)
+
+
 # ---------------------------------------------------------------------------
 # Prompt 13L-alt: ticker edge profiles (research-only; no order placement)
 # ---------------------------------------------------------------------------

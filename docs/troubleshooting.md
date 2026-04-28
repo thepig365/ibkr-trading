@@ -198,6 +198,12 @@
 2. 在 TWS 纸面人工核对三腿；不要为「修括号」在 UI 里找**非**白名单命令。  
 3. 阅读该次 `skipped_reasons` 与 `paper-reconcile` 结果。
 
+## Journal Trade Review 没有生成图表
+
+- **正常现象**：若该交易所在 **NY 历日**没有在 `data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv` 的本地 1m 缓存，Strategy Lab **不会在打开 Journal/复盘页时**替你连 IBKR 拉线。请先在 **Backtest / Data Coverage** 或按需使用白名单 **`fetch-candles`**（只读拉缓存）准备数据，再在复盘页点击 **Generate trade chart**，或 CLI：`journal-generate-trade-chart --trade-id <id>`。  
+- **没有复盘图 ≠ 策略或下单「坏了」**——只说明本机暂无用于绘图的缓存。仍可用主表与 **Trade Review** 阅读文本原因、价位与保护状态。  
+- 生成图输出在 `data/reports/trade_charts/`（运行时目录，勿提交 git）。
+
 ## 日额度已满 (daily cap)
 
 - **Paper** 与 **Dashboard** 显示 `today_submitted_notional` / `daily_remaining`；**Journal** 的 sizing 列可能含 `daily_cap` 相关说明。  

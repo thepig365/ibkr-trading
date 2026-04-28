@@ -91,6 +91,9 @@ def paper_page(request: Request) -> HTMLResponse:
     jv = state.get_journal_view(limit=30, view_filter="all", symbol="")
     ctx["latest_paper_orders"] = jv.paper_orders
     first_row = jv.paper_orders[0] if jv.paper_orders else None
+    trade_href = None
+    if first_row is not None and getattr(first_row, "trade_id", ""):
+        trade_href = f"/journal/trade/{first_row.trade_id}"
     ctx["paper_ux"] = build_paper_page_ux(
         max_notional_per_order_usd=float(ip.max_notional_per_order_usd),
         max_daily_notional_usd=float(ip.max_daily_notional_usd),
@@ -100,6 +103,7 @@ def paper_page(request: Request) -> HTMLResponse:
         paper_sizing_ledger=ctx.get("paper_sizing_ledger"),
         intraday_loop=ctx["intraday_paper_loop"],
         first_journal_row=first_row,
+        latest_trade_review_href=trade_href,
     )
     try:
         ctx["auto_loop_readiness"] = build_auto_loop_readiness(

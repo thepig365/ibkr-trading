@@ -1,84 +1,88 @@
 {% extends "base.html" %}
 {% block title %}{{ t('page.journal_t') }}{% endblock %}
-{% block subtitle %}<div class="page-sub"><strong>Paper account only</strong> — a readable log of what the engine tried: sent to TWS, skipped, or protection incomplete. From local files only; <strong>no broker connection on load</strong> and no order buttons.</div>{% endblock %}
+{% block subtitle %}<div class="page-sub"><strong>{{ t('journal.paper_only') }}</strong> — {{ t('journal.sub_readonly') }}</div>{% endblock %}
 
 {% block content %}
   {% set j = journal %}
+  {% from "journal_macros.html" import protection_pill, status_pill, ict_chain_line %}
 
   <div class="grid">
     <div class="card">
-      <div class="card-title">Paper bracket submissions</div>
+      <div class="card-title">{{ t('journal.card_paper_submissions') }}</div>
       <div class="card-value">{{ j.paper_orders|length }}</div>
       <div class="card-sub text-small">
         {% if j.paper_orders_files %}
-          {{ j.paper_orders_files|length }} JSONL log file{{ '' if j.paper_orders_files|length == 1 else 's' }} · paper-only
+          {{ j.paper_orders_files|length }} JSONL · paper-only
         {% else %}
-          No paper-bracket logs on this machine yet. Run the intraday paper loop or one pass to populate.
+          {{ t('journal.no_jsonl') }}
         {% endif %}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Backtest trades (latest)</div>
+      <div class="card-title">{{ t('journal.card_backtest_latest') }}</div>
       <div class="card-value">{{ j.backtest_trades|length }}</div>
       <div class="card-sub text-small">
         {% if j.backtest_trades_csv_path %}
-          source: <code>{{ j.backtest_trades_csv_path }}</code>
+          <code>{{ j.backtest_trades_csv_path }}</code>
         {% else %}
-          No backtest trades CSV available. Run <code>backtest-intraday-smc[-watchlist]</code> first.
+          {{ t('journal.no_backtest_csv') }}
         {% endif %}
       </div>
     </div>
   </div>
 
   <div class="section">
-    <h2>Paper bracket submissions</h2>
-    <div class="form-row flex-wrap" style="gap:8px; align-items:center; margin-bottom:12px;">
-      <span class="text-small text-dim">View:</span>
-      <a class="text-small {% if journal_filter == 'all' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=all">All</a>
-      <a class="text-small {% if journal_filter == 'submitted' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=submitted">Sent to TWS</a>
-      <a class="text-small {% if journal_filter == 'skipped' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=skipped">Skipped</a>
-      <a class="text-small {% if journal_filter == 'incomplete' %}text-mono font-bold{% endif %}" href="{{ request.url_for('journal_page') }}?filter=incomplete">Protection incomplete</a>
+    <h2>{{ t('journal.h2_paper') }}</h2>
+    <div class="form-row flex-wrap" style="gap:8px; align-items:flex-start; margin-bottom:12px;">
+      <span class="text-small text-dim">{{ t('journal.filter_view') }}:</span>
+      <a class="text-small {% if journal_filter == 'all' %}text-mono font-bold{% endif %}" href="{{ ret('/journal') }}">{{ t('journal.f_all') }}</a>
+      <a class="text-small {% if journal_filter == 'submitted' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?filter=submitted') }}">{{ t('journal.f_sent') }}</a>
+      <a class="text-small {% if journal_filter == 'skipped' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?filter=skipped') }}">{{ t('journal.f_skipped') }}</a>
+      <a class="text-small {% if journal_filter == 'incomplete' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?filter=incomplete') }}">{{ t('journal.f_incomplete') }}</a>
+      <span class="text-dim">|</span>
+      <a class="text-small {% if journal_direction == 'long' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?direction=long&filter=' ~ (journal_filter or 'all')) }}">{{ t('journal.f_long') }}</a>
+      <a class="text-small {% if journal_direction == 'short' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?direction=short&filter=' ~ (journal_filter or 'all')) }}">{{ t('journal.f_short') }}</a>
+      <span class="text-dim">|</span>
+      <a class="text-small {% if journal_chart_filter == 'yes' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?chart=yes&filter=' ~ (journal_filter or 'all')) }}">{{ t('journal.f_has_chart') }}</a>
+      <a class="text-small {% if journal_chart_filter == 'no' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?chart=no&filter=' ~ (journal_filter or 'all')) }}">{{ t('journal.f_no_chart') }}</a>
+      <span class="text-dim">|</span>
+      <a class="text-small {% if journal_session_scope == 'today' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?session=today&filter=' ~ (journal_filter or 'all')) }}">{{ t('journal.f_today') }}</a>
+      <a class="text-small {% if journal_session_scope == 'last_session' %}text-mono font-bold{% endif %}" href="{{ ret('/journal?session=last_session&filter=' ~ (journal_filter or 'all')) }}">{{ t('journal.f_last_session') }}</a>
       <form method="get" class="form-row" style="gap:4px; margin:0; align-items:center;">
         <input type="hidden" name="filter" value="{{ journal_filter or 'all' }}"/>
-        <input name="symbol" value="{{ journal_symbol or '' }}" placeholder="e.g. NVDA" class="text-mono" style="max-width:100px;"/>
-        <button type="submit" class="btn ghost" style="padding:4px 8px;">By symbol</button>
+        <input type="hidden" name="direction" value="{{ journal_direction or 'all' }}"/>
+        <input type="hidden" name="chart" value="{{ journal_chart_filter or 'all' }}"/>
+        <input type="hidden" name="session" value="{{ journal_session_scope or 'all' }}"/>
+        <input name="symbol" value="{{ journal_symbol or '' }}" placeholder="NVDA" class="text-mono" style="max-width:100px;"/>
+        <button type="submit" class="btn ghost" style="padding:4px 8px;">{{ t('journal.by_symbol') }}</button>
       </form>
     </div>
     {% if not j.paper_orders %}
       <div class="card-sub text-small text-dim">
-        Empty. After enabling intraday paper trading and running
-        <code>auto-paper-intraday-smc</code> (or the loop), submissions and
-        skipped reasons will appear here.
+        {{ t('journal.empty_hint') }}
       </div>
     {% else %}
       <div class="table-scroll">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Time (UTC)</th>
-              <th>Symbol</th>
-              <th>Strategy</th>
-              <th>Mode</th>
-              <th>Dir</th>
-              <th>Entry</th>
-              <th>Stop</th>
-              <th>Target</th>
-              <th>Orig (E/SL/TP)</th>
-              <th>minTick</th>
-              <th>TIF</th>
-              <th>Est. notional</th>
+              <th>{{ t('journal.col_time') }}</th>
+              <th>{{ t('journal.col_symbol') }}</th>
+              <th>{{ t('journal.col_direction') }}</th>
+              <th>{{ t('journal.col_mode') }}</th>
+              <th>{{ t('journal.col_status') }}</th>
+              <th>{{ t('journal.col_entry') }}</th>
+              <th>{{ t('journal.col_stop') }}</th>
+              <th>{{ t('journal.col_target') }}</th>
               <th>R/R</th>
-              <th>Qty</th>
-              <th>Sizing</th>
-              <th>Stop/target protection</th>
-              <th>Prot</th>
-              <th>Outcome</th>
-              <th>Order / parent IDs</th>
+              <th>{{ t('journal.col_qty') }}</th>
+              <th>{{ t('journal.col_notional') }}</th>
+              <th>{{ t('journal.col_protection') }}</th>
               <th>ICT</th>
-              <th>Edge</th>
-              <th>Reason / Skipped / Broker</th>
-              <th>Charts</th>
+              <th>{{ t('journal.col_edge') }}</th>
+              <th>{{ t('journal.col_reason') }}</th>
+              <th>{{ t('journal.col_chart') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -86,58 +90,57 @@
               <tr{% if r.bracket_integrity and r.bracket_integrity != 'complete' %} class="row-warn" style="background: color-mix(in srgb, var(--warn, #a60) 12%, transparent);"{% endif %}>
                 <td><code>{{ r.timestamp[:19] }}Z</code></td>
                 <td><strong>{{ r.symbol }}</strong></td>
-                <td><code>{{ r.strategy_id }}</code></td>
+                <td>{{ (r.direction or '-')|upper }}</td>
                 <td>
                   {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">strict</span>
                   {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill neutral">aggressive</span>
                   {% else %}<span class="pill warn">{{ r.signal_category or '-' }}</span>{% endif %}
                 </td>
-                <td>{{ r.direction or '-' }}</td>
+                <td>{{ status_pill(r) }}</td>
                 <td>{% if r.entry is not none %}{{ "%.2f"|format(r.entry) }}{% else %}—{% endif %}</td>
                 <td>{% if r.stop is not none %}{{ "%.2f"|format(r.stop) }}{% else %}—{% endif %}</td>
                 <td>{% if r.target is not none %}{{ "%.2f"|format(r.target) }}{% else %}—{% endif %}</td>
-                <td class="text-small">
-                  {% if r.original_entry is not none or r.original_stop is not none or r.original_target is not none %}
-                    E{% if r.original_entry is not none %}{{ "%.2f"|format(r.original_entry) }}{% else %}—{% endif %}
-                    /SL{% if r.original_stop is not none %}{{ "%.2f"|format(r.original_stop) }}{% else %}—{% endif %}
-                    /TP{% if r.original_target is not none %}{{ "%.2f"|format(r.original_target) }}{% else %}—{% endif %}
-                  {% else %}—{% endif %}
-                </td>
-                <td class="text-small">{% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} <span class="text-dim">({{ r.min_tick_source }})</span>{% endif %}{% else %}—{% endif %}</td>
-                <td class="text-small">{% if r.order_tif %}<code>{{ r.order_tif }}</code>{% else %}—{% endif %}</td>
-                <td class="text-small">{% if r.estimated_notional is not none %}${{ "{:,.0f}".format(r.estimated_notional) }}{% else %}—{% endif %}</td>
                 <td>{% if r.planned_rr is not none %}{{ "%.2f"|format(r.planned_rr) }}{% else %}—{% endif %}</td>
                 <td>{% if r.quantity is not none %}{{ r.quantity|int }}{% else %}—{% endif %}</td>
-                <td class="text-small">{% if r.sizing_summary %}{{ r.sizing_summary }}{% else %}—{% endif %}</td>
-                <td>
-                  {% if r.bracket_integrity == 'complete' %}<span class="pill good">Protection complete</span>
-                  {% elif r.bracket_integrity == 'incomplete' %}<span class="pill warn">Protection incomplete</span>
-                  {% elif r.bracket_integrity %}<span class="pill neutral">{{ r.bracket_integrity }}</span>
-                  {% else %}—{% endif %}
-                  <div class="text-dim text-mono" style="font-size:10px;">{{ r.bracket_integrity }}</div>
-                </td>
-                <td>{% if r.bracket_protected is none %}—{% elif r.bracket_protected %}<span class="pill good">Y</span>{% else %}<span class="pill warn">N</span>{% endif %}</td>
-                <td>
-                  {% if r.submitted %}<span class="pill good">Sent</span>
-                  {% elif r.submitted_to_broker %}<span class="pill warn">Sent to TWS, protection incomplete</span>
-                  {% else %}<span class="pill warn">Skipped</span>{% endif %}
-                </td>
-                <td class="text-mono text-small">P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %}<br/>{{ r.order_ids|join(', ') }}{% endif %}</td>
-                <td class="text-small text-mono">H{% if r.higher_timeframe_context_ok %}✓{% else %}·{% endif %} 5m{% if r.five_min_setup_found %}✓{% else %}·{% endif %} 1m{% if r.one_min_trigger_found %}✓{% else %}·{% endif %}</td>
+                <td>{% if r.estimated_notional is not none %}${{ "{:,.0f}".format(r.estimated_notional) }}{% else %}—{% endif %}</td>
+                <td>{{ protection_pill(r) }}</td>
+                <td class="text-small text-mono">{{ ict_chain_line(r) }}</td>
                 <td class="text-small">{% if r.edge_score is not none %}{{ "%.0f"|format(r.edge_score) }}{% else %}—{% endif %}{% if r.recommended_mode %} · <span class="text-dim">{{ r.recommended_mode }}</span>{% endif %}</td>
                 <td class="text-small">
                   {% if r.skipped_reasons %}
-                    {% for reason in r.skipped_reasons %}<span class="pill warn">{{ reason }}</span> {% endfor %}
-                  {% endif %}
-                  {% if r.broker_error_codes %}[codes: {{ r.broker_error_codes|join(', ') }}] {% endif %}
-                  {% if r.broker_errors %}{% for m in r.broker_errors %}{{ m }} {% endfor %}{% endif %}
-                  {% if r.verify_in_tws_required %}<span class="pill warn">verify TWS</span>{% endif %}
-                  {% if not r.skipped_reasons and not r.broker_errors and not r.broker_error_codes %}—{% endif %}
+                    {% for reason in r.skipped_reasons %}<div>{{ humanize_skip(reason) }}</div>{% endfor %}
+                  {% elif r.broker_errors %}{% for m in r.broker_errors %}{{ m }} {% endfor %}
+                  {% else %}—{% endif %}
                 </td>
                 <td class="text-small">
-                  {% if r.chart_paths %}
-                    {% for c in r.chart_paths %}<code>{{ c.split('/')[-1] }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
-                  {% else %}—{% endif %}
+                  <a href="{{ ret(url_for('journal_trade_review', trade_id=r.trade_id)) }}">{{ t('journal.review') }}</a>
+                  {% if chart_png_exists(r.trade_id) %}
+                    <div class="text-dim">PNG</div>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr class="text-small text-dim">
+                <td colspan="16">
+                  <details>
+                    <summary>{{ t('journal.details_engine') }}</summary>
+                    <div class="mt-8" style="font-family:var(--font-mono,monospace);font-size:11px;">
+                      <div><strong>trade_id</strong> <code>{{ r.trade_id }}</code></div>
+                      {% if r.sizing_summary %}<div><strong>sizing (brief)</strong> {{ r.sizing_summary }}</div>{% endif %}
+                      {% if r.sizing_audit_json %}<div><strong>sizing_audit</strong> <pre style="white-space:pre-wrap;">{{ r.sizing_audit_json }}</pre></div>{% endif %}
+                      <div><strong>minTick</strong> {% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} ({{ r.min_tick_source }}){% endif %}{% else %}—{% endif %} · <strong>TIF</strong> {% if r.order_tif %}<code>{{ r.order_tif }}</code>{% else %}—{% endif %}</div>
+                      <div><strong>Orig E/SL/TP</strong>
+                        {% if r.original_entry is not none or r.original_stop is not none or r.original_target is not none %}
+                          E{% if r.original_entry is not none %}{{ "%.4f"|format(r.original_entry) }}{% else %}—{% endif %}
+                          /SL{% if r.original_stop is not none %}{{ "%.4f"|format(r.original_stop) }}{% else %}—{% endif %}
+                          /TP{% if r.original_target is not none %}{{ "%.4f"|format(r.original_target) }}{% else %}—{% endif %}
+                        {% else %}—{% endif %}
+                      </div>
+                      <div><strong>Order IDs</strong> P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %} · {{ r.order_ids|join(', ') }}{% endif %}</div>
+                      {% if r.skipped_reasons %}<div><strong>skip (raw)</strong> {% for reason in r.skipped_reasons %}<code>{{ reason }}</code> {% endfor %}</div>{% endif %}
+                      {% if r.broker_error_codes %}<div><strong>broker codes</strong> {{ r.broker_error_codes|join(', ') }}</div>{% endif %}
+                      {% if r.raw_row_json_truncated %}<div><strong>raw row (truncated)</strong><pre style="white-space:pre-wrap;max-height:240px;overflow:auto;">{{ r.raw_row_json_truncated }}</pre></div>{% endif %}
+                    </div>
+                  </details>
                 </td>
               </tr>
             {% endfor %}
@@ -145,17 +148,16 @@
         </table>
       </div>
       <div class="text-small text-dim mt-12">
-        Showing the {{ j.paper_orders|length }} most recent rows · paper-only · live trading is hard-blocked at the broker layer.
+        {{ t('journal.footer_note', n=j.paper_orders|length) }}
       </div>
     {% endif %}
   </div>
 
   <div class="section">
-    <h2>Backtest trades (latest)</h2>
+    <h2>{{ t('journal.h2_backtest') }}</h2>
     {% if not j.backtest_trades %}
       <div class="card-sub text-small text-dim">
-        No backtest trades to show. Run <code>backtest-intraday-smc[-watchlist]</code>
-        (or use the Backtest page) to populate.
+        {{ t('journal.backtest_empty') }}
       </div>
     {% else %}
       <div class="table-scroll">

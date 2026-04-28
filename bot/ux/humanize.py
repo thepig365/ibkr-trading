@@ -62,6 +62,37 @@ _SKIP_REASON_HUMAN: dict[str, str] = {
 }
 
 
+def humanize_skip_reason(reason: str) -> str:
+    """Map one engine skip string to plain language; keep technical meaning."""
+    rs = (reason or "").strip()
+    if not rs:
+        return ""
+    low = rs.lower()
+    if "trading_allow_shorting" in low and "false" in low:
+        return "Skipped because short selling is disabled in paper safety settings."
+    if "cannot submit short bracket" in low:
+        return "Skipped because a short bracket cannot be submitted with current safety settings."
+    if "open order exists" in low and "refuse duplicate" in low:
+        return (
+            "Skipped because an open order already exists for this symbol. "
+            "The engine avoids duplicate paper entries."
+        )
+    if "existing position" in low and "refuse duplicate" in low:
+        return (
+            "Skipped because this symbol already has a paper position. "
+            "The one-position-per-symbol gate blocked a duplicate entry."
+        )
+    if "duplicate paper entry" in low:
+        return (
+            "Skipped as a duplicate paper entry — another open order or position "
+            "already exists for this symbol."
+        )
+    for k, h in _SKIP_REASON_HUMAN.items():
+        if k in low:
+            return h
+    return rs
+
+
 def humanize_skip_reasons(reasons: list[str] | None) -> list[str]:
     if not reasons:
         return []
@@ -70,13 +101,7 @@ def humanize_skip_reasons(reasons: list[str] | None) -> list[str]:
         rs = (r or "").strip()
         if not rs:
             continue
-        low = rs.lower()
-        rep = None
-        for k, h in _SKIP_REASON_HUMAN.items():
-            if k in low:
-                rep = h
-                break
-        out.append(rep or rs)
+        out.append(humanize_skip_reason(rs))
     return out
 
 

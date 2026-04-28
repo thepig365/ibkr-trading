@@ -29,6 +29,7 @@ class PaperPageUX:
     latest_protection: str | None = None
     latest_broker_error: str | None = None
     latest_why_skipped: str | None = None
+    latest_trade_review_href: str | None = None
     to_dict: dict[str, Any] = field(default_factory=dict)
 
 
@@ -50,6 +51,7 @@ def build_paper_page_ux(
     paper_sizing_ledger: Any | None,
     intraday_loop: Any,
     first_journal_row: Any | None,
+    latest_trade_review_href: str | None = None,
 ) -> PaperPageUX:
     pa = paper_activation or {}
     ready = pa.get("final_readiness") == "READY_FOR_PAPER_TEST"
@@ -148,6 +150,7 @@ def build_paper_page_ux(
         "latest_protection": prot,
         "latest_broker_error": be,
         "latest_why_skipped": why,
+        "latest_trade_review_href": latest_trade_review_href,
     }
     return PaperPageUX(
         can_paper_test=can,
@@ -158,5 +161,6 @@ def build_paper_page_ux(
         latest_protection=prot,
         latest_broker_error=be,
         latest_why_skipped=why,
+        latest_trade_review_href=latest_trade_review_href,
         to_dict=d,
     )

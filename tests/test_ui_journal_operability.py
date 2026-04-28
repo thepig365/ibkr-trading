@@ -71,6 +71,7 @@ def test_journal_renders_paper_row_with_bracket_and_sizing(tmp_path: Path) -> No
     assert "Est. notional" in t or "500" in t
     assert "55" in t or "strict" in t
     assert "1001" in t or "Prot" in t
+    assert "Review" in t
 
     r2 = _client(tmp_path).get("/journal?filter=incomplete&symbol=NVDA")
     assert r2.status_code == 200
