@@ -5,7 +5,15 @@
 
 ---
 
-## 交易记录 `/trades` 没有图 · 显示「缺少 K 线」
+## Dashboard：本地有「已提交记录」但快照里券商持仓为零
+
+- **正常可能原因**：订单未成交、已撤销/过期，或你**尚未**运行过一次 **Connect / Refresh TWS** / `broker-snapshot-refresh`，快照仍是旧的或不存在。  
+- **处理**：纸面 TWS 已开且 API 端口正确时，在 **Dashboard**（或 **Paper**）点 **「连接 / 刷新 TWS」**，或终端：  
+  `python3 -m bot.cli broker-snapshot-refresh --json`  
+  该命令只读拉 positions / open orders / fills，**不下单**；使用 **`broker_readonly`** client id 段（见 `bot/ibkr_client_ids.py`），与纸面引擎订单 client id 分离。  
+- **为何各页不各自连 TWS**：避免每打开一个页面就建新 API 会话（易 326 冲突、卡顿）。统一由你**显式刷新**生成一份本地 JSON，各页只读文件。
+
+---
 
 - **数据来源**：1m K 线来自 **IBKR 历史**（或你曾用 `fetch-candles` 等方式写入），**存盘**在 `data/candles/<SYMBOL>/1min/<DATE>.csv`，再用于生成 `data/reports/trade_charts/<trade_id>.png`。**打开 `/trades`（GET）不会自动连 IBKR**。若该交易日磁盘上**尚无**该 CSV，列表会显示缺少 K 线/尚无图——可先等 **纸面引擎 `--report-on-exit`**（默认会尝试只读补齐缺失日后再出图，失败则软跳过），或在 **`/trades` / `/reports`** 点 **Complete trade charts**，或 CLI `complete-trade-charts --fetch-missing-candles`。  
 - **Past trades**：日后只要补齐对应 **NY 日** 的 `1min` CSV，仍可再生成 PNG。  

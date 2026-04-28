@@ -56,7 +56,16 @@ pytest
 
 ## Strategy Lab (local UI)
 
-The FastAPI UI is **read-only on startup** (no TWS connection). For a
+The FastAPI UI is **read-only on startup** (no TWS connection). The
+Dashboard and `/trades` read **local engine files** plus the last
+**broker snapshot** JSON at `data/runtime/broker_snapshot_last.json`.
+That file is written **only** when you click **Connect / Refresh TWS** on
+the Dashboard (or Paper) or run `python3 -m bot.cli broker-snapshot-refresh`
+— an explicit read-only session using the `broker_readonly` client-id
+roster. **Submitted rows in the ledger are not the same as open
+positions at the broker** until a snapshot confirms them.
+
+For a
 daily workflow, helper scripts, and smoke tests, see
 [`docs/strategy-lab-daily-workflow.md`](docs/strategy-lab-daily-workflow.md).
 
@@ -68,7 +77,7 @@ daily workflow, helper scripts, and smoke tests, see
 | `Start Strategy Lab.command` (macOS, optional) | `"$ROOT/scripts/start_strategy_lab_ui.sh"` + wait for `healthz` + `open` → `/dashboard` |
 | `Open Strategy Lab Dashboard.command` (macOS, optional) | `open` → `/dashboard` only (no `start`) |
 | `python3 -m bot_ui` | Open the UI (default `http://127.0.0.1:8765/`) |
-| `python3 -m bot.cli engine-status --json` | Full read-only lab snapshot (config + `data/*` + `ui_process`) |
+| `python3 -m bot.cli broker-snapshot-refresh --json` | Read-only TWS check → updates `data/runtime/broker_snapshot_last.json`; no orders |
 | `./scripts/start_strategy_lab_ui.sh` | Background UI + PID + logs (see `docs/strategy-lab-daily-workflow.md`) |
 | `make strategy-lab-smoke` | Pytest: `tests/test_engine_launch_workflow.py` |
 | `docs/strategy-lab-user-manual.md` | 中文用户手册 / operator manual (ZH) |

@@ -30,6 +30,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .broker import Broker
+from .broker_snapshot import refresh_broker_snapshot
 from .config import AppConfig, load_config
 from .ibkr_client import IBKRClient, IBKRClientError, LiveTradingBlocked
 from .ibkr_connection import PUBLIC_COLLISION_HINT, connect_readonly_roster_retry
@@ -330,6 +331,36 @@ def ibkr_session_status_cmd() -> None:
     finally:
         client.disconnect()
     raise typer.Exit(exit_code)
+
+
+@app.command("broker-snapshot-refresh")
+@app.command("broker-refresh")
+def broker_snapshot_refresh_cmd(
+    json_only: bool = typer.Option(
+        False,
+        "--json",
+        help="Print full snapshot JSON envelope to stdout.",
+    ),
+) -> None:
+    """Read-only roster connect → ``data/runtime/broker_snapshot_last.json``. No orders."""
+    cfg, _journal = _bootstrap()
+    snap = refresh_broker_snapshot(cfg=cfg, journal=_journal)
+    envelope = snap.to_dict()
+    if json_only:
+        console.print(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
+        raise typer.Exit(0)
+    st = envelope.get("status") or ""
+    summary = envelope.get("error_summary") or ""
+    rc = Panel.fit(
+        f"status=[bold]{st}[/bold]\nchecked=[dim]{envelope.get('checked_at_utc')}[/dim]\n"
+        f"positions={envelope.get('positions_count')} open_orders={envelope.get('open_orders_count')}\n"
+        f"execs={envelope.get('executions_count')}\n"
+        + (summary[:800] + ("…" if len(str(summary)) > 800 else "") if summary else ""),
+        title="broker-snapshot-refresh",
+        style="cyan" if st == "ok" else ("yellow" if st == "unavailable" else "red"),
+    )
+    console.print(rc)
+    raise typer.Exit(0)
 
 
 @app.command()

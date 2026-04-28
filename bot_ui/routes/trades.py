@@ -23,6 +23,11 @@ from bot.trade_ledger import (
     ledger_summary_counts,
     skipped_reason_human_for,
 )
+from bot.broker_snapshot import (
+    infer_local_trade_state_token,
+    infer_symbol_broker_state,
+    load_broker_snapshot,
+)
 
 from ..i18n import get_locale
 from ._helpers import base_context
@@ -144,6 +149,11 @@ def trades_page(
     )
 
     ctx = base_context(request, active="trades")
+    broker_snapshot = load_broker_snapshot(root)
+
+    def _trade_bs_slug(sym: str) -> str:
+        return infer_symbol_broker_state(sym, broker_snapshot)
+
     ctx.update(
         {
             "ledger_rows": filtered,
@@ -158,6 +168,9 @@ def trades_page(
             "trades_symbol": symbol.strip().upper(),
             "journal_direction": (direction or "all").strip().lower(),
             "journal_chart_filter": (chart_filter or "all").strip().lower(),
+            "broker_snapshot": broker_snapshot,
+            "infer_local_trade_state_token": infer_local_trade_state_token,
+            "broker_state_slug": _trade_bs_slug,
         }
     )
     return request.app.state.templates.TemplateResponse(request, "trades.html", ctx)

@@ -25,9 +25,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
+from bot.config import load_config
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH, build_full_auto_paper_readiness
 from bot.launchd_full_auto_ui import build_background_runner_ui_context
-from bot.config import load_config
+from bot.broker_snapshot import load_broker_snapshot
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
     FIRST_PAPER_PASS_LAST_RELPATH,
@@ -169,6 +170,8 @@ def paper_page(request: Request) -> HTMLResponse:
             ),
             "last_supervisor_state": {},
         }
+    ctx["broker_snapshot"] = load_broker_snapshot(root)
+
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 
 

@@ -10,6 +10,26 @@
     · <a class="text-small" href="{{ ret(url_for('strategies')) }}">Strategy Control Center</a>
     <p class="text-small" style="margin:8px 0 0 0;">Trades still require a valid <strong>ICT/SMC</strong> setup and a <strong>1-minute trigger</strong>, plus all paper safety gates. Chanlun/ORB and other future models stay <strong>paper-off</strong> here until their own invariants and tests are complete.</p>
   </div>
+
+  <div class="section">
+    <h2>{{ t('paper.broker_snap_h') }}</h2>
+    <p class="text-dim text-small">{{ t('paper.broker_snap_intro') }}</p>
+    {% set bsp = broker_snapshot %}
+    <div class="card" style="max-width: 60rem;">
+      {% if not bsp %}
+        <p class="text-small">{{ t('dashboard.broker_no_snapshot_yet') }}</p>
+      {% else %}
+        <p class="text-small"><strong>{{ t('dashboard.broker_last_check') }}</strong>: <code>{{ bsp.checked_at_utc }}</code> · {{ t('dashboard.broker_snapshot_status') }}: <strong>{{ bsp.status }}</strong></p>
+        <p class="text-small">{{ t('dashboard.broker_positions_n') }}: <strong>{{ bsp.positions_count if bsp.status == 'ok' else '—' }}</strong>
+          · {{ t('dashboard.broker_open_orders_n') }}: <strong>{{ bsp.open_orders_count if bsp.status == 'ok' else '—' }}</strong></p>
+      {% endif %}
+      <div class="form-row mt-8" style="gap:8px;">
+        {% with command='broker-snapshot-refresh', args='--json', label=t('dashboard.connect_tws_btn'), return_to='/paper', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+      <p class="text-dim text-small mt-8"><a href="{{ ret(url_for('dashboard')) }}">{{ t('paper.broker_to_dashboard') }}</a></p>
+    </div>
+  </div>
+
   <div class="grid">
     <div class="card" style="grid-column: 1 / -1;">
       <div class="card-title">Can I run a paper test now?</div>

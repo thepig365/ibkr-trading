@@ -121,6 +121,10 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "(IBKR read-only, roster candles; no orders)."
     ),
     "tradervue-complete-charts": "Alias of complete-trade-charts.",
+    "broker-snapshot-refresh": (
+        "Explicit read-only broker snapshot → data/runtime/broker_snapshot_last.json (positions/orders/exec)."
+    ),
+    "broker-refresh": "Alias of broker-snapshot-refresh.",
     "complete-journal-charts": "Alias of complete-trade-charts.",
 }
 
@@ -1055,6 +1059,21 @@ def validate_readonly_broker_view_args(
     return True, ""
 
 
+def validate_broker_snapshot_refresh_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Optional ``--json`` only."""
+
+    ok, err = _check_no_forbidden("broker-snapshot-refresh", args)
+    if not ok:
+        return ok, err
+    if args in {(), ("--json",)}:
+        return True, ""
+    return (
+        False,
+        "broker-snapshot-refresh / broker-refresh: only optional --json is allowed.",
+    )
+
+
+
 _PAPER_REPORT_OUTPUT_DIR_RE = re.compile(
     r"^data/reports(/paper)?$|^data/reports/paper/?$"
 )
@@ -1962,6 +1981,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_generate_trade_charts_batch_args(command, args)
     if command in {"complete-trade-charts", "tradervue-complete-charts", "complete-journal-charts"}:
         return validate_complete_trade_charts_args(command, args)
+    if command in {"broker-snapshot-refresh", "broker-refresh"}:
+        return validate_broker_snapshot_refresh_args(args)
     return True, ""
 
 

@@ -27,11 +27,11 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 页面 | 路径 | 用途 |
 |------|------|------|
-| Dashboard | `/dashboard` | **交易员驾驶舱**：**交易日摘要**（引擎 Waiting / Running / Blocked、今日 R、开仓或已提交、已记录平仓、跳过、复盘图缺口）、白话解释（开仓/提交但未平仓 vs 复盘图缺本地 1m）、**待办与快捷入口**（含「补齐交易图表」白名单按钮；**不会在 GET `/dashboard` 时执行**）；**迷你累计 R** 有足够平仓后出现。**详细「数据质量」指标、Today's safety / readiness、报表中心快照、Operational snapshot、白名单命令区等**均在默认折叠的「**开发者与引擎诊断**」内 — 仍只读磁盘，**页面加载不连 IBKR** |
+| Dashboard | `/dashboard` | **交易员驾驶舱**：**交易日摘要**（引擎 Waiting / Running / Blocked、今日 R、「已提交记录 / 已发送至券商 / 券商确认持仓（来自最近一次快照）」等）、白话解释。**「连接 / 刷新 TWS」** 才 writes `data/runtime/broker_snapshot_last.json`（只读 API；不下单）；**普通 GET 不连 IBKR**。明细仍见「开发者与折叠区」——只读磁盘 |
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
-| Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单） |
-| **Trade Records（交易记录）** | **`/trades`** | **交易员视角**按笔复盘；图表使用落盘在 `data/candles/.../1min/*.csv` 的 **1 分钟 K 线**（数据**来源于 IBKR**，经**只读**历史拉取、`fetch-candles`、或 **report-on-exit** 补档后本地保存）；**`/trades` 页面 GET 不连 IBKR**；无 exit 时「尚未记录平仓」，**不编造** |
+| Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单）；含 **券商快照**摘要与「连接 / 刷新 TWS」（同 Dashboard，只读；GET 不自动连 IBKR） |
+| **Trade Records（交易记录）** | **`/trades`** | **交易员视角**按笔复盘；**「本地状态 / 券商侧状态」**两列：**券商侧状态**依赖最近一次 **`broker_snapshot`** 文件——未点「连接 / 刷新 TWS」或未跑 CLI 时多为「尚未核对」。图表使用落盘在 `data/candles/.../1min/*.csv` 的 **1 分钟 K 线**（数据**来源于 IBKR**，经**只读**历史拉取、`fetch-candles`、或 **report-on-exit** 补档后本地保存）；**`/trades` 页面 GET 不连 IBKR**；无 exit 时「尚未记录平仓」，**不编造** |
 | Journal（技术流水 / 审计） | `/journal` | 引擎 **JSONL 技术流水**与回测表格：可展开 **仓位/原始键**；如需「每笔一眼看完」请优先用 **`/trades`** |
 | Strategies | `/strategies` | 策略注册表与多策略扫描入口 |
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |

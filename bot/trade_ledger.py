@@ -381,12 +381,15 @@ def _tier_for_trade_record(rec: TradeLedgerRecord, root: Path) -> str:
 def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) -> dict[str, int]:
     root = Path(project_root).resolve()
     submitted = skipped = incomplete = opened = closed = 0
+    sent_to_broker_n = 0
     charts_ok = charts_miss = pend = na = pend_row = rej = 0
     realized_sum = 0.0
     realized_n = 0
     for r in records:
         if bool(r.raw_json.get("submitted")) or r.submitted_to_broker:
             submitted += 1
+        if r.submitted_to_broker:
+            sent_to_broker_n += 1
         if r.status_slug == "skipped":
             skipped += 1
         if r.status_slug == "protection_incomplete":
@@ -415,6 +418,7 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
             pend += 1
     return {
         "submitted_rows": submitted,
+        "sent_to_broker_rows": sent_to_broker_n,
         "skipped": skipped,
         "protection_incomplete": incomplete,
         "open": opened,

@@ -13,6 +13,7 @@ from typing import Any
 
 from zoneinfo import ZoneInfo
 
+from .broker_snapshot import load_broker_snapshot
 from .trade_ledger import TradeLedgerRecord, build_trade_records, ledger_summary_counts
 
 _NY = ZoneInfo("America/New_York")
@@ -611,7 +612,18 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
         mini_r_svg=mini,
         ny_today=today_ny,
     )
-    return ctx.to_dict()
+    out = ctx.to_dict()
+    snap = load_broker_snapshot(root)
+    out["broker_snapshot"] = snap
+    out["explain_submitted_no_broker_positions"] = False
+    submitted_n = int(counts.get("submitted_rows", 0))
+    if snap and str(snap.get("status") or "").lower() == "ok":
+        bpn = int(snap.get("positions_count", 0) or 0)
+        if submitted_n > 0 and bpn == 0:
+            out["explain_submitted_no_broker_positions"] = True
+    elif snap is None and submitted_n > 0:
+        pass
+    return out
 
 
 __all__ = [

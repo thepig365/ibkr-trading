@@ -65,6 +65,8 @@
               <th>{{ t('trades.th_symbol') }}</th>
               <th>{{ t('trades.th_direction') }}</th>
               <th>{{ t('trades.th_status') }}</th>
+              <th>{{ t('trades.th_local_state') }}</th>
+              <th>{{ t('trades.th_broker_state') }}</th>
               <th>{{ t('trades.th_entry') }}</th>
               <th>{{ t('trades.th_exit') }}</th>
               <th>{{ t('trades.th_stop') }}</th>
@@ -83,6 +85,8 @@
                 <td><strong>{{ r.symbol }}</strong></td>
                 <td>{{ (r.direction or '-')|upper }}</td>
                 <td>{{ t(trade_status_key(r.status_slug)) }}</td>
+                <td class="text-small">{{ t('trades.ls_' ~ infer_local_trade_state_token(r)) }}</td>
+                <td class="text-small">{{ t('trades.bs_' ~ broker_state_slug(r.symbol)) }}</td>
                 <td>{% if r.entry_price is not none %}{{ "%.2f"|format(r.entry_price) }}{% else %}—{% endif %}</td>
                 <td>
                   {% if r.exit_price is not none and r.exit_time %}
