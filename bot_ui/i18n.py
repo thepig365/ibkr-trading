@@ -15,7 +15,7 @@ M: dict[str, dict[str, str]] = {
     # base / nav
     "app.title_suffix": {"en": "— Strategy Lab (Local)", "zh": "— Strategy Lab（本地）"},
     "brand.sub": {"en": "Local · Paper Only", "zh": "本地 · 仅纸面"},
-    "nav.dashboard": {"en": "Dashboard", "zh": "控制台"},
+    "nav.dashboard": {"en": "Trader Dashboard", "zh": "交易员控制台"},
     "nav.research": {"en": "Research", "zh": "研究"},
     "nav.watchlist": {"en": "Watchlist", "zh": "自选股"},
     "nav.signals": {"en": "Signals", "zh": "信号"},
@@ -56,7 +56,7 @@ M: dict[str, dict[str, str]] = {
         "zh": "页面加载本身不会连接 IBKR。",
     },
     # dashboard
-    "page.dashboard": {"en": "Dashboard", "zh": "控制台"},
+    "page.dashboard": {"en": "Trader Dashboard", "zh": "交易员控制台"},
     "dashboard.sub": {
         "en": "Your day at a glance — everything here is from saved files or your last approved safe action (button). No broker connection when this page loads. Nothing runs until you click a button.",
         "zh": "今日一览 — 数据来自已保存文件或你上次点击的「已批准安全操作」。本页加载时不连接经纪商。未点击按钮前不会执行任何操作。",
@@ -82,6 +82,30 @@ M: dict[str, dict[str, str]] = {
         "zh": "9 · 自动纸面交易引擎（ICT/SMC）",
     },
     "dashboard.paper_safety": {"en": "Paper safety", "zh": "纸面安全"},
+    "dashboard.trader_title": {"en": "Trader command center", "zh": "交易员控制台"},
+    "dashboard.trader_today_r": {"en": "Today R (NY, closed)", "zh": "今日 R（美东已平仓）"},
+    "dashboard.trader_cum_r": {"en": "Σ R (closed)", "zh": "Σ R（已平仓）"},
+    "dashboard.trader_open": {"en": "Open (ledger)", "zh": "持仓（台账）"},
+    "dashboard.trader_closed": {"en": "Closed (ledger)", "zh": "已平仓（台账）"},
+    "dashboard.trader_skipped": {"en": "Skipped", "zh": "已跳过"},
+    "dashboard.trader_charts_missing": {"en": "Charts missing candles", "zh": "复盘图缺 K 线"},
+    "dashboard.trader_action": {"en": "Action required", "zh": "需要处理"},
+    "dashboard.trader_latest": {"en": "Latest trades", "zh": "最新交易"},
+    "dashboard.trader_mini_r": {"en": "Mini cumulative R curve", "zh": "累计 R 示意"},
+    "dashboard.trader_quick": {"en": "Quick links", "zh": "快捷入口"},
+    "dashboard.trader_none_today_r": {"en": "No closed R today (NY)", "zh": "今日（美东）无已平仓 R"},
+    "dashboard.action_protection": {
+        "en": "Incomplete bracket protection rows present — review /trades or Journal.",
+        "zh": "存在保护不完整 — 请到 /trades 或流水核对。",
+    },
+    "dashboard.action_charts": {
+        "en": "Trade review charts missing local candles — see Reports hints or regenerate charts.",
+        "zh": "复盘图缺少本地 K 线 — 见 Reports 提示或重新生成复盘图。",
+    },
+    "dashboard.diagnostics_fold": {
+        "en": "Show developer & engine diagnostics (raw hints, supervisor, commands)",
+        "zh": "展开开发者与引擎诊断（原始提示、监督器、命令）",
+    },
     # paper
     "page.paper": {"en": "Paper Trading", "zh": "纸面交易"},
     "paper.sub": {
@@ -133,6 +157,31 @@ M: dict[str, dict[str, str]] = {
     "reports.backtest_edge": {"en": "Backtest & Edge reports", "zh": "回测与 Edge 报告"},
     "reports.telegram_email": {"en": "Telegram & email delivery", "zh": "Telegram 与邮件投递状态"},
     "reports.regen": {"en": "Regenerate reports (safe CLI)", "zh": "重新生成报告（安全 CLI）"},
+    "reports.journal_analytics_title": {
+        "en": "Trading journal analytics (local ledger)",
+        "zh": "交易日记分析（本地台账）",
+    },
+    "reports.journal_analytics_intro": {
+        "en": "Computed from paper order JSONL only — no broker on page load. R metrics when exits exist; dollar curves only when realized P/L is stored per row.",
+        "zh": "由纸单 JSONL 计算 — 页面加载不连经纪商。有平仓时计算 R；仅当每行存有已实现美元盈亏时才显示资金曲线。",
+    },
+    "reports.equity_curve": {"en": "Equity curve (USD)", "zh": "资金曲线"},
+    "reports.cumulative_r_curve": {"en": "Cumulative R curve", "zh": "累计 R 曲线"},
+    "reports.cumulative_pnl": {"en": "Cumulative P/L", "zh": "累计盈亏"},
+    "reports.drawdown_r": {"en": "Drawdown (R peak-to-trough)", "zh": "回撤（R）"},
+    "reports.daily_r": {"en": "Daily R", "zh": "每日 R 值"},
+    "reports.r_distribution": {"en": "R distribution", "zh": "R 值分布"},
+    "reports.performance_symbol": {"en": "Performance by symbol (R)", "zh": "按标的表现（R）"},
+    "reports.performance_hour": {"en": "Performance by hour (NY bucket, submitted time)", "zh": "按小时表现（美东分组，提交时间）"},
+    "reports.skipped_reasons_report": {"en": "Skipped reasons", "zh": "跳过原因"},
+    "reports.not_enough_closed_trades": {
+        "en": "Not enough closed trades yet.",
+        "zh": "已平仓样本不足。",
+    },
+    "reports.pnl_unavailable_note": {
+        "en": "Cumulative dollar P/L is hidden — realized USD per trade was not recorded in ledger JSON.",
+        "zh": "未展示美元累计盈亏 — 台账 JSON 中无可信的逐笔已实现美元盈亏。",
+    },
     "reports.journal_block": {
         "en": "Paper Journal (latest rows)",
         "zh": "纸面流水（节选）",

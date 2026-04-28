@@ -27,7 +27,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 页面 | 路径 | 用途 |
 |------|------|------|
-| Dashboard | `/dashboard` | 总览、快捷状态 |
+| Dashboard | `/dashboard` | **交易员控制台**：今日已平仓 R（美东）、累计 R、账本开/平/跳过、复盘图缺口、迷你累计 R 曲线、最新五笔与快捷入口；账户快照、Operational snapshot、引擎健康等**技术诊断**默认收在折叠区「开发者与引擎诊断」——仍只读磁盘，**加载不连 IBKR** |
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单） |
@@ -37,7 +37,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Research | `/research` | 研究情报层报告与指令（只读 + 命令） |
 | Backtest | `/backtest` | ICT/SMC 日内回测配置与运行（引擎在 CLI/Worker） |
 | Edge | `/edge` | 标的级 edge 画像、排名与纸面门控（只读 + 白名单构建命令） |
-| Reports | `/reports` | **主报告台**：日/周/研究/回测/edge/盘前/新闻状态汇总；生成走白名单；**全文以 UI + 本地文件为准**，邮件为可选 |
+| Reports | `/reports` | **交易日记分析**：基于 `data/paper_orders` 台账 JSONL 的累计 R / 回撤 / 分布 / 按时与按符号表现等（可选美元累计盈亏仅当每笔 JSON **诚实记录**已实现美元盈亏）；**主报告台**另有日/周/研究/回测/edge/盘前/新闻状态汇总；生成走白名单；**全文以 UI + 本地文件为准**，邮件为可选。**页面加载不连接 IBKR**，不主动拉 K 线 |
 | Logs | `/logs` | 近期命令与事件（只读、脱敏） |
 | Settings / Doctor | `/settings` | 安全说明、白名单命令、运行时标志、诊断类按钮；**本手册链接** |
 
@@ -61,7 +61,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 区域 | 在问什么 |
 |------|----------|
-| **Dashboard** | 今天引擎是否**安全**、**是否有机会**、**为何没单**、**纸面试预算还剩多少**、**盘前简报/扫描摘要**、**建议下一步** |
+| **Dashboard** | **第一层（交易员）**：今日已平仓 R（美东）、ΣR、账本状态、复盘图缺口、待办、迷你 R、最近五笔与报告/交易记录入口。**第二层（折叠）**：账户文件摘要、operational hints、白名单命令输出、引擎健康等调试信息 |
 | **Research → Pre-Market Brief** | 最近一份盘前简报的**时间、 tone、各新闻源状态、邮件是否已发**；可用按钮**生成/邮件**（不连 TWS 直至你点受控命令） |
 | **Signals（ICT）** | 每行是 **Ready to test / Watching / Blocked** 等口语状态 + 下一条件；**不是**交易指令 |
 | **Paper** | **现在能否做纸面试**（文件侧门控 + 可选「不确定」= 缺信号/TWS 不可见等）、**风险上限**、**最近一笔纸单结果** |

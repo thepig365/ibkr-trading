@@ -21,6 +21,7 @@ from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
 from bot.reports.telegram_report_dedup import read_state
+from bot.trade_reports import build_dashboard_trade_context
 from bot.ux.dashboard_context import DashboardUX
 
 from ..strategy_lab_context import get_catalog_and_selection
@@ -115,6 +116,7 @@ def dashboard(request: Request) -> HTMLResponse:
 
     ctx.update(
         {
+            "trader_dash": build_dashboard_trade_context(root),
             "account": state.account_summary(),
             "positions": state.positions(),
             "watchlist": state.watchlist(),

@@ -17,6 +17,7 @@ from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH
 from bot.journal_trade_charts_pipeline import read_last_trade_chart_batch_summary
 from bot.trade_ledger import build_trade_records, ledger_summary_counts
+from bot.trade_reports import build_journal_analytics_for_project
 from bot.reports.telegram_report_dedup import read_state
 from bot.ux.humanize import humanize_skip_reason
 
@@ -137,6 +138,7 @@ def reports_page(request: Request) -> HTMLResponse:
 
     ledger_rows = build_trade_records(root)
     ctx["ledger_summary"] = ledger_summary_counts(ledger_rows, root)
+    ctx["journal_analytics"] = build_journal_analytics_for_project(root).to_dict()
     ctx["ledger_latest_submitted"] = next(
         (r for r in ledger_rows if r.submitted_to_broker or r.raw_json.get("submitted")),
         None,

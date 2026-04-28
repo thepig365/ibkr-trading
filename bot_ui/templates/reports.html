@@ -13,6 +13,64 @@
 
 {% block content %}
   <div class="section">
+    <h2>{{ t('reports.journal_analytics_title') }}</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px 0;">{{ t('reports.journal_analytics_intro') }}</p>
+    {% if journal_analytics.empty_state %}
+      <p class="pill warn text-small" style="display:inline-block;margin-bottom:12px;">{{ t('reports.not_enough_closed_trades') }}</p>
+    {% endif %}
+    {% if journal_analytics.skipped_reason_counts %}
+      <div class="card mb-12" style="margin-bottom: 14px;">
+        <div class="card-title">{{ t('reports.skipped_reasons_report') }}</div>
+        <ul class="text-small" style="margin:0;padding-left:18px;">
+          {% for k, v in journal_analytics.skipped_reason_counts.items() %}
+            <li class="text-mono"><strong>{{ k }}</strong>: {{ v }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% if not journal_analytics.empty_state %}
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+        <div class="card">
+          <div class="card-title">{{ t('reports.cumulative_r_curve') }}</div>
+          <div style="overflow:auto;">{{ journal_analytics.cumulative_r_svg|safe }}</div>
+          {% if journal_analytics.total_r_closed is not none %}
+          <div class="text-small text-dim mt-8">ΣR: {{ "%.3f"|format(journal_analytics.total_r_closed) }} · PF (R): {{ journal_analytics.profit_factor_r if journal_analytics.profit_factor_r is not none else '—' }}</div>
+          {% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('reports.equity_curve') }}</div>
+          {% if journal_analytics.has_reliable_pnl_usd %}
+            <div style="overflow:auto;">{{ journal_analytics.cumulative_pnl_svg|safe }}</div>
+          {% else %}
+            <p class="text-dim text-small">{{ t('reports.pnl_unavailable_note') }}</p>
+          {% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('reports.drawdown_r') }}</div>
+          <div style="overflow:auto;">{{ journal_analytics.drawdown_r_svg|safe }}</div>
+          {% if journal_analytics.max_drawdown_r is not none %}<div class="text-small text-dim mt-8">max DD (R): {{ "%.3f"|format(journal_analytics.max_drawdown_r) }}</div>{% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('reports.daily_r') }}</div>
+          {% if journal_analytics.daily_r_svg %}<div style="overflow:auto;">{{ journal_analytics.daily_r_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('reports.r_distribution') }}</div>
+          {% if journal_analytics.r_distribution_svg %}<div style="overflow:auto;">{{ journal_analytics.r_distribution_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('reports.performance_symbol') }}</div>
+          {% if journal_analytics.perf_symbol_svg %}<div style="overflow:auto;">{{ journal_analytics.perf_symbol_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('reports.performance_hour') }}</div>
+          {% if journal_analytics.perf_hour_svg %}<div style="overflow:auto;">{{ journal_analytics.perf_hour_svg|safe }}</div>{% else %}<p class="text-dim text-small">—</p>{% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>{{ t('reports.todays_summary') }}</h2>
     <p class="text-dim text-small" style="margin:0 0 12px 0;">
       Files under <code class="text-mono">data/reports/</code>, <code class="text-mono">data/research/</code>, and related paths — <strong>gitignored</strong> for large outputs. Open files in your editor for the full markdown/JSON.

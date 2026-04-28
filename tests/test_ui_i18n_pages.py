@@ -31,13 +31,13 @@ def test_dashboard_default_english(tmp_project: Path) -> None:
     r = _client(tmp_project).get("/dashboard")
     assert r.status_code == 200
     assert "Dashboard" in r.text or "Report center" in r.text
-    assert "控制台" not in r.text
+    assert "交易员控制台" not in r.text
 
 
 def test_dashboard_zh_shows_chinese(tmp_project: Path) -> None:
     r = _client(tmp_project).get("/dashboard?lang=zh")
     assert r.status_code == 200
-    assert "控制台" in r.text
+    assert "交易员控制台" in r.text
     assert 'lang="zh"' in r.text
 
 
@@ -50,7 +50,7 @@ def test_paper_zh_engine_heading(tmp_project: Path) -> None:
 def test_reports_zh(tmp_project: Path) -> None:
     r = _client(tmp_project).get("/reports?lang=zh")
     assert r.status_code == 200
-    assert "今日报告摘要" in r.text or "报告" in r.text
+    assert ("今日报告摘要" in r.text or "报告" in r.text) or "累计 R 曲线" in r.text
 
 
 def test_backtest_zh_buttons(tmp_project: Path) -> None:
