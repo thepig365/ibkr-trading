@@ -154,6 +154,26 @@ M: dict[str, dict[str, str]] = {
     "dashboard.open_paper_btn": {"en": "Open Paper", "zh": "打开纸面交易"},
     "dashboard.open_diagnostics_btn": {"en": "Open Diagnostics", "zh": "诊断 / 设置"},
     "dashboard.button_failed": {"en": "Button failed", "zh": "按钮执行失败"},
+    "dashboard.flash_cmd_rejected_label": {"en": "Command rejected", "zh": "命令被拒绝"},
+    "dashboard.flash_trade_charts_detail": {
+        "en": (
+            "{base}. Charts generated: {generated}. "
+            "Eligible (limit window): {eligible}. Missing candle gaps: {missing}. "
+            "Errors: {errors}. Trades without exit in selection: {no_exit}. Skipped status: {skipped}"
+        ),
+        "zh": (
+            "{base}。本次生成 PNG：{generated}；窗口内可走图表笔数（eligible）：{eligible}；"
+            "缺失 K 线段：{missing}；错误：{errors}；无平仓记录：{no_exit}；状态被跳过：{skipped}"
+        ),
+    },
+    "dashboard.flash_trade_charts_none_hint": {
+        "en": "If generated is 0, eligible trades often lack recorded exits — check /trades.",
+        "zh": "若为 0，多为所选交易尚无已记录的平仓或非可生成状态，请到「交易记录」核对。",
+    },
+    "dashboard.flash_broker_snapshot_detail": {
+        "en": "Snapshot status:{status}; positions:{positions}; open_orders:{orders}.",
+        "zh": "快照状态：{status}；持仓计数：{positions}；未完成单：{orders}。",
+    },
     "dashboard.tws_connected_short": {"en": "IBKR linked", "zh": "IBKR 已连接"},
     "dashboard.ibkr_socket_down": {"en": "IBKR not linked", "zh": "IBKR 未连接"},
     "dashboard.tws_listening_short": {"en": "Listening", "zh": "网关"},

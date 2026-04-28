@@ -26,7 +26,7 @@ from bot.trade_reports import build_dashboard_trade_context
 from bot.ux.dashboard_context import DashboardUX
 
 from ..strategy_lab_context import get_catalog_and_selection
-from ._helpers import base_context
+from ._helpers import base_context, dashboard_flash_from_recent_command
 
 router = APIRouter()
 
@@ -217,5 +217,9 @@ def dashboard(request: Request) -> HTMLResponse:
             "report_hub": build_report_hub_ui_context(root),
             "telegram_command_listener_dash": tg_listener_dash,
         }
+    )
+    ctx["flash"] = dashboard_flash_from_recent_command(
+        recent[0] if recent else None,
+        t=ctx["t"],
     )
     return request.app.state.templates.TemplateResponse(request, "dashboard.html", ctx)
