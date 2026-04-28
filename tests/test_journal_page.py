@@ -311,6 +311,53 @@ def test_journal_template_does_not_have_order_submit_form(project: Path) -> None
             )
 
 
+def test_journal_sizing_fields_only_under_show_sizing_details_fold(
+    project: Path,
+) -> None:
+    """Long sizing keys must not appear before the fold summary (main row compact)."""
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = project / "data" / "paper_orders" / f"{day}-intraday-paper-orders.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "strategy_id": "ict_smc_intraday_v1",
+        "symbol": "SZ1",
+        "direction": "long",
+        "signal_category": "DAY_TRADE_READY_STRICT",
+        "submitted": True,
+        "skipped_reasons": [],
+        "entry": 10.0,
+        "stop": 9.5,
+        "target": 11.0,
+        "planned_rr": 1.0,
+        "quantity": 2,
+        "estimated_notional": 20.0,
+        "order_ids": [101],
+        "paper_only": True,
+        "live_trading_allowed": False,
+        "sizing_audit": {
+            "risk_based_quantity": 2.5,
+            "per_trade_notional_cap_quantity": 1,
+            "daily_remaining_quantity": 10,
+            "account_cap_quantity": 50,
+            "final_quantity": 2,
+            "estimated_notional": 20.0,
+            "per_trade_cap_applied": True,
+            "daily_cap_applied": False,
+            "account_cap_applied": False,
+            "quantity_cap_applied": False,
+        },
+    }
+    out.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    html = _client(project).get("/journal").text
+    assert "Show sizing details" in html
+    pos_fold = html.index("Show sizing details")
+    key_pos = html.index("risk_based_quantity")
+    assert key_pos > pos_fold
+    zh = _client(project).get("/journal?lang=zh").text
+    assert "展开仓位细节" in zh
+
+
 def test_journal_view_aggregates_state_store(project: Path) -> None:
     """The /journal route delegates to ``state_store.get_journal_view``;
     verify that helper round-trips the on-disk file."""

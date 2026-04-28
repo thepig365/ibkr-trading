@@ -291,6 +291,10 @@ M: dict[str, dict[str, str]] = {
         "en": "Sizing / ticks / IDs / raw technical details",
         "zh": "仓位细节 / Tick / ID / 引擎原始明细",
     },
+    "journal.show_sizing_details": {
+        "en": "Show sizing details",
+        "zh": "展开仓位细节",
+    },
     "journal.footer_note": {
         "en": "Showing the {n} most recent rows · paper-only · no live path from this page.",
         "zh": "显示最近 {n} 条 · 仅纸面 · 本页无实盘路径。",

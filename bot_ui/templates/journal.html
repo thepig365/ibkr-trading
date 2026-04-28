@@ -70,7 +70,6 @@
               <th>{{ t('journal.col_time') }}</th>
               <th>{{ t('journal.col_symbol') }}</th>
               <th>{{ t('journal.col_direction') }}</th>
-              <th>{{ t('journal.col_mode') }}</th>
               <th>{{ t('journal.col_status') }}</th>
               <th>{{ t('journal.col_entry') }}</th>
               <th>{{ t('journal.col_stop') }}</th>
@@ -91,11 +90,6 @@
                 <td><code>{{ r.timestamp[:19] }}Z</code></td>
                 <td><strong>{{ r.symbol }}</strong></td>
                 <td>{{ (r.direction or '-')|upper }}</td>
-                <td>
-                  {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}<span class="pill good">strict</span>
-                  {% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}<span class="pill neutral">aggressive</span>
-                  {% else %}<span class="pill warn">{{ r.signal_category or '-' }}</span>{% endif %}
-                </td>
                 <td>{{ status_pill(r) }}</td>
                 <td>{% if r.entry is not none %}{{ "%.2f"|format(r.entry) }}{% else %}—{% endif %}</td>
                 <td>{% if r.stop is not none %}{{ "%.2f"|format(r.stop) }}{% else %}—{% endif %}</td>
@@ -120,26 +114,38 @@
                 </td>
               </tr>
               <tr class="text-small text-dim">
-                <td colspan="16">
+                <td colspan="15">
                   <details>
-                    <summary>{{ t('journal.details_engine') }}</summary>
-                    <div class="mt-8" style="font-family:var(--font-mono,monospace);font-size:11px;">
-                      <div><strong>trade_id</strong> <code>{{ r.trade_id }}</code></div>
-                      {% if r.sizing_summary %}<div><strong>sizing (brief)</strong> {{ r.sizing_summary }}</div>{% endif %}
-                      {% if r.sizing_audit_json %}<div><strong>sizing_audit</strong> <pre style="white-space:pre-wrap;">{{ r.sizing_audit_json }}</pre></div>{% endif %}
-                      <div><strong>minTick</strong> {% if r.min_tick %}{{ r.min_tick }}{% if r.min_tick_source %} ({{ r.min_tick_source }}){% endif %}{% else %}—{% endif %} · <strong>TIF</strong> {% if r.order_tif %}<code>{{ r.order_tif }}</code>{% else %}—{% endif %}</div>
-                      <div><strong>Orig E/SL/TP</strong>
-                        {% if r.original_entry is not none or r.original_stop is not none or r.original_target is not none %}
-                          E{% if r.original_entry is not none %}{{ "%.4f"|format(r.original_entry) }}{% else %}—{% endif %}
-                          /SL{% if r.original_stop is not none %}{{ "%.4f"|format(r.original_stop) }}{% else %}—{% endif %}
-                          /TP{% if r.original_target is not none %}{{ "%.4f"|format(r.original_target) }}{% else %}—{% endif %}
-                        {% else %}—{% endif %}
-                      </div>
-                      <div><strong>Order IDs</strong> P {{ r.parent_entry_order_id or '—' }} / SL {{ r.parent_sl_order_id or '—' }} / TP {{ r.parent_tp_order_id or '—' }}{% if r.order_ids %} · {{ r.order_ids|join(', ') }}{% endif %}</div>
-                      {% if r.skipped_reasons %}<div><strong>skip (raw)</strong> {% for reason in r.skipped_reasons %}<code>{{ reason }}</code> {% endfor %}</div>{% endif %}
-                      {% if r.broker_error_codes %}<div><strong>broker codes</strong> {{ r.broker_error_codes|join(', ') }}</div>{% endif %}
-                      {% if r.raw_row_json_truncated %}<div><strong>raw row (truncated)</strong><pre style="white-space:pre-wrap;max-height:240px;overflow:auto;">{{ r.raw_row_json_truncated }}</pre></div>{% endif %}
-                    </div>
+                    <summary>{{ t('journal.show_sizing_details') }}</summary>
+                    <pre class="code text-small mt-8" style="white-space:pre-wrap;overflow:auto;margin:8px 0 0;padding:12px;line-height:1.35;background:color-mix(in srgb, var(--muted, #888) 6%, transparent);"><strong>trade_id</strong> {{ r.trade_id }}
+<strong>strategy</strong> {{ r.strategy_id or '—' }}
+<strong>signal mode</strong> {% if r.signal_category == 'DAY_TRADE_READY_STRICT' %}strict{% elif r.signal_category == 'DAY_TRADE_READY_AGGRESSIVE' %}aggressive{% else %}{{ r.signal_category or '—' }}{% endif %}
+{% if r.sizing_audit_json %}
+
+<strong>sizing_audit (JSON)</strong>
+{{ r.sizing_audit_json }}
+{% elif r.sizing_summary %}
+
+<strong>sizing_audit (audit fields)</strong>
+{{ r.sizing_summary }}
+{% endif %}
+
+<strong>ticks / venue</strong> minTick={{ r.min_tick or '—' }}{% if r.min_tick_source %} ({{ r.min_tick_source }}){% endif %} · TIF={{ r.order_tif or '—' }}
+
+<strong>orig E/S/TP</strong> {% if r.original_entry is not none %}E={{ "%.4f"|format(r.original_entry) }}{% else %}E=—{% endif %} {% if r.original_stop is not none %}SL={{ "%.4f"|format(r.original_stop) }}{% else %}SL=—{% endif %} {% if r.original_target is not none %}TP={{ "%.4f"|format(r.original_target) }}{% else %}TP=—{% endif %}
+
+<strong>orders</strong> P={{ r.parent_entry_order_id or '—' }} SL={{ r.parent_sl_order_id or '—' }} TP={{ r.parent_tp_order_id or '—' }}{% if r.order_ids %} ids={{ r.order_ids|join(', ') }}{% endif %}
+{% if r.skipped_reasons %}
+<strong>skip (raw)</strong> {% for reason in r.skipped_reasons %}{{ reason }}{% if not loop.last %} | {% endif %}{% endfor %}
+{% endif %}
+{% if r.broker_error_codes %}<strong>broker codes</strong> {{ r.broker_error_codes|join(', ') }}
+{% endif %}
+{% if r.raw_row_json_truncated %}
+
+<strong>raw_row (truncated)</strong>
+{{ r.raw_row_json_truncated }}
+{% endif %}
+</pre>
                   </details>
                 </td>
               </tr>

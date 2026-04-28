@@ -68,8 +68,8 @@ def test_journal_main_table_columns_and_details_hidden(client_and_project):
     r = cli.get("/journal")
     assert r.status_code == 200
     html = r.text
-    assert "Details" in html or "details" in html
-    assert "risk_based_quantity" in html or "final_quantity" in html
+    assert "Show sizing details" in html
+    assert "final_quantity" in html  # from sizing_audit_json in expanded pre
     assert "Review" in html
 
 
