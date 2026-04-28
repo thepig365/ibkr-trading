@@ -43,7 +43,7 @@ def test_dashboard_connect_button_and_zh_labels(tmp_path: Path) -> None:
 
 def test_dashboard_no_snapshot_banner(tmp_path: Path) -> None:
     body = _client(tmp_path).get("/dashboard").text
-    assert "Broker has not been checked yet" in body
+    assert "Not checked yet" in body
 
 
 def test_dashboard_with_cached_snapshot_cards(tmp_path: Path) -> None:

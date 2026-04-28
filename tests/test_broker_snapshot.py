@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from bot.broker_snapshot import (
+    _account_metrics_from_summaries,
     broker_snapshot_last_path,
     infer_symbol_broker_state,
     load_broker_snapshot,
@@ -67,4 +68,28 @@ def test_infer_symbol_broker_states() -> None:
         "open_orders": [],
     }
     assert infer_symbol_broker_state("SPY", snap_ok_pos) == "position_confirmed"
+
+
+def test_account_metrics_from_summaries_pnl_tags() -> None:
+    ns = lambda **kw: type("O", (), kw)()
+
+    summaries = [
+        ns(
+            account_id="DU1",
+            currency="USD",
+            net_liquidation=999.25,
+            available_funds=100.0,
+            buying_power=200.0,
+            total_cash=50.0,
+            raw={
+                "UnrealizedPnL": {"value": "1.25", "currency": "USD"},
+                "RealizedPnL": {"value": "-3.40", "currency": "USD"},
+            },
+        )
+    ]
+
+    metrics = _account_metrics_from_summaries(summaries)  # type: ignore[arg-type]
+    assert metrics["account_id"] == "DU1"
+    assert pytest.approx(metrics["unrealized_pnl"]) == 1.25
+    assert pytest.approx(metrics["realized_pnl"]) == -3.40
 

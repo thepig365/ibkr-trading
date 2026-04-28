@@ -5,9 +5,14 @@
 {% endblock %}
 
 {% block content %}
+  {% set lc = trader_dash.ledger_counts %}
+  {% set bs = trader_dash.broker_snapshot %}
+  {% set meta = (bs.meta if bs else none) %}
+  {% set am = meta.get('account_metrics') if meta else none %}
+
   <div class="section">
     <h2>{{ t('dashboard.trading_day_summary') }}</h2>
-    <p class="text-dim text-small" style="margin:0 0 14px 0;">
+    <p class="text-dim text-small" style="margin:0 0 10px 0;">
       {{ t('dashboard.cockpit_intro') }}
       NY: <code>{{ trader_dash.ny_today }}</code>
       · <strong>{{ t('dashboard.engine_label') }}</strong>:
@@ -20,6 +25,90 @@
         <span class="pill neutral">{{ t('dashboard.engine_waiting') }}</span>
       {% endif %}
     </p>
+
+    <div class="form-row flex-wrap" style="gap:10px; align-items:center; margin-bottom:18px;">
+      {% with solid=true, command='broker-snapshot-refresh', args='--json', label=t('dashboard.connect_tws_btn'), return_to='/dashboard' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='complete-trade-charts', args='--latest --limit 50 --fetch-missing-candles --window-before-minutes 30 --window-after-minutes 90 --json', label=t('dashboard.complete_trade_charts_explicit'), return_to='/dashboard', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+      <a class="btn ghost" href="{{ ret(url_for('trades_page')) }}">{{ t('dashboard.open_trades_btn') }}</a>
+      <a class="btn ghost" href="{{ ret(url_for('reports_page')) }}">{{ t('dashboard.open_reports_btn') }}</a>
+      <a class="btn ghost" href="{{ ret(url_for('paper_page')) }}">{{ t('dashboard.open_paper_btn') }}</a>
+      <a class="btn ghost" href="{{ ret(url_for('settings_page')) }}">{{ t('dashboard.open_diagnostics_btn') }}</a>
+    </div>
+
+    <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.broker_truth_heading') }}</h3>
+    <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.truth_vs_local_explainer') }}</p>
+
+    {% if not bs %}
+      <div class="card mb-16" style="max-width:640px;"><p class="text-small mb-8">{{ t('dashboard.account_not_checked_short') }}</p></div>
+    {% else %}
+      <div class="grid mb-12" style="grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));">
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.card_account_value') }}</div>
+          <div class="card-value text-mono">
+            {% if bs.status == 'ok' and am %}
+              {% if am.get('net_liquidation') is not none %}${{ "{:,.2f}".format(am.get('net_liquidation')) }}{% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+            {% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+          </div>
+          <div class="card-sub text-dim text-small">{{ t('dashboard.net_liquidation_label') }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.avail_funds_card') }}</div>
+          <div class="card-value text-mono">
+            {% if bs.status == 'ok' and am %}
+              {% if am.get('available_funds') is not none %}${{ "{:,.2f}".format(am.get('available_funds')) }}{% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.buying_power_card') }}</div>
+          <div class="card-value text-mono">
+            {% if bs.status == 'ok' and am %}
+              {% if am.get('buying_power') is not none %}${{ "{:,.2f}".format(am.get('buying_power')) }}{% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.cash_card') }}</div>
+          <div class="card-value text-mono">
+            {% if bs.status == 'ok' and am %}
+              {% if am.get('total_cash') is not none %}${{ "{:,.2f}".format(am.get('total_cash')) }}{% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.unrealized_pnl_card') }}</div>
+          <div class="card-value text-mono">
+            {% if bs.status == 'ok' and am %}
+              {% if am.get('unrealized_pnl') is not none %}${{ "{:,.2f}".format(am.get('unrealized_pnl')) }}{% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.realized_pnl_card') }}</div>
+          <div class="card-value text-mono">
+            {% if bs.status == 'ok' and am %}
+              {% if am.get('realized_pnl') is not none %}${{ "{:,.2f}".format(am.get('realized_pnl')) }}{% else %}<span title="{{ t('dashboard.field_na_tooltip') }}">—</span>{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+      <ul class="text-small mb-16" style="margin:0;padding-left:18px;line-height:1.65;">
+        <li><strong>{{ t('dashboard.broker_last_check') }}</strong>:
+          {% if bs.status == 'ok' %}<code>{{ bs.checked_at_utc }}</code>{% elif bs.checked_at_utc %}<code>{{ bs.checked_at_utc }}</code>{% else %}—{% endif %}
+        </li>
+        <li>{{ t('dashboard.broker_snapshot_status') }}: <strong>{{ bs.status }}</strong>
+          {% if bs.ibkr_connected is none %}{% elif bs.ibkr_connected %} · {{ t('dashboard.tws_connected_short') }}{% else %} · {{ t('dashboard.ibkr_socket_down') }}{% endif %}
+        </li>
+        {% if bs.tws_listening is not none %}<li>{{ t('dashboard.tws_listening_short') }}: {% if bs.tws_listening %}✓{% else %}✗{% endif %}</li>{% endif %}
+        <li>{{ t('dashboard.broker_positions_n') }}: <strong>{{ bs.positions_count if bs.status == 'ok' else '—' }}</strong></li>
+        <li>{{ t('dashboard.broker_open_orders_n') }}: <strong>{{ bs.open_orders_count if bs.status == 'ok' else '—' }}</strong></li>
+        <li>{{ t('dashboard.broker_execs_n') }}: <strong>{{ bs.executions_count if bs.status == 'ok' else '—' }}</strong></li>
+        {% if bs.error_summary %}<li class="text-dim">{{ bs.error_summary[:320] }}{% if bs.error_summary|length > 320 %}…{% endif %}</li>{% endif %}
+      </ul>
+    {% endif %}
+
+    <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.local_engine_heading') }}</h3>
+    <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.local_records_explainer') }}</p>
 
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
       <div class="card">
@@ -42,7 +131,6 @@
           {% endif %}
         </div>
       </div>
-    {% set lc = trader_dash.ledger_counts %}
       <div class="card">
         <div class="card-title">{{ t('dashboard.trader_submitted_records') }}</div>
         <div class="card-value">{{ lc.submitted_rows }}</div>
@@ -50,30 +138,6 @@
       <div class="card">
         <div class="card-title">{{ t('dashboard.trader_sent_to_broker_records') }}</div>
         <div class="card-value">{{ lc.get('sent_to_broker_rows', 0) }}</div>
-      </div>
-      <div class="card">
-        <div class="card-title">{{ t('dashboard.broker_positions_count') }}</div>
-        <div class="card-value">
-          {% set bs = trader_dash.broker_snapshot %}
-          {% if bs and bs.status == 'ok' %}
-            {{ bs.positions_count }}
-          {% elif bs %}
-            <span class="text-dim">—</span>
-          {% else %}
-            <span class="text-dim">—</span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">{{ t('dashboard.broker_open_orders_n') }}</div>
-        <div class="card-value">
-          {% set bs = trader_dash.broker_snapshot %}
-          {% if bs and bs.status == 'ok' %}
-            {{ bs.open_orders_count }}
-          {% else %}
-            <span class="text-dim">—</span>
-          {% endif %}
-        </div>
       </div>
       <div class="card">
         <div class="card-title">{{ t('dashboard.trader_closed_exit') }}</div>
@@ -181,36 +245,6 @@
         {% endif %}
       </div>
     </div>
-
-    <div class="section mt-16">
-      <h2 style="margin-bottom:8px;">{{ t('dashboard.connect_tws_btn') }}</h2>
-      <p class="text-dim text-small" style="margin:0 0 10px 0;">{{ t('dashboard.connect_tws_sub') }}</p>
-      <div class="form-row" style="gap:8px;">
-        {% with command='broker-snapshot-refresh', args='--json', label=t('dashboard.connect_tws_btn'), return_to='/dashboard', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:12px;">
-      <div class="card-title">{{ t('dashboard.broker_card_title') }}</div>
-      <p class="text-small text-dim" style="margin:4px 0 10px;">{{ t('dashboard.broker_data_sources') }}</p>
-      {% set bs = trader_dash.broker_snapshot %}
-      {% if not bs %}
-        <p class="text-small">{{ t('dashboard.broker_no_snapshot_yet') }}</p>
-      {% else %}
-        <ul class="text-small" style="margin:0;padding-left:18px;line-height:1.65;">
-          <li>{{ t('dashboard.broker_last_check') }}: <code>{{ bs.checked_at_utc or '—' }}</code></li>
-          <li>{{ t('dashboard.broker_snapshot_status') }}: <strong>{{ bs.status }}</strong></li>
-          <li>{{ t('dashboard.broker_tws_connected') }}:
-            {% if bs.ibkr_connected is none %}—{% elif bs.ibkr_connected %}✓{% else %}✗{% endif %}
-          </li>
-          <li>{{ t('dashboard.broker_account_mode') }}: <code>{{ bs.account_mode or '—' }}</code></li>
-          <li>{{ t('dashboard.broker_positions_n') }}: <strong>{{ bs.positions_count if bs.status == 'ok' else '—' }}</strong></li>
-          <li>{{ t('dashboard.broker_open_orders_n') }}: <strong>{{ bs.open_orders_count if bs.status == 'ok' else '—' }}</strong></li>
-          <li>{{ t('dashboard.broker_execs_n') }}: <strong>{{ bs.executions_count if bs.status == 'ok' else '—' }}</strong></li>
-          {% if bs.error_summary %}<li class="text-dim">{{ bs.error_summary[:400] }}{% if bs.error_summary|length > 400 %}…{% endif %}</li>{% endif %}
-        </ul>
-      {% endif %}
-    </div>
   </div>
 
   {% if trader_dash.explain_open_no_closed or trader_dash.explain_missing_charts_block or trader_dash.explain_submitted_no_broker_positions %}
@@ -317,21 +351,13 @@
   <div class="section">
     <h2>{{ t('dashboard.trader_quick') }}</h2>
     <div class="card">
-      <div class="text-small mb-12">
+      <div class="text-small">
         <a href="{{ ret(url_for('trades_page')) }}">{{ t('nav.trades') }}</a> ·
         <a href="{{ ret(url_for('reports_page')) }}">{{ t('page.reports') }}</a> ·
         <a href="{{ ret(url_for('paper_page')) }}">{{ t('nav.paper') }}</a> ·
-        <a href="#cockpit-diagnostics">{{ t('dashboard.quick_diagnostics_anchor') }}</a>
+        <a href="{{ ret(url_for('settings_page')) }}">{{ t('dashboard.open_diagnostics_btn') }}</a>
       </div>
-
-      <div class="card-title">{{ t('dashboard.complete_trade_charts_card_title') }}</div>
-      <p class="text-dim text-small" style="margin:4px 0 10px 0;">
-        {{ t('dashboard.complete_trade_charts_card_sub') }}
-      </p>
-      <div class="form-row flex-wrap" style="gap:8px;">
-        {% with command='complete-trade-charts', args='--latest --limit 50 --local-only --window-before-minutes 30 --window-after-minutes 90 --json', label=t('reports.complete_trade_charts_title') ~ ' (local)', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
-        {% with command='complete-trade-charts', args='--latest --limit 50 --fetch-missing-candles --window-before-minutes 30 --window-after-minutes 90 --json', label=t('reports.complete_trade_charts_title') ~ ' (+IBKR)', return_to='/dashboard', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
-      </div>
+      <p class="text-dim text-small mt-10" style="margin-bottom:0;">{{ t('dashboard.complete_trade_charts_card_sub') }}</p>
     </div>
   </div>
 

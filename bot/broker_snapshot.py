@@ -71,6 +71,37 @@ def load_broker_snapshot(project_root: Path | str) -> dict[str, Any] | None:
     return raw if isinstance(raw, dict) else None
 
 
+def _pick_tag_float(raw: dict[str, Any], tag: str) -> float | None:
+    blob = raw.get(tag)
+    if not isinstance(blob, dict):
+        return None
+    try:
+        return float(blob.get("value"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _account_metrics_from_summaries(summaries: list[Any]) -> dict[str, Any]:
+    """Flatten primary account metrics for dashboard JSON."""
+
+    if not summaries:
+        return {}
+    acct = summaries[0]
+    raw = getattr(acct, "raw", None) or {}
+    if not isinstance(raw, dict):
+        raw = {}
+    return {
+        "account_id": getattr(acct, "account_id", None),
+        "currency": getattr(acct, "currency", None),
+        "net_liquidation": getattr(acct, "net_liquidation", None),
+        "available_funds": getattr(acct, "available_funds", None),
+        "buying_power": getattr(acct, "buying_power", None),
+        "total_cash": getattr(acct, "total_cash", None),
+        "unrealized_pnl": _pick_tag_float(raw, "UnrealizedPnL"),
+        "realized_pnl": _pick_tag_float(raw, "RealizedPnL"),
+    }
+
+
 def _position_row_to_payload(p: Any) -> dict[str, Any]:
     d = p.to_dict() if hasattr(p, "to_dict") else asdict(p)
     qty = float(d.get("position") or 0)
@@ -161,10 +192,18 @@ def refresh_broker_snapshot(
         sess = client.session_status_snapshot()
         snap.meta["session"] = sess
         snap.ibkr_connected = bool(sess.get("connected"))
+        snap.tws_listening = bool(snap.ibkr_connected)
         am = sess.get("account_mode") or getattr(cfg.ibkr, "account_mode", None)
         snap.account_mode = str(am) if am else snap.account_mode
     except Exception as exc:  # noqa: BLE001
         snap.meta["session_snapshot_error"] = repr(exc)
+
+    try:
+        sums = broker.get_account_summary()
+        snap.meta["account_summaries"] = [s.to_dict() for s in sums]
+        snap.meta["account_metrics"] = _account_metrics_from_summaries(sums)
+    except Exception as exc:  # noqa: BLE001
+        snap.meta["account_summary_error"] = repr(exc)
 
     client_obj = outcome.client
 

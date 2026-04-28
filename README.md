@@ -65,6 +65,12 @@ the Dashboard (or Paper) or run `python3 -m bot.cli broker-snapshot-refresh`
 roster. **Submitted rows in the ledger are not the same as open
 positions at the broker** until a snapshot confirms them.
 
+On `/dashboard`, **Broker Truth** is the cached snapshot above (Net
+Liquidation, balances, broker positions/open orders/fills — whatever the
+latest run returned). **Local Engine Records** are ledger counts from
+Strategy Lab logs (submitted/skipped/charts, etc.). Rendering the page does
+not connect to IBKR; buttons are explicit CLI actions via the command runner.
+
 For a
 daily workflow, helper scripts, and smoke tests, see
 [`docs/strategy-lab-daily-workflow.md`](docs/strategy-lab-daily-workflow.md).

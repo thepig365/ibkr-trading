@@ -27,7 +27,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 页面 | 路径 | 用途 |
 |------|------|------|
-| Dashboard | `/dashboard` | **交易员驾驶舱**：首屏 **「交易日记核心」**含 **累计 R 曲线**（主健康度；已平仓样本不足时有说明）、**美元资金曲线**（仅当每笔已平仓 JSON 均有可靠已实现美元盈亏时显示，不伪造）、**Edge 健康度**（累计 R、当前/最大回撤 R、已平仓笔数、胜率/平均 R 等）、**数据质量**与**跳过原因（Top）**；其下为 **交易日摘要**（今日 R、ΣR、已提交/已发送券商、券商快照占位、已平仓、跳过、缺图等）、**连接/刷新 TWS**、**需要处理**（含未刷新券商快照时提示）、**最新交易**。**「连接 / 刷新 TWS」** 才写入 `data/runtime/broker_snapshot_last.json`（只读；GET 不连 IBKR）。**Reports** 可查更全曲线；明细命令/stdout/`launchd`/门控等在默认折叠 **「开发者与引擎诊断」** |
+| Dashboard | `/dashboard` | **交易员驾驶舱**：顶部 **交易日摘要 + 引擎徽章**，紧接着 **操作条**（**连接 / 刷新 TWS** `broker-snapshot-refresh --json`、`complete-trade-charts --fetch-missing-candles …`（只读拉线）、以及打开 Trades/Reports/Paper/诊断（链接））。其下分两栏含义：**券商真实状态**展示最近一次快照（账户净值 Net Liquidation、可用资金、购买力、现金与盈亏摘要；券商持仓/未完成单/近期成交计数等）；**本地引擎记录**为本仓库日志统计（提交/已发送/跳过/缺图等），与券商实况对照阅读。**刷新页面不会连 IBKR**，只有按钮/CLI 才写入 `data/runtime/broker_snapshot_last.json`。再往下是 **交易日记核心**（累计 R / USD equity gate / Edge / 数据质量）；再 **需要处理**（含未核对券商快照时）、**最新交易**、快捷入口；白名单表单/`launchd`/Today's safety / automatic engine 等在折叠 **「开发者与引擎诊断」**。 |
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单）；含 **券商快照**摘要与「连接 / 刷新 TWS」（同 Dashboard，只读；GET 不自动连 IBKR） |
@@ -61,7 +61,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 | 区域 | 在问什么 |
 |------|----------|
-| **Dashboard** | **第一层（交易员）**：交易日摘要 → 白话说明（条件显示）→ 待办 → 最近五笔（含图表链接）→ 迷你表现 → 快捷入口（`/trades`、`/reports`、`/paper`、补齐交易图表、`#cockpit-diagnostics`）。**第二层（折叠默认关）**：数据质量分项、Today's safety / readiness（含 loop / morning / full-auto / automatic engine）、Report center、账户与 operational hints、白名单 CLI 表单与最近一次 stdout。**缺本地 1m K 线图不齐时**：用 **`/reports`/`/trades`/Dashboard上的「补齐交易图表」**，点击才会走只读拉线；**不因打开 Dashboard 而自动 fetch** |
+| **Dashboard** | **第一层**：交易日摘要 → **券商真实状态** vs **本地引擎记录** → **交易日记核心**（R 曲线 / USD equity / Edge）→ **需要处理** → **最新交易** → **快捷入口**。**券商账户净值等**来自上次 **连接 / 刷新 TWS**（或 CLI `broker-snapshot-refresh`）落盘的 JSON；**不会因 GET 页面自动连券商**。**第二层（折叠默认关）**：Today's safety / readiness、Report center、automatic engine 诊断等。**缺复盘图**：点 **「补齐交易图表」**（只读 IBKR 1m）；**不因打开 Dashboard 而自动 fetch** |
 | **Research → Pre-Market Brief** | 最近一份盘前简报的**时间、 tone、各新闻源状态、邮件是否已发**；可用按钮**生成/邮件**（不连 TWS 直至你点受控命令） |
 | **Signals（ICT）** | 每行是 **Ready to test / Watching / Blocked** 等口语状态 + 下一条件；**不是**交易指令 |
 | **Paper** | **现在能否做纸面试**（文件侧门控 + 可选「不确定」= 缺信号/TWS 不可见等）、**风险上限**、**最近一笔纸单结果** |

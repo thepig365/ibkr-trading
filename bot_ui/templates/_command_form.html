@@ -5,5 +5,11 @@
   <input type="hidden" name="command" value="{{ command }}" />
   {% if args %}<input type="hidden" name="args" value="{{ args }}" />{% endif %}
   <input type="hidden" name="return_to" value="{{ ret(return_to) }}" />
-  <button type="submit" class="btn {{ btn_class or 'ghost' }}">{{ label or command }}</button>
+  <button type="submit"
+    {% if solid|default(false) %}
+    class="btn"
+    {% else %}
+    class="btn {{ btn_class|default('ghost') }}"
+    {% endif %}
+  >{{ label or command }}</button>
 </form>
