@@ -195,6 +195,24 @@ class IntradayPaperConfig(BaseModel):
         return v
 
 
+class TradeChartsCompletionSettings(BaseModel):
+    """Tradervue-style PNG completion (local cache; optional EOD-only IBKR 1m fetch)."""
+
+    auto_generate_on_report_exit: bool = True
+    fetch_missing_candles_on_report_exit: bool = False
+    max_trades_per_run: int = 50
+
+    @field_validator("max_trades_per_run")
+    @classmethod
+    def _max_trades(cls, v: int) -> int:
+        n = int(v)
+        if not 1 <= n <= 500:
+            raise ValueError("trading.trade_charts.max_trades_per_run must be 1..500")
+        return n
+
+    model_config = {"extra": "ignore"}
+
+
 class TradingConfig(BaseModel):
     enabled: bool = False
     dry_run_default: bool = True
@@ -215,6 +233,7 @@ class TradingConfig(BaseModel):
     mtf_auto_paper: MtfAutoPaperConfig = Field(default_factory=MtfAutoPaperConfig)
     # 13F: intraday paper bracket execution (PAPER only; never live).
     intraday_paper: IntradayPaperConfig = Field(default_factory=IntradayPaperConfig)
+    trade_charts: TradeChartsCompletionSettings = Field(default_factory=TradeChartsCompletionSettings)
 
 
 class RiskConfig(BaseModel):

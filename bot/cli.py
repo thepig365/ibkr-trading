@@ -3883,6 +3883,105 @@ def generate_trade_charts_batch_cmd(
     raise typer.Exit(0)
 
 
+@app.command("complete-trade-charts")
+@app.command("tradervue-complete-charts")
+@app.command("complete-journal-charts")
+def complete_trade_charts_cmd(
+    trade_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="NYSE session date YYYY-MM-DD — eligible trades on that calendar day.",
+    ),
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Recent trades (newest-first) after eligibility filters.",
+    ),
+    limit: int = typer.Option(50, "--limit", min=1, max=500),
+    fetch_missing_candles: bool = typer.Option(
+        False,
+        "--fetch-missing-candles",
+        help="Fill missing local 1m caches via IBKR read-only historical bars (never places orders).",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print one JSON summary (stdout only)."),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Do not fetch, write caches, or write PNGs — counts only.",
+    ),
+    symbols: Optional[str] = typer.Option(
+        None,
+        "--symbols",
+        help="Optional comma-separated tickers (e.g. AAPL,NVDA).",
+    ),
+) -> None:
+    """Complete Tradervue-style trade charts: ledger → candles → PNG under data/reports/trade_charts/."""
+
+    cfg = load_config()
+
+    from .trade_chart_completion import complete_trade_charts
+
+    sym_list: Optional[list[str]] = None
+    if symbols and str(symbols).strip():
+        sym_list = [s.strip().upper() for s in str(symbols).split(",") if s.strip()]
+
+    if bool(latest) == (trade_date is not None):
+        console.print("[red]Use exactly one of: --latest  OR  --date YYYY-MM-DD[/red]")
+        raise typer.Exit(2)
+
+    if fetch_missing_candles and dry_run:
+        console.print("[yellow]Note: --dry-run ignores --fetch-missing-candles (no IBKR calls).[/yellow]")
+
+    mode_line = "[cyan]MODE: local cache + chart generation only — no IBKR[/cyan]"
+    if fetch_missing_candles and not dry_run:
+        mode_line = (
+            "[cyan]MODE: IBKR read-only historical 1m fetch enabled (roster candles) · NO ORDERS[/cyan]"
+        )
+    if dry_run:
+        mode_line = "[cyan]MODE: dry-run — no writes, no IBKR[/cyan]"
+    console.print(mode_line)
+
+    td = trade_date.strip()[:10] if trade_date else None
+    summary = complete_trade_charts(
+        cfg.project_root,
+        date=td if not latest else None,
+        latest=bool(latest),
+        limit=int(limit),
+        fetch_missing_candles=bool(fetch_missing_candles) and not bool(dry_run),
+        symbols=sym_list,
+        dry_run=bool(dry_run),
+        cfg=cfg,
+    )
+
+    err = summary.get("error") if isinstance(summary, dict) else None
+    if err:
+        console.print(f"[red]{err}[/red]")
+        if json_out:
+            print(json.dumps(summary, ensure_ascii=False))
+        raise typer.Exit(2)
+
+    if json_out:
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+        raise typer.Exit(0)
+
+    console.print(
+        f"[green]selected[/green] {summary.get('selected_count')} · "
+        f"[cyan]charts available[/cyan] {summary.get('available_count')} · "
+        f"[green]generated[/green] {summary.get('generated_count')} · "
+        f"[yellow]missing candles[/yellow] {summary.get('missing_candles_count')} · "
+        f"[dim]no-exit labels[/dim] {summary.get('no_exit_count')} · "
+        f"[red]errors[/red] {summary.get('error_count')}"
+    )
+    if summary.get("fetched_candles_symbols"):
+        console.print(
+            f"[cyan]Fetched symbols[/cyan]: {', '.join(summary['fetched_candles_symbols'])}"
+        )
+    if summary.get("fetch_failed_symbols"):
+        console.print(f"[yellow]Fetch failed[/yellow]: {summary['fetch_failed_symbols']}")
+    console.print(f"[dim]{summary.get('chart_dir')}[/dim]")
+    raise typer.Exit(0)
+
+
 # ---------------------------------------------------------------------------
 # Prompt 13L-alt: ticker edge profiles (research-only; no order placement)
 # ---------------------------------------------------------------------------

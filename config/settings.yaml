@@ -69,6 +69,10 @@ trading:
     unknown_edge_policy: allow_strict_small_risk
     unknown_edge_risk_multiplier: 0.25
     allow_aggressive_without_edge_profile: false
+  trade_charts:
+    auto_generate_on_report_exit: true
+    fetch_missing_candles_on_report_exit: false
+    max_trades_per_run: 50
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

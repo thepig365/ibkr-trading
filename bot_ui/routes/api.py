@@ -52,6 +52,7 @@ _ALLOWED_PATH_PREFIXES: frozenset[str] = frozenset(
         "/backtest",
         "/reports",
         "/journal",
+        "/trades",
         "/edge",
         "/logs",
         "/settings",

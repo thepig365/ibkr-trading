@@ -426,7 +426,13 @@ Edge、新闻、表内分数、相对成交量**不能**单独触发下单。缺
 - **主表**：面向阅读的列包括时间、标的、多空、模式（strict/aggressive）、发送/跳过/部分状态、入场/止损/目标价、计划 R:R、数量、名义金额、括号保护是否完整、ICT 链（HTF/5m/1m）、Edge 分数/推荐模式、**可读**跳过原因，以及 **Review** 链接。工程化字段（sizing 细节、minTick、原始 E/SL/TP、订单号、完整 JSON 等）收在各行 **Details** 折叠里，原文不丢。  
 - **Sent / Skipped / Protection incomplete**：分别对应「已提交或部分到 TWS」「有 skipped 原因」「`bracket_integrity`≠complete」。不完整保护在列表行与复盘页上会**显眼提示**。  
 - **Trade Review**（`/journal/trade/<trade_id>`）：每条 JSONL 行有稳定 **`trade_id`**（由时间、标的、方向、条目、跳过原因等派生哈希）。复盘页列出身份、价位、风险/每份股、盈亏比、ICT 链、Edge、保护与订单号、可读跳过原因（原文仍在 Details）；含到 Journal / Reports / Paper 的导航。  
-- **图表**：**从不**在 Strategy Lab 内「自动向 IBKR 拉 K 线」。当本机已有对应 **NY 日的本地 1m 缓存**（`data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv`）时：**（1）** 打开 **Journal** 时最多对**最近若干条**符合条件且尚未有 PNG 的流水**尝试**在本机生成（仍只读本地 CSV，不连券商）；**（2）** 纸面引擎在 **`--report-on-exit`** 跑完并写入纸面日报后，会**顺带**尝试批量生成（同样仅本地缓存）。你也可点击 **生成复盘图**，或 CLI `generate-trade-chart` / `generate-trade-charts --latest` 等。单条命令仍是 `generate-trade-chart`（同 `journal-generate-trade-chart`）`--trade-id <id> [--json] [--force] ...`。输出在 `data/reports/trade_charts/<trade_id>.png`（运行时，gitignored）。**Journal 图表列**会用「图表可用 / 缺少K线 / 等待中 / —」等标明原因。  
+- **图表**：**从不**在 Strategy Lab 内「页面一打开就自动向 IBKR 拉 K 线」。当本机已有对应 **NY 日的本地 1m 缓存**（`data/candles/<SYMBOL>/1min/<YYYY-MM-DD>.csv`）时：**（1）** 打开 **Journal** 时最多对**最近若干条**符合条件且尚未有 PNG 的流水**尝试**在本机生成（仍只读本地 CSV，不连券商）；**（2）** 纸面引擎在 **`--report-on-exit`** 跑完并写入纸面日报后，默认会跑 **`complete_trade_charts`（本地缓存）**批量补图；是否在 EOD 顺带用只读历史 API **补齐缺失的本地 1m**，由 `config/settings.yaml` → `trading.trade_charts.fetch_missing_candles_on_report_exit` 控制（默认 **false**）。
+- **Tradervue 式补图管线**：**交易记录** `/trades` 与 **Reports** 提供白名单按钮 **Complete trade charts**，等效 CLI：  
+  `python3 -m bot.cli complete-trade-charts --latest --limit 50 [--fetch-missing-candles] [--dry-run] [--json]`（别名 `tradervue-complete-charts` / `complete-journal-charts`）。**仅本地**：只把已有 CSV 烘焙成 **`data/reports/trade_charts/<trade_id>.png`**。**加 `--fetch-missing-candles`**：对缺失会话日先从 IBKR **只读**拉 **1m**（与 `fetch-candles --ibkr` 同数据平面，client id roster **`candles`**），再出图——**仍为显式 CLI/按钮触发，不是浏览器 GET**。  
+  另可：`generate-trade-chart` / `generate-trade-charts --latest`（**不**自带 IBKR fetch）。单笔：`generate-trade-chart`（同 `journal-generate-trade-chart`）`--trade-id <id> [--json] [--force] ...`。  
+
+  **Past trades**：历史上缺的图可在以后**先有本地缓存**后再补——不是「交易失败」，只是当时磁盘上还没有该日 **`1min` CSV**。**Exit**：若 JSONL **未同时**记下 `exit_time` 与 `exit_price`，图与界面会标示 **Exit not recorded** /「尚未记录平仓」，**不从止损/止盈价推测离场**。  
+**Journal 图表列**会用「图表可用 / 缺少K线 / 等待中 / —」等标明原因。  
 - **筛选**：可按 Sent / Skipped / 保护不完整、多空、标的、**有/无已生成复盘图**、仅今日（NY）、**上一 NY 交易日** 等筛选，不改变引擎逻辑。
 
 ---

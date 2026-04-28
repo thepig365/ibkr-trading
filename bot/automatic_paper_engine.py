@@ -61,23 +61,40 @@ def _engine_post_exit_report(
     )
     trade_charts_batch: dict[str, Any] | None = None
     try:
-        from .journal_trade_charts_pipeline import generate_trade_charts_batch  # noqa: PLC0415
+        from .trade_chart_completion import complete_trade_charts  # noqa: PLC0415
 
-        trade_charts_batch = generate_trade_charts_batch(
-            root, mode_latest=True, report_date=None, limit=50
-        )
+        tc_opt = getattr(cfg.settings.trading, "trade_charts", None)
+        auto_on = bool(getattr(tc_opt, "auto_generate_on_report_exit", True)) if tc_opt else True
+        if auto_on:
+            lim = int(getattr(tc_opt, "max_trades_per_run", 50) if tc_opt else 50)
+            fetch_on = bool(getattr(tc_opt, "fetch_missing_candles_on_report_exit", False) if tc_opt else False)
+            trade_charts_batch = complete_trade_charts(
+                root,
+                latest=True,
+                limit=lim,
+                fetch_missing_candles=fetch_on,
+                cfg=cfg,
+            )
+        else:
+            trade_charts_batch = {"skipped": "auto_generate_on_report_exit_false"}
     except (OSError, RuntimeError, TypeError, ValueError, KeyError):
         logger.warning("post-exit trade chart batch skipped", exc_info=True)
         trade_charts_batch = {"error": "batch_unavailable"}
 
     tc_suffix = ""
-    if isinstance(trade_charts_batch, dict) and "error" not in trade_charts_batch:
+    if isinstance(trade_charts_batch, dict) and "error" not in trade_charts_batch and not trade_charts_batch.get(
+        "skipped"
+    ):
+        av = int(trade_charts_batch.get("available_count") or 0)
         g = int(trade_charts_batch.get("generated_count") or 0)
         mc = int(trade_charts_batch.get("missing_candles_count") or 0)
-        if g or mc:
+        ne = int(trade_charts_batch.get("no_exit_count") or 0)
+        mode = str(trade_charts_batch.get("mode") or "local_only")
+        fetch_note = "" if mode == "local_only" else " (IBKR read-only fetch may have been used)"
+        if av or g or mc:
             tc_suffix = (
-                f"\nTrade charts (local cache only): {g} generated · "
-                f"{mc} missing local candles."
+                f"\nTrade charts: {av} available · {g} generated · "
+                f"{mc} missing candles · {ne} no-exit labels{fetch_note}."
             )
 
     if telegram and had_activity and cfg.telegram.is_configured:

@@ -116,6 +116,12 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Alias of generate-trade-charts (batch PNGs under data/reports/trade_charts; "
         "local cache only)."
     ),
+    "complete-trade-charts": (
+        "Ledger → local 1m candles → trade PNGs; optional --fetch-missing-candles "
+        "(IBKR read-only, roster candles; no orders)."
+    ),
+    "tradervue-complete-charts": "Alias of complete-trade-charts.",
+    "complete-journal-charts": "Alias of complete-trade-charts.",
 }
 
 # Commands that are explicitly forbidden, even if a future code change
@@ -1954,6 +1960,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_generate_trade_chart_args(command, args)
     if command in {"generate-trade-charts", "journal-generate-trade-charts"}:
         return validate_generate_trade_charts_batch_args(command, args)
+    if command in {"complete-trade-charts", "tradervue-complete-charts", "complete-journal-charts"}:
+        return validate_complete_trade_charts_args(command, args)
     return True, ""
 
 
@@ -2122,6 +2130,97 @@ def validate_generate_trade_charts_batch_args(
             if not 1 <= n <= 500:
                 return False, f"{command}: --limit must be 1–500"
             limit_seen = True
+            i += 2
+            continue
+        return False, f"{command}: unexpected token {tok!r}"
+
+    if saw_latest == (date_val is not None):
+        return (
+            False,
+            f"{command}: require exactly one of --latest or --date YYYY-MM-DD",
+        )
+    return True, ""
+
+
+def validate_complete_trade_charts_args(
+    command: str,
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """``--latest`` xor ``--date``; optional ``--limit``, ``--json``, ``--dry-run``,
+    ``--fetch-missing-candles``, ``--symbols A,B`` (comma-separated tickers).
+    """
+
+    ok, err = _check_no_forbidden(command, args)
+    if not ok:
+        return ok, err
+
+    saw_latest = False
+    date_val: str | None = None
+    saw_json = False
+    dry_run = False
+    fetch_miss = False
+    limit_seen = False
+    sym_arg: str | None = None
+
+    i = 0
+    while i < len(args):
+        tok = args[i]
+        if tok == "--latest":
+            if saw_latest:
+                return False, f"{command}: duplicate --latest"
+            saw_latest = True
+            i += 1
+            continue
+        if tok == "--date":
+            if date_val is not None:
+                return False, f"{command}: duplicate --date"
+            if i + 1 >= len(args):
+                return False, f"{command}: --date needs YYYY-MM-DD"
+            date_val = str(args[i + 1]).strip()
+            if not _DATE_RE_BATCH.match(date_val):
+                return False, f"{command}: --date must be YYYY-MM-DD"
+            i += 2
+            continue
+        if tok == "--json":
+            if saw_json:
+                return False, f"{command}: duplicate --json"
+            saw_json = True
+            i += 1
+            continue
+        if tok == "--dry-run":
+            if dry_run:
+                return False, f"{command}: duplicate --dry-run"
+            dry_run = True
+            i += 1
+            continue
+        if tok == "--fetch-missing-candles":
+            if fetch_miss:
+                return False, f"{command}: duplicate --fetch-missing-candles"
+            fetch_miss = True
+            i += 1
+            continue
+        if tok == "--limit":
+            if limit_seen:
+                return False, f"{command}: duplicate --limit"
+            if i + 1 >= len(args):
+                return False, f"{command}: --limit requires a number"
+            try:
+                n = int(str(args[i + 1]).strip())
+            except ValueError:
+                return False, f"{command}: --limit must be integer"
+            if not 1 <= n <= 500:
+                return False, f"{command}: --limit must be 1–500"
+            limit_seen = True
+            i += 2
+            continue
+        if tok == "--symbols":
+            if sym_arg is not None:
+                return False, f"{command}: duplicate --symbols"
+            if i + 1 >= len(args):
+                return False, f"{command}: --symbols needs a value"
+            sym_arg = str(args[i + 1]).strip().upper()
+            if not _TICKER_LIST_RE.match(sym_arg):
+                return False, f"{command}: --symbols must be comma-separated AAPL,NVDA"
             i += 2
             continue
         return False, f"{command}: unexpected token {tok!r}"

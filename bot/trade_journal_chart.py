@@ -313,6 +313,7 @@ def generate_trade_journal_chart_png(
         )
     zh = str(locale).strip().lower().startswith("zh")
     skipped_human_loc = _first_skip_human_line(skipped_raw, locale=locale)
+    struct_notes = _structure_notes_from_obj(obj)
     ok_write = _write_matplotlib_chart(
         filtered,
         outfile,
@@ -338,6 +339,7 @@ def generate_trade_journal_chart_png(
         ict_5m=ict5,
         ict_1m=ict1,
         zh_locale=zh,
+        structure_notes=struct_notes,
     )
     if not ok_write.startswith("OK"):
         return TradeChartOutcome(ok=False, message=ok_write)
@@ -363,6 +365,16 @@ def _first_skip_human_line(skipped_raw: Any, *, locale: str = "en") -> str:
     from bot.ux.humanize import humanize_skip_reason  # noqa: PLC0415 — chart caption only
 
     return humanize_skip_reason(first, locale=locale or "en")
+
+
+def _structure_notes_from_obj(obj: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for key in ("bos", "bos_type", "mss", "liquidity_sweep", "fair_value_gap"):
+        v = obj.get(key)
+        if v is None or str(v).strip() == "":
+            continue
+        parts.append(f"{key}={v}")
+    return " · ".join(parts[:10])
 
 
 def _f(v: Any) -> float | None:
@@ -420,6 +432,7 @@ def _write_matplotlib_chart(
     ict_5m: bool | None = None,
     ict_1m: bool | None = None,
     zh_locale: bool = False,
+    structure_notes: str = "",
 ) -> str:
     try:
         import matplotlib
@@ -567,7 +580,15 @@ def _write_matplotlib_chart(
         f"5m {_tr(ict_5m, 'OK', 'no', '?')}",
         f"1m {_tr(ict_1m, 'OK', 'no', '?')}",
     ]
+    sc_u = str(signal_category or "").upper()
+    if "STRICT" in sc_u:
+        ict_bits.append("strict")
+    elif "AGGRESSIVE" in sc_u:
+        ict_bits.append("aggressive")
     ict_line = lab("ict_prefix") + " " + " · ".join(ict_bits)
+    struct_line = ""
+    if structure_notes.strip():
+        struct_line = ("Structure: " if not hk else "结构：") + structure_notes.strip()
 
     if skipped:
         title_line = f"{symbol} {lr} — Skipped" if not hk else f"{symbol} {lr} — 已跳过"
@@ -585,12 +606,16 @@ def _write_matplotlib_chart(
         title_line = f"{symbol} {lr} — Not sent" if not hk else f"{symbol} {lr} — 未提交"
 
     st_key = title_line.split("—", 1)[-1].strip() if "—" in title_line else title_line
-    extra_lines: list[str] = [
-        ict_line,
-        subtitle_mid,
-        f"{lab('submitted')}: {anchor_ny.strftime('%Y-%m-%d %H:%M %Z')}",
-        f"{lab('status_line')} {st_key}",
-    ]
+    extra_lines: list[str] = [ict_line]
+    if struct_line:
+        extra_lines.append(struct_line)
+    extra_lines.extend(
+        [
+            subtitle_mid,
+            f"{lab('submitted')}: {anchor_ny.strftime('%Y-%m-%d %H:%M %Z')}",
+            f"{lab('status_line')} {st_key}",
+        ]
+    )
     if skipped and skipped_human_one:
         extra_lines.append(("Skipped: " if not hk else "跳过：") + skipped_human_one)
     elif (submitted or submitted_to_broker) and not bracket_complete:

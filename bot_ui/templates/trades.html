@@ -45,6 +45,14 @@
       <button type="submit" class="btn ghost" style="padding:4px 10px;">{{ t('trades.apply_filters') }}</button>
     </form>
 
+    <div class="mt-12">
+      <h3 class="text-small" style="margin:0 0 8px 0;font-weight:600;">{{ t('trades.complete_charts_h') }}</h3>
+      <p class="text-dim text-small" style="margin:0 0 10px 0;">{{ t('trades.complete_charts_blurb') }}</p>
+      {% with command='complete-trade-charts', label=t('trades.complete_charts_local_btn'), return_to='/trades', args='--latest --limit 50 --json', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='complete-trade-charts', label=t('trades.complete_charts_fetch_btn'), return_to='/trades', args='--latest --limit 50 --fetch-missing-candles --json', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+      <p class="text-dim text-small mt-8" style="font-family:system-ui;">python3 -m bot.cli complete-trade-charts --latest --limit 50 [--fetch-missing-candles] [--dry-run] [--json]</p>
+    </div>
+
     {% if not ledger_rows %}
       <p class="text-dim text-small">{{ t('journal.empty_hint') }}</p>
     {% else %}

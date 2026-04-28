@@ -34,7 +34,34 @@
   </div>
 
   <div class="section">
-    <h2>{{ t('trades.execution_timeline') }}</h2>
+    <h2>{{ t('trades.sec_chart') }}</h2>
+    <p class="text-dim text-small">{{ t('trades.chart_rules_hint') }}</p>
+    {% if has_chart %}
+      <p><img src="{{ ret(trade_chart_png_url) }}" alt="{{ t('journal.alt_chart') }}" style="max-width:100%;height:auto;border:1px solid var(--border);" /></p>
+      <form method="get" style="margin-top:12px;">
+        <input type="hidden" name="preview_chart" value="1"/>
+        <button type="submit" class="btn ghost">{{ t('journal.generate_chart_btn') }}</button>
+      </form>
+    {% else %}
+      <p class="text-dim text-small">{{ t('trades.chart_completion_action') }}</p>
+      <div class="mt-8" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        {% with command='complete-trade-charts', label=t('trades.complete_charts_local_btn'), return_to='/trades/' ~ tr.trade_id, args='--latest --limit 50', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='complete-trade-charts', label=t('trades.complete_charts_fetch_btn'), return_to='/trades/' ~ tr.trade_id, args='--latest --limit 50 --fetch-missing-candles', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+      {% if has_local_day_cache %}
+        <p class="text-dim text-small mt-8">{{ t('journal.chart_local_only_hint') }}</p>
+        <form method="get" class="mt-8">
+          <input type="hidden" name="preview_chart" value="1"/>
+          <button type="submit" class="btn">{{ t('journal.generate_chart_btn') }}</button>
+        </form>
+      {% else %}
+        <p class="pill warn mt-8">{{ t('journal.trade_no_candles') }}</p>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>{{ t('trades.sec_timeline_heading') }}</h2>
     <ul class="text-small" style="margin:0;padding-left:1.1rem;">
       <li>{{ t('trades.lbl_submitted_at') }}: {% if tr.submitted_time %}{{ tr.submitted_time[:26] }}{% else %}—{% endif %}</li>
       <li>{{ t('trades.lbl_entry_time') }}: {% if tr.entry_time %}{{ tr.entry_time }}{% else %}—{% endif %}</li>
@@ -51,7 +78,7 @@
   </div>
 
   <div class="section">
-    <h2>{{ t('trades.price_plan') }}</h2>
+    <h2>{{ t('trades.sec_risk') }}</h2>
     <ul class="text-small" style="margin:0;padding-left:1.1rem;">
       <li>{{ t('journal.lbl_entry') }}: {% if tr.entry_price is not none %}{{ "%.2f"|format(tr.entry_price) }}{% else %}—{% endif %}</li>
       <li>{{ t('journal.lbl_stop') }}: {% if tr.stop_price is not none %}{{ "%.2f"|format(tr.stop_price) }}{% else %}—{% endif %}</li>
@@ -70,28 +97,23 @@
       <li>{{ t('journal.lbl_risk_per_share') }}: {% if risk_per_share is not none %}{{ "%.4f"|format(risk_per_share) }}{% else %}—{% endif %}</li>
       <li>{{ t('journal.lbl_reward_per_share') }}: {% if reward_per_share is not none %}{{ "%.4f"|format(reward_per_share) }}{% else %}—{% endif %}</li>
     </ul>
+    <h3 class="mt-12" style="font-size:1rem;">{{ t('trades.sec_protection') }}</h3>
+    {% if tr.bracket_status and tr.bracket_status|lower != 'complete' %}
+      <p class="pill warn">{{ t('journal.protection_incomplete_warn') }}</p>
+    {% endif %}
+    <p class="text-small text-mono">
+      parent {{ tr.parent_entry_order_id or '—' }} · SL {{ tr.stop_order_id or '—' }} · TP {{ tr.target_order_id or '—' }}
+      · bracket {{ tr.bracket_status or '—' }}
+    </p>
   </div>
 
-  <div class="section">
-    <h2>{{ t('trades.sec_chart') }}</h2>
-    <p class="text-dim text-small">{{ t('trades.chart_rules_hint') }}</p>
-    {% if has_chart %}
-      <p><img src="{{ ret(trade_chart_png_url) }}" alt="{{ t('journal.alt_chart') }}" style="max-width:100%;height:auto;border:1px solid var(--border);" /></p>
-      <form method="get" style="margin-top:12px;">
-        <input type="hidden" name="preview_chart" value="1"/>
-        <button type="submit" class="btn ghost">{{ t('journal.generate_chart_btn') }}</button>
-      </form>
-    {% else %}
-      {% if has_local_day_cache %}
-        <p class="text-dim text-small">{{ t('journal.chart_local_only_hint') }}</p>
-        <form method="get">
-          <input type="hidden" name="preview_chart" value="1"/>
-          <button type="submit" class="btn">{{ t('journal.generate_chart_btn') }}</button>
-        </form>
-      {% else %}
-        <p class="pill warn">{{ t('journal.trade_no_candles') }}</p>
-      {% endif %}
-    {% endif %}
+  <div class="section"><h2>{{ t('trades.ict_labels_section') }}</h2>
+    <p class="text-small">{{ tr.ict_labels or '—' }}</p>
+    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
+      <li>HTF: {% if tr.ict_htf is none %}—{% elif tr.ict_htf %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
+      <li>5m: {% if tr.ict_5m is none %}—{% elif tr.ict_5m %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
+      <li>1m: {% if tr.ict_1m is none %}—{% elif tr.ict_1m %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
+    </ul>
   </div>
 
   <div class="section"><h2>{{ t('trades.sec_engine') }}</h2>
@@ -110,25 +132,6 @@
         {% endfor %}
       {% endif %}
     </ul>
-  </div>
-
-  <div class="section"><h2>{{ t('trades.ict_labels_section') }}</h2>
-    <p class="text-small">{{ tr.ict_labels or '—' }}</p>
-    <ul class="text-small" style="margin:0;padding-left:1.1rem;">
-      <li>HTF: {% if tr.ict_htf is none %}—{% elif tr.ict_htf %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
-      <li>5m: {% if tr.ict_5m is none %}—{% elif tr.ict_5m %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
-      <li>1m: {% if tr.ict_1m is none %}—{% elif tr.ict_1m %}{{ t('journal.chk_yes') }}{% else %}no{% endif %}</li>
-    </ul>
-  </div>
-
-  <div class="section"><h2>{{ t('trades.sec_protection') }}</h2>
-    {% if tr.bracket_status and tr.bracket_status|lower != 'complete' %}
-      <p class="pill warn">{{ t('journal.protection_incomplete_warn') }}</p>
-    {% endif %}
-    <p class="text-small text-mono">
-      parent {{ tr.parent_entry_order_id or '—' }} · SL {{ tr.stop_order_id or '—' }} · TP {{ tr.target_order_id or '—' }}
-      · bracket {{ tr.bracket_status or '—' }}
-    </p>
   </div>
 
   <div class="section">

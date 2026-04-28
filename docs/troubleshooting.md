@@ -11,6 +11,7 @@
 - **处理**：按需用 **Backtest / 数据覆盖页** 等在**你显式操作时**拉取或生成缓存（仍属只读/白名单流程；**无**市价下单入口）。  
 - **Exit 未显示**：JSONL 里若没有同时记录 **exit_time** 与 **exit_price**，界面会写 **「尚未记录平仓」**，**不会**推算或补全离场价。  
 - **与 Journal 区别**：`/journal` 为 **技术/审计流水**；`/trades` 为 **交易员友好**按笔视图。
+- **Completing charts（`complete-trade-charts`）**：本地模式只写 PNG，不连 IBKR。加 **`--fetch-missing-candles`** 时才会用只读历史 API 写 `data/candles/.../1min/*.csv`（与 **`fetch-candles --ibkr`** 同源，roster **`candles`**），**仍不下单**。纸上引擎 **`--report-on-exit`** 默认只跑**本地**补图；若要在 EOD 顺带拉缺失日 K 线，需在 `settings.local.yaml` 等处将 `trading.trade_charts.fetch_missing_candles_on_report_exit` 设为 **true**。
 
 ## IBKR Error 326 · client id already in use（API 会话 ID 冲突）
 
