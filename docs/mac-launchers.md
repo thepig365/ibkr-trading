@@ -7,9 +7,9 @@
 | 文件 | 作用 |
 |------|------|
 | **Strategy Lab.command**（**推荐**） | 若 `http://127.0.0.1:8765/healthz` 已可用则直接打开 `…/dashboard`；否则先执行 `scripts/start_strategy_lab_ui.sh`，轮询 `healthz` 后再执行 `scripts/open_strategy_lab_ui.sh`（`STRATEGY_LAB_UI_PATH=/dashboard`） |
-| **Start Strategy Lab.command** | 与旧版行为一致：先 `start` 再 `open`（不检测是否已在跑；保留兼容） |
-| **Stop Strategy Lab.command** | 执行 `scripts/stop_strategy_lab_ui.sh`，仅停本地 UI 进程 |
-| **Open Strategy Lab.command**（可选/旧版） | 仅 `open_strategy_lab_ui.sh`；若本机无 UI 会提示去 **Strategy Lab.command** 或 `start` 脚本 |
+| **Start Strategy Lab.command** | 启动 UI（`"$ROOT"/scripts/start_strategy_lab_ui.sh`，**根目录随 `.command` 所在目录解析**，搬运仓库路径后仍可双击）；等待 `/healthz` 后用 **`open`** 打开 `/dashboard` |
+| **Stop Strategy Lab.command** | `"$ROOT"/scripts/stop_strategy_lab_ui.sh`，仅停本地 UI 进程 |
+| **Open Strategy Lab.command** / **Open Strategy Lab Dashboard.command**（可选） | **不启动服务**，只对默认浏览器发送 `…/dashboard`（若 UI 未开，浏览器会显示连接失败——请先 **Strategy Lab.command** 或 **Start**） |
 | **Strategy Lab Doctor.command** | 执行 `scripts/strategy_lab_doctor.sh`（可附加 `--pytest`、`--check-ibkr` 等，与脚本一致） |
 
 ## 使用方式
@@ -17,16 +17,18 @@
 1. **推荐**：在 Finder 中进入本仓库根目录，**双击** `Strategy Lab.command` — 已运行则只打开 **Dashboard**；未运行则先启动再打开（见 `healthz`）。  
 2. 需要结束 UI 时，双击 `Stop Strategy Lab.command`。  
 3. 需要自检 Python、venv、依赖、路径、（可选）pytest / TWS 端口时，双击 `Strategy Lab Doctor.command`。  
-4. **（可选/旧版）** 仍可使用 `Start Strategy Lab.command` / `Open Strategy Lab.command`；**主推荐** 已改为上表中的 **Strategy Lab.command**。
+4. **（可选）** 仍可使用 `Start Strategy Lab.command`（先启后开 Dashboard）或 **`Open Strategy Lab Dashboard.command`**（仅开窗口）。**主推荐** 仍是 **Strategy Lab.command**（已运行则只开浏览器）。
 
-运行结束后，终端窗口会提示按 **Enter** 再关闭，方便看清输出。
+运行结束后，多数启动器会提示按 **任意键** 再关闭（或按 **Enter**），方便看清输出。
+
+**说明**：所有 `.command` 均用 `dirname "$0"` 解析仓库根目录，**不**写死 `~/Documents/...` 等路径；把仓库挪到例如 `~/StrategyLab/ibkr-trading-bot` 后仍可双击使用。
 
 ## 若系统提示“无法打开”或安全拦截
 
 - **先赋予执行权限**（在终端中、仓库根目录下执行一次）：
 
   ```bash
-  chmod +x "Strategy Lab.command" "Start Strategy Lab.command" "Stop Strategy Lab.command" "Open Strategy Lab.command" "Strategy Lab Doctor.command"
+  chmod +x "Strategy Lab.command" "Start Strategy Lab.command" "Stop Strategy Lab.command" "Open Strategy Lab.command" "Open Strategy Lab Dashboard.command" "Strategy Lab Doctor.command"
   ```
 
 - **或**：在 Finder 中 **右键** → **打开**（Open），在确认对话框中仍选“打开”，之后即可正常双击。  

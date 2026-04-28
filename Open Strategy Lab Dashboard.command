@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Opens the dashboard URL only (does not verify server; does not start the UI).
-# Prefer Strategy Lab.command to start-if-needed then open Safari/Chrome automatically.
+# Opens the dashboard URL only; does NOT start the UI server (use Start Strategy Lab or Strategy Lab.command first).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"

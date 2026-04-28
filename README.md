@@ -60,12 +60,13 @@ The FastAPI UI is **read-only on startup** (no TWS connection). For a
 daily workflow, helper scripts, and smoke tests, see
 [`docs/strategy-lab-daily-workflow.md`](docs/strategy-lab-daily-workflow.md).
 
-**macOS:** double-click **`Strategy Lab.command`** in the repo root (see [`docs/mac-launchers.md`](docs/mac-launchers.md)) — starts the UI if needed (via `healthz`), then opens **`/dashboard`**. Use **Stop Strategy Lab.command** to stop; **Strategy Lab Doctor.command** for diagnostics. **Start / Open Strategy Lab.command** remain for legacy compatibility.
+**macOS:** double-click **`Strategy Lab.command`** in the repo root (see [`docs/mac-launchers.md`](docs/mac-launchers.md)) — starts the UI if needed (via `healthz`), then opens **`/dashboard`**. Use **Stop Strategy Lab.command** to stop; **Strategy Lab Doctor.command** for diagnostics. **Start Strategy Lab.command** runs the start script then opens the dashboard in the browser. **Open Strategy Lab.command** / **Open Strategy Lab Dashboard.command** only fire `open` on the dashboard URL (they do not start the server). All `.command` files resolve the repo via `dirname "$0"` (safe after moving the clone).
 
 | Command | Purpose |
 |--------|---------|
 | `Strategy Lab.command` (macOS) | One-click: if UI up, open dashboard; else `start_strategy_lab_ui.sh` + wait for `healthz` + `open_strategy_lab_ui.sh` (paper-only, no TWS on start) |
-| `Start Strategy Lab.command` (macOS, optional) | Always runs `start` then `open` (does not skip duplicate start) |
+| `Start Strategy Lab.command` (macOS, optional) | `"$ROOT/scripts/start_strategy_lab_ui.sh"` + wait for `healthz` + `open` → `/dashboard` |
+| `Open Strategy Lab Dashboard.command` (macOS, optional) | `open` → `/dashboard` only (no `start`) |
 | `python3 -m bot_ui` | Open the UI (default `http://127.0.0.1:8765/`) |
 | `python3 -m bot.cli engine-status --json` | Full read-only lab snapshot (config + `data/*` + `ui_process`) |
 | `./scripts/start_strategy_lab_ui.sh` | Background UI + PID + logs (see `docs/strategy-lab-daily-workflow.md`) |
@@ -76,7 +77,7 @@ daily workflow, helper scripts, and smoke tests, see
 
 ```
 ibkr-trading-bot/
-├── *.command               # macOS: Strategy Lab (main), Start/Stop/Open, Doctor
+├── *.command               # macOS: Strategy Lab (main), Start/Stop/Open/Dashboard-only, Doctor
 ├── bot/                    # all runtime code
 │   ├── cli.py              # Typer entry point
 │   ├── config.py           # YAML + env loader

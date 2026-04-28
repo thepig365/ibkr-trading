@@ -50,13 +50,17 @@ SCRIPT_NAMES: tuple[str, ...] = (
     "strategy_lab_doctor.sh",
 )
 
-# macOS Finder double-click launchers (project root) — must delegate to scripts/ only.
+# macOS Finder double-click launchers — script-backed must use $ROOT/scripts/* only (no baked paths).
 MAC_COMMANDS: tuple[str, ...] = (
     "Strategy Lab.command",
     "Start Strategy Lab.command",
     "Stop Strategy Lab.command",
-    "Open Strategy Lab.command",
     "Strategy Lab Doctor.command",
+)
+# Launchers that only open a browser URL (no scripts/ delegation).
+MAC_COMMANDS_URL_ONLY: tuple[str, ...] = (
+    "Open Strategy Lab.command",
+    "Open Strategy Lab Dashboard.command",
 )
 
 
@@ -100,13 +104,26 @@ def test_mac_command_launchers_exist_executable_delegate_no_secrets() -> None:
         assert "place_order" not in text.lower()
         assert not SECRET_PAT.search(text)
         assert not LIVE_PAT.search(text)
+    for name in MAC_COMMANDS_URL_ONLY:
+        p = REPO_ROOT / name
+        assert p.is_file(), name
+        assert p.stat().st_mode & stat.S_IXUSR, f"{name} should be executable"
+        text = p.read_text(encoding="utf-8")
+        assert 'dirname "$0"' in text
+        assert "/dashboard" in text
+        assert "Documents/Claude" not in text
+        assert "start_strategy_lab_ui" not in text
+        assert "uvicorn" not in text.lower()
+        assert not SECRET_PAT.search(text)
+        assert not LIVE_PAT.search(text)
     start = (REPO_ROOT / "Start Strategy Lab.command").read_text(encoding="utf-8")
     assert "start_strategy_lab_ui.sh" in start
-    assert "open_strategy_lab_ui.sh" in start
+    assert "open_strategy_lab_ui.sh" not in start
+    assert 'open "$DASH"' in start or "open \"http://" in start
     stop = (REPO_ROOT / "Stop Strategy Lab.command").read_text(encoding="utf-8")
     assert "stop_strategy_lab_ui.sh" in stop
     openf = (REPO_ROOT / "Open Strategy Lab.command").read_text(encoding="utf-8")
-    assert "open_strategy_lab_ui.sh" in openf
+    assert "open_strategy_lab_ui.sh" not in openf
     assert "start_strategy_lab_ui" not in openf
     docf = (REPO_ROOT / "Strategy Lab Doctor.command").read_text(encoding="utf-8")
     assert "strategy_lab_doctor.sh" in docf
