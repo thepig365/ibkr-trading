@@ -97,6 +97,8 @@ daily workflow, helper scripts, and smoke tests, see
 | `make strategy-lab-smoke` | Pytest: `tests/test_engine_launch_workflow.py` |
 | `docs/strategy-lab-user-manual.md` | 中文用户手册 / operator manual (ZH) |
 
+**Forex ICT 1m（纸面分离测试模式）**：与美股 `ict_smc_intraday_v1` **独立**的配置 `config/forex_ict_1m.yaml`、`strategy_id: ict_fx_1m_test`。**默认不提交券商**（`execution.submit_to_broker: false`）；只读拉线：`fetch-forex-candles …` → `data/candles_forex/`；干跑：`run-forex-ict-1m --dry-run --json`。详见用户手册 Forex 小节与 `docs/troubleshooting.md`。
+
 ## Project layout
 
 ```

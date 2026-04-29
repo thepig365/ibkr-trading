@@ -73,7 +73,8 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
     # arbitrary commands
     assert is_allowed("rm") is False
     assert is_allowed("portfolio") is True
-    assert is_allowed("run-auto-paper-intraday-loop") is False
+    assert is_allowed("fetch-forex-candles") is True
+    assert is_allowed("run-forex-ict-1m") is True
     assert is_allowed("run-automatic-paper-engine") is True
     assert is_allowed("automatic-paper-engine-readiness") is True
     assert is_allowed("run-full-auto-paper-supervisor") is True
@@ -107,6 +108,8 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
         "--end", "2026-04-24",
         "--ibkr",
     ),
+    "fetch-forex-candles": ("--pair", "AUD/USD", "--json"),
+    "run-forex-ict-1m": ("--dry-run", "--json"),
     "backtest-intraday-smc": (
         "--symbol", "CRM",
         "--start", "2026-04-01",

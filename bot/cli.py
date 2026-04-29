@@ -3163,6 +3163,106 @@ def fetch_candles_cmd(
     raise typer.Exit(0)
 
 
+@app.command("fetch-forex-candles")
+def fetch_forex_candles_cmd(
+    pair: str = typer.Option(..., "--pair", "-p", help="e.g. AUD/USD."),
+    bar_size: str = typer.Option(
+        "1 min", "--bar-size", help='IBKR bar size, default "1 min".'
+    ),
+    duration: str = typer.Option("1 D", "--duration", help='e.g. "1 D".'),
+    start: Optional[str] = typer.Option(
+        None, "--start", help="Optional YYYY-MM-DD lower bound filter after fetch."
+    ),
+    end: Optional[str] = typer.Option(
+        None, "--end", help="Optional YYYY-MM-DD upper bound filter after fetch."
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Overwrite per-day merges for overlapping timestamps."
+    ),
+    as_json: bool = typer.Option(
+        False, "--json", help="Emit JSON only (machine-readable)."
+    ),
+) -> None:
+    """Read-only IDEALPRO CASH fetch — writes ``data/candles_forex``. No orders."""
+    cfg, journal = _bootstrap()
+    from bot.forex.fetch_bridge import fetch_forex_1m_duration
+
+    root = Path(cfg.absolute(""))
+    stats = fetch_forex_1m_duration(
+        project_root=root,
+        pair_display=pair,
+        duration=duration.strip(),
+        bar_size=bar_size.strip(),
+        what_to_show="MIDPOINT",
+        start=start.strip() if start else None,
+        end=end.strip() if end else None,
+        force=force,
+        cfg=cfg,
+    )
+    payload = dict(stats)
+    payload["paper_only"] = True
+    payload["no_orders"] = True
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="fetch-forex-candles",
+                style="cyan",
+            ),
+        )
+    journal.record_event(
+        category="research",
+        level="INFO",
+        message="fetch-forex-candles",
+        payload={
+            "pair": pair,
+            "ok": payload.get("ok"),
+            "bars": payload.get("bars"),
+            "rows_written": payload.get("rows_written"),
+            "slug": payload.get("slug"),
+        },
+    )
+    raise typer.Exit(0 if payload.get("ok") else 2)
+
+
+@app.command("run-forex-ict-1m")
+def run_forex_ict_1m_cmd(
+    dry_run: bool = typer.Option(True, "--dry-run/--no-dry-run", help="Default: dry-run (no broker submit)."),
+    paper: bool = typer.Option(False, "--paper", help="Explicit paper runner (YAML gates apply)."),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON only."),
+) -> None:
+    """ICT-style 1m FX scan from local caches; submissions require YAML enables."""
+    cfg, journal = _bootstrap()
+    from bot.forex.runner import run_forex_ict_1m
+
+    root = Path(cfg.absolute(""))
+    out = run_forex_ict_1m(root, dry_run=dry_run, paper=paper)
+    if as_json:
+        print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(out, indent=2, ensure_ascii=False, default=str),
+                title="run-forex-ict-1m",
+                style="cyan",
+            ),
+        )
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="run-forex-ict-1m",
+        payload={
+            "dry_run": dry_run,
+            "paper": paper,
+            "strategy_id": out.get("strategy_id"),
+            "pairs": out.get("pairs"),
+        },
+    )
+    raise typer.Exit(0)
+
+
 def _run_backtest_intraday_smc(
     cfg: AppConfig,
     journal: Journal,

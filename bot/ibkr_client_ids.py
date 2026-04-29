@@ -31,6 +31,7 @@ CANDLE_FETCH = 21
 
 RESEARCH_FETCH = 22
 EDGE_FETCH = 23
+FOREX_FETCH = 24
 
 # Unused reserved block (UI batch jobs, dashboards, future).
 UI_COMMAND_BASE = 30
@@ -42,5 +43,6 @@ __all__ = [
     "CANDLE_FETCH",
     "RESEARCH_FETCH",
     "EDGE_FETCH",
+    "FOREX_FETCH",
     "UI_COMMAND_BASE",
 ]

@@ -30,6 +30,15 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **产出（默认 gitignore）**：最近一次摘要 `data/runtime/fills_reconciliation_last.json`；可按日存档 `data/reconciled_trades/YYYY-MM-DD-reconciled-trades.json`、`data/executions/YYYY-MM-DD-ibkr-executions.json`。  
 - **之后才可靠**：Dashboard **成交对账**卡片、**累计 R / 交易图上的 Entry·Exit**，在存在真实成交记录并对账后更准确；若无成交或未跑对账，可能仍为「已提交未成交」或缺 Exit 标记。
 
+### 1.3 Forex ICT 1 分钟测试模式（独立于美股日内）
+
+> **与股票 ICT（`ict_smc_intraday_v1`）完全分离**：独立 `strategy_id`（默认 `ict_fx_1m_test`）、独立数据目录 **`data/candles_forex/`**、独立审计 **`data/forex_orders/`**、独立 `orderRef` 前缀（见 `config/forex_ict_1m.yaml`）。
+
+- **目的**：墨尔本白天仍可验证「引擎链路 + IBKR IDEALPRO 只读/纸面」（外汇 24/5），**不靠**美盘股票时段。  
+- **推荐先试货币对**：`AUD/USD`、`USD/JPY`、`AUD/JPY`（YAML 中还列有可选币种）。  
+- **流程**：先在纸面、`Kill switch` off 下拉 **1 分钟 MIDPOINT** → `fetch-forex-candles` → 本地 **`run-forex-ict-1m --dry-run`** → 确认就绪前 **不要** 把 YAML 设为 `submit_to_broker: true`。  
+- **硬性约束**：**仅 paper、仅限价括号（实现为 LMT 括号）、不写市价单**；干跑不写单；实盘提交需 **显式 YAML 启用** — 不改变股票自动纸引擎代码路径。
+
 ## 2. 每个页面用途
 
 | 页面 | 路径 | 用途 |

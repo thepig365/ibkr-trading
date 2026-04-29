@@ -14,6 +14,7 @@ from .ibkr_client_ids import (
     BROKER_READ_ONLY,
     CANDLE_FETCH,
     EDGE_FETCH,
+    FOREX_FETCH,
     RESEARCH_FETCH,
     WATCHLIST_FETCH,
 )
@@ -65,6 +66,8 @@ _ROSTER_MAP: dict[str, int] = {
     "candles": CANDLE_FETCH,
     "research": RESEARCH_FETCH,
     "edge": EDGE_FETCH,
+    "forex_fetch": FOREX_FETCH,
+    "forex_test": FOREX_FETCH,
 }
 
 

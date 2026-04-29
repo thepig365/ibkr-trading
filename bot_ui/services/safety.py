@@ -43,6 +43,8 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "scan-intraday-smc": "ICT/SMC Intraday V1 — single-symbol research scan (paper-only).",
     "scan-intraday-smc-watchlist": "ICT/SMC Intraday V1 — watchlist research scan (paper-only).",
     "fetch-candles": "Fetch historical OHLCV candles from IBKR into the local cache (read-only).",
+    "fetch-forex-candles": "Forex: read-only 1m MIDPOINT pull into data/candles_forex (CASH/IDEALPRO; no orders).",
+    "run-forex-ict-1m": "Forex ICT 1m test: scan local FX candles; optional paper path per config/forex_ict_1m.yaml.",
     "candle-coverage": "Read-only check of local 1m cache coverage for a date range (no IBKR, no backtest).",
     "backtest-oneclick": (
         "Check 1m coverage, fetch missing 1m from IBKR if needed, then run intraday backtest (read-only data fetch; no orders)."
@@ -618,6 +620,75 @@ def validate_fetch_candles_args(args: tuple[str, ...]) -> tuple[bool, str]:
         return False, "fetch-candles: --end must be YYYY-MM-DD."
     if "--use-rth" in flags and "--no-use-rth" in flags:
         return False, "fetch-candles: --use-rth and --no-use-rth are mutually exclusive."
+    return True, ""
+
+
+_FETCH_FOREX_FLAGS_VAL: frozenset[str] = frozenset(
+    {"--pair", "--bar-size", "--duration", "--start", "--end"}
+)
+_FETCH_FOREX_FLAGS_BOOL: frozenset[str] = frozenset({"--force", "--json"})
+
+
+def validate_fetch_forex_candles_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Read-only FX candles: requires ``--pair``; optional filters + ``--json``."""
+    ok, err = _check_no_forbidden("fetch-forex-candles", args)
+    if not ok:
+        return ok, err
+    flags: dict[str, str | bool] = {}
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _FETCH_FOREX_FLAGS_BOOL:
+            flags[token] = True
+            i += 1
+            continue
+        if token in _FETCH_FOREX_FLAGS_VAL:
+            if i + 1 >= len(args):
+                return False, f"fetch-forex-candles: {token!r} requires a value."
+            flags[token] = args[i + 1]
+            i += 2
+            continue
+        return False, f"fetch-forex-candles: unexpected token {token!r}."
+    if "--pair" not in flags:
+        return False, "fetch-forex-candles: --pair is required."
+    raw = str(flags["--pair"]).strip().upper().replace(" ", "")
+    if "/" not in raw or raw.count("/") != 1:
+        return False, "fetch-forex-candles: --pair must look like AUD/USD."
+    a, b = raw.split("/", 1)
+    if len(a) != 3 or len(b) != 3 or not a.isalpha() or not b.isalpha():
+        return False, "fetch-forex-candles: --pair must look like AUD/USD."
+    if "--start" in flags and not _BACKTEST_DATE_RE.match(str(flags["--start"])):
+        return False, "fetch-forex-candles: --start must be YYYY-MM-DD."
+    if "--end" in flags and not _BACKTEST_DATE_RE.match(str(flags["--end"])):
+        return False, "fetch-forex-candles: --end must be YYYY-MM-DD."
+    return True, ""
+
+
+_FOREX_ICT_FLAGS_BOOL: frozenset[str] = frozenset(
+    {"--json", "--dry-run", "--no-dry-run", "--paper"}
+)
+
+
+def validate_run_forex_ict_1m_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Local scan; optional ``--paper`` (YAML gated)."""
+    ok, err = _check_no_forbidden("run-forex-ict-1m", args)
+    if not ok:
+        return ok, err
+    i = 0
+    seen: set[str] = set()
+    while i < len(args):
+        token = args[i]
+        if token in _FOREX_ICT_FLAGS_BOOL:
+            if token in ("--dry-run", "--no-dry-run") and (
+                "--dry-run" in seen or "--no-dry-run" in seen
+            ):
+                return False, "run-forex-ict-1m: duplicate dry-run toggle."
+            seen.add(token)
+            i += 1
+            continue
+        return False, f"run-forex-ict-1m: unexpected token {token!r}."
+    if "--dry-run" in seen and "--no-dry-run" in seen:
+        return False, "run-forex-ict-1m: --dry-run conflicts with --no-dry-run."
     return True, ""
 
 
@@ -1987,6 +2058,10 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_scan_intraday_smc_watchlist_args(args)
     if command == "fetch-candles":
         return validate_fetch_candles_args(args)
+    if command == "fetch-forex-candles":
+        return validate_fetch_forex_candles_args(args)
+    if command == "run-forex-ict-1m":
+        return validate_run_forex_ict_1m_args(args)
     if command == "candle-coverage":
         return validate_candle_coverage_args(args)
     if command == "backtest-oneclick":

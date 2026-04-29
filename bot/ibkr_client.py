@@ -348,6 +348,20 @@ class IBKRClient:
                 return None
         if sec_type.upper() == "IND":
             contract = Index(symbol, exchange or "CBOE", currency or "USD")
+        elif sec_type.upper() == "CASH":
+            try:
+                from ib_async import Contract  # type: ignore
+            except Exception:  # pragma: no cover
+                try:
+                    from ib_insync import Contract  # type: ignore
+                except Exception:
+                    return None
+            contract = Contract(
+                symbol=str(symbol).upper(),
+                secType="CASH",
+                currency=str(currency or "").upper(),
+                exchange=(exchange or "IDEALPRO").upper(),
+            )
         else:
             contract = Stock(symbol, exchange or "SMART", currency or "USD")
         try:

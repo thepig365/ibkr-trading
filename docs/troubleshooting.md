@@ -7,7 +7,11 @@
 
 ---
 
-## 本地「已提交」与 TWS 成交 / R 曲线不齐
+## Forex ICT 1m 测试：`fetch` 成功但 `run-forex-ict-1m` 无信号
+
+- **常见于**：本地尚无 `data/candles_forex/<PAIRSLUG>/1min/` CSV — 请先对目标货币对跑一次 **`fetch-forex-candles`**（只读，`forex_fetch` client id）；或当日 **墨尔本时段窗口**之外（见 `config/forex_ict_1m.yaml` 的 `session`，纸面 `--paper` 路径会尊重窗口）。  
+- **干跑不产生订单**：`--dry-run` **从不**下单；`**--paper**` 需 YAML `enabled: true`，且 **`execution.submit_to_broker: true`** 才会真正发往 TWS；默认配置为 **`false`**。  
+- **与股票引擎**：不影响 `ict_smc_intraday_v1`，见 `docs/strategy-lab-user-manual.md` §1.3。
 
 - **第一层**：先有 **broker snapshot**（`broker-snapshot-refresh`）核对券商持仓与委托。  
 - **第二层**：用 **`reconcile-fills`**（只读 executions，`broker_readonly`）把真实成交对齐到 Strategy Lab 本地委托行；写入 `data/runtime/fills_reconciliation_last.json`（默认 gitignore）。**不**代为推断平仓价。手册见 `docs/strategy-lab-user-manual.md` §1.2。

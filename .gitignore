@@ -97,6 +97,9 @@ data/intraday_smc/*
 # Never committed; contains historical broker data.
 data/candles/*
 !data/candles/.gitkeep
+# Forex ICT 1m MIDPOINT cache + paper order audit (never commit).
+data/candles_forex/
+data/forex_orders/
 # Prompt 13L-alt: per-ticker edge profiles (backtest-derived; never commit).
 data/edge_profiles/*
 !data/edge_profiles/.gitkeep

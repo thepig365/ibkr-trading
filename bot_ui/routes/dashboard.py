@@ -12,6 +12,7 @@ from bot.auto_loop_readiness import build_auto_loop_readiness
 from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
 from bot.full_auto_paper_readiness import build_full_auto_paper_readiness
 from bot.config import load_config
+from bot.forex.runner import build_forex_test_ui_context
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import build_paper_activation_status
 from bot.premarket.storage import find_latest_premarket_brief
@@ -176,6 +177,11 @@ def dashboard(request: Request) -> HTMLResponse:
         op_hints=op_hints,
     )
 
+    try:
+        forex_ict_ui = build_forex_test_ui_context(root, cfg=cfg)
+    except (OSError, TypeError, ValueError):
+        forex_ict_ui = {}
+
     ctx.update(
         {
             "trader_dash": trader_td,
@@ -218,6 +224,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "report_hub": build_report_hub_ui_context(root),
             "telegram_command_listener_dash": tg_listener_dash,
             "tws_health_ui": ui_alert_overlay(root),
+            "forex_ict_ui": forex_ict_ui,
         }
     )
     ctx["flash"] = dashboard_flash_from_recent_command(

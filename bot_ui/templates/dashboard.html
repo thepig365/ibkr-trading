@@ -9,6 +9,7 @@
   {% set bs = trader_dash.broker_snapshot %}
   {% set meta = (bs.meta if bs else none) %}
   {% set am = meta.get('account_metrics') if meta else none %}
+  {% set fxi = forex_ict_ui|default({}) %}
 
   <div class="section">
     <h2>{{ t('dashboard.trading_day_summary') }}</h2>
@@ -33,6 +34,46 @@
       <a class="btn ghost" href="{{ ret(url_for('reports_page')) }}">{{ t('dashboard.open_reports_btn') }}</a>
       <a class="btn ghost" href="{{ ret(url_for('paper_page')) }}">{{ t('dashboard.open_paper_btn') }}</a>
       <a class="btn ghost" href="{{ ret(url_for('settings_page')) }}">{{ t('dashboard.open_diagnostics_btn') }}</a>
+    </div>
+
+    <h2 style="margin:18px 0 6px;">Forex ICT 1M Test / 外汇 ICT 1分钟测试</h2>
+    <p class="text-dim text-small" style="margin:0 0 10px;line-height:1.55;">
+      Independent from stock ICT (<code>ict_smc_intraday_v1</code>). Paper / limit brackets only —
+      reads <code>config/forex_ict_1m.yaml</code>. Broker submit stays off unless you explicitly enable YAML + readiness.
+    </p>
+    <div class="grid mb-12" style="grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); max-width:900px;">
+      <div class="card">
+        <div class="card-title">mode</div>
+        <div class="card-value">{{ fxi.mode or '—' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">strategy_id</div>
+        <div class="card-value text-mono text-small">{{ fxi.strategy_id }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Melbourne session</div>
+        <div class="card-value">{{ 'open' if fxi.melbourne_session_open else 'closed' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">local time</div>
+        <div class="card-value">{{ fxi.melbourne_time or '—' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">jsonl counts (today)</div>
+        <div class="card-value text-small text-mono">sub={{ (fxi.counts_today_jsonl or {}).get('submitted', 0) }} rej={{ (fxi.counts_today_jsonl or {}).get('rejected', 0) }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">kill_switch</div>
+        <div class="card-value">{% if fxi.kill_switch_active %}<span class="pill bad">on</span>{% else %}<span class="pill good">off</span>{% endif %}</div>
+      </div>
+    </div>
+    <p class="text-small text-dim mb-8">{{ fxi.next_action }}</p>
+    {% if fxi.pairs %}<p class="text-small mb-8">pairs watched: {% for p in fxi.pairs %}<code>{{ p }}</code>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+    <div class="form-row flex-wrap" style="gap:10px;">
+      {% with command='run-forex-ict-1m', args='--dry-run --json', label='Run Forex ICT 1M Dry Run', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='fetch-forex-candles', args='--pair AUD/USD --bar-size \"1 min\" --duration \"1 D\" --json', label='Fetch Forex Candles AUD/USD', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with solid=true, command='ibkr-session-status', args='--json', label='Check Forex Readiness (TWS)', return_to='/dashboard' %}{% include "_command_form.html" %}{% endwith %}
+      <a class="btn ghost" href="{{ ret(url_for('trades_page')) }}">Open Trades (see broker + journal rows)</a>
     </div>
 
     <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.broker_truth_heading') }}</h3>

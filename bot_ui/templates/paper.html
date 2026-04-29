@@ -9,6 +9,18 @@
     <span class="text-mono text-dim">({{ strategy_selection.active_paper_strategy }})</span>
     · <a class="text-small" href="{{ ret(url_for('strategies')) }}">Strategy Control Center</a>
     <p class="text-small" style="margin:8px 0 0 0;">Trades still require a valid <strong>ICT/SMC</strong> setup and a <strong>1-minute trigger</strong>, plus all paper safety gates. Chanlun/ORB and other future models stay <strong>paper-off</strong> here until their own invariants and tests are complete.</p>
+    <div class="card mt-12" style="max-width: 60rem; border-style: dashed;">
+      <div class="card-title">Forex ICT 1m test readiness (Melbourne daytime)</div>
+      {% set frc = forex_readiness_card|default({}) %}
+      <p class="text-small text-dim">{{ frc.title_en | default('', true) }} / {{ frc.title_zh | default('', true) }} — isolated from intraday stocks.</p>
+      <ul class="text-small" style="margin:8px 0 0 1rem;">
+        <li>mode: <strong>{{ frc.mode | default('off') }}</strong> · enabled YAML: <code>{{ frc.enabled | default(false) }}</code> · broker submit gate: <code>{{ frc.submit_to_broker | default(false) }}</code></li>
+        <li>kill_switch: {% if frc.kill_switch_active %}blocked{% else %}ok{% endif %} · Melbourne window: {% if frc.melbourne_session_open %}open{% else %}closed{% endif %} ({{ frc.melbourne_time | default('—') }})</li>
+      </ul>
+      <div class="form-row mt-8" style="gap:8px;">
+        {% with command='fetch-forex-candles', args='--pair AUD/USD --bar-size \"1 min\" --duration \"1 D\" --json', label='Fetch AUD/USD 1m (read-only)', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+    </div>
   </div>
 
   <div class="section">
