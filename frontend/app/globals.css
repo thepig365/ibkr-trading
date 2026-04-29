@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-bg text-slate-200;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.card {
+  @apply bg-panel border border-slate-800 rounded-lg p-4;
+}
+
+.badge {
+  @apply text-xs uppercase tracking-wider px-2 py-0.5 rounded;
+}
+
+.badge-good {
+  @apply bg-accent/20 text-accent;
+}
+
+.badge-warn {
+  @apply bg-warn/20 text-warn;
+}
+
+.badge-bad {
+  @apply bg-bad/20 text-bad;
+}
+
+.badge-muted {
+  @apply bg-slate-700 text-slate-300;
+}
+
+.btn {
+  @apply px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-sm transition-colors;
+}
+
+.btn-primary {
+  @apply px-3 py-1.5 rounded bg-accent text-slate-900 font-medium hover:bg-accent/90 text-sm transition-colors;
+}
+
+.btn-danger {
+  @apply px-3 py-1.5 rounded bg-bad/80 text-white hover:bg-bad text-sm transition-colors;
+}
+
+table.data {
+  @apply w-full text-sm;
+}
+table.data th {
+  @apply text-left text-slate-400 font-medium px-3 py-2 border-b border-slate-800;
+}
+table.data td {
+  @apply px-3 py-2 border-b border-slate-800/50;
+}

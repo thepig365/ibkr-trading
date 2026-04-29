@@ -1,5 +1,8 @@
-# Secrets
+# Secrets - never commit
 .env
+.env.local
+
+# Local runtime config (commit config.example.yaml only)
 config.yaml
 
 # Database
@@ -14,12 +17,17 @@ logs/*.log
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+.mypy_cache/
 .venv/
 venv/
+*.egg-info/
 
-# Node
+# Node / Next.js
 frontend/node_modules/
 frontend/.next/
+frontend/out/
+*.tsbuildinfo
 
 # OS
 .DS_Store

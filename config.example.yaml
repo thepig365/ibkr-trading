@@ -1,0 +1,62 @@
+# ============================================================
+# IBKR Trading Engine — Main Configuration
+# Load secrets from environment variables where marked
+# ============================================================
+
+ibkr:
+  host:      127.0.0.1
+  port:      7497              # Paper: 7497 | Live: 7496
+  client_id: 1
+  account:   ${IBKR_ACCOUNT}  # set in .env
+  allow_live_trading: false  # must be true to allow port 7496 (TWS live)
+
+connection:
+  auto_disconnect_minutes: 30  # 30 MINUTES (not hours)
+  heartbeat_interval_sec:  30
+  reconnect_timeout_sec:   10
+
+strategy: ICT                  # Options: ICT | Chanlun (future)
+
+symbols:
+  - SPY
+  - AAPL
+  - NVDA
+  - MSFT
+  - QQQ
+
+risk:
+  max_risk_per_trade:   0.01
+  max_daily_loss:       0.02
+  max_trades_per_day:   2
+  min_rr_ratio:         2.0
+  max_sl_width_pct:     0.015
+  daily_capital_limit:  100000
+
+ict:
+  min_fvg_size:           0.05
+  auto_threshold:         60
+  alert_threshold:        40
+  trailing_activation_r:  1.0
+  trailing_distance_r:    0.5
+  max_scale_ins:          2
+  scale_in_threshold_r:   1.0
+
+finnhub:
+  api_key: ${FINNHUB_API_KEY}
+  watchlist: [SPY, AAPL, NVDA, MSFT, QQQ]
+
+telegram:
+  bot_token: ${TELEGRAM_BOT_TOKEN}
+  chat_id:   ${TELEGRAM_CHAT_ID}
+
+db:
+  type: sqlite
+  path: ./data/trades.db
+
+server:
+  host: 0.0.0.0
+  port: 8000
+
+logging:
+  level: INFO
+  file:  ./logs/engine.log
