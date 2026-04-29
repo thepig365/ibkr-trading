@@ -1,22 +1,58 @@
+import type { IbkrAccountDashboard, RiskSummary } from "@/lib/api";
 import { fmtUsd, fmtPct } from "@/lib/format";
 
-interface Risk {
-  equity: number;
-  daily_capital_used: number;
-  daily_capital_limit: number;
-  realized_pnl_day: number;
-  trades_today: number;
-  max_trades_per_day: number;
-  circuit_broken: boolean;
+function equityDenom(
+  ibkr: IbkrAccountDashboard | null,
+  risk: RiskSummary | null,
+): number {
+  if (
+    ibkr?.account_data_available &&
+    ibkr.net_liquidation != null &&
+    ibkr.net_liquidation > 0
+  ) {
+    return ibkr.net_liquidation;
+  }
+  return risk ? Math.max(risk.equity, 1) : 1;
 }
 
-export default function StatCards({ risk }: { risk: Risk | null }) {
+export default function StatCards({
+  risk,
+  ibkr,
+}: {
+  risk: RiskSummary | null;
+  ibkr: IbkrAccountDashboard | null;
+}) {
+  const denom = equityDenom(ibkr, risk);
+
+  let equityMain: string;
+  let equitySub: string;
+  let equityColor = "text-slate-100";
+
+  if (ibkr?.account_data_available && ibkr.net_liquidation != null) {
+    equityMain = fmtUsd(ibkr.net_liquidation, 0);
+    const parts: string[] = [];
+    if (ibkr.available_funds != null) {
+      parts.push(`avail ${fmtUsd(ibkr.available_funds, 0)}`);
+    }
+    if (ibkr.unrealized_pnl != null) {
+      parts.push(`uPnL ${fmtUsd(ibkr.unrealized_pnl, 0)}`);
+    }
+    equitySub = parts.join(" · ");
+  } else if (ibkr?.warning) {
+    equityMain = "Account data unavailable";
+    equitySub = "Shows internal sizing equity when IB summary missing.";
+    equityColor = "text-bad";
+  } else {
+    equityMain = "—";
+    equitySub = "";
+  }
+
   const cards = [
     {
       label: "Today P&L",
       value: risk ? fmtUsd(risk.realized_pnl_day) : "—",
       sub: risk
-        ? fmtPct((risk.realized_pnl_day / Math.max(risk.equity, 1)) * 100)
+        ? fmtPct((risk.realized_pnl_day / denom) * 100)
         : "",
       color:
         !risk || risk.realized_pnl_day === 0
@@ -34,14 +70,16 @@ export default function StatCards({ risk }: { risk: Risk | null }) {
     {
       label: "Capital used",
       value: risk ? fmtUsd(risk.daily_capital_used, 0) : "—",
-      sub: risk ? `cap ${fmtUsd(risk.daily_capital_limit, 0)}` : "",
+      sub: risk
+        ? `daily notional cap ${fmtUsd(risk.daily_capital_limit, 0)}`
+        : "",
       color: "text-slate-100",
     },
     {
-      label: "Equity",
-      value: risk ? fmtUsd(risk.equity, 0) : "—",
-      sub: "",
-      color: "text-slate-100",
+      label: "Equity (IBKR)",
+      value: equityMain,
+      sub: equitySub,
+      color: equityColor,
     },
   ];
 

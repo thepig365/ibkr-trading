@@ -29,6 +29,39 @@ export interface ConnectionStatus {
   account: string;
 }
 
+export interface IbkrAccountDashboard {
+  account_data_available: boolean;
+  net_liquidation: number | null;
+  available_funds: number | null;
+  total_cash_value: number | null;
+  unrealized_pnl: number | null;
+  realized_pnl: number | null;
+  fallback_equity_hint: boolean;
+  warning: string | null;
+  ib_account: string | null;
+}
+
+/** Mirrors backend RiskManager.status_dict numeric fields used by the dashboard. */
+export interface RiskSummary {
+  equity: number;
+  daily_capital_used: number;
+  daily_capital_limit: number;
+  realized_pnl_day: number;
+  trades_today: number;
+  max_trades_per_day: number;
+  circuit_broken: boolean;
+}
+
+export interface DashboardPayload {
+  available: boolean;
+  paused?: boolean;
+  connection?: string;
+  strategy?: string;
+  risk?: RiskSummary;
+  open_positions?: unknown[];
+  ibkr_account: IbkrAccountDashboard;
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND}${path}`, {
     ...init,
@@ -60,7 +93,7 @@ export const api = {
   resume: () => fetchJson<any>("/api/engine/resume", { method: "POST" }),
   closePosition: (symbol: string) =>
     fetchJson<any>(`/api/positions/${symbol}/close`, { method: "POST" }),
-  config: () => fetchJson<any>("/api/config"),
+  dashboard: () => fetchJson<DashboardPayload>("/api/dashboard"),
 };
 
 /**
