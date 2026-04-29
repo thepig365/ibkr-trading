@@ -13,6 +13,18 @@
 - **干跑不产生订单**：`--dry-run` **从不**下单；`**--paper**` 需 YAML `enabled: true`，且 **`execution.submit_to_broker: true`** 才会真正发往 TWS；默认配置为 **`false`**。  
 - **与股票引擎**：不影响 `ict_smc_intraday_v1`，见 `docs/strategy-lab-user-manual.md` §1.3。
 
+## Forex 自动纸：`forex-auto-paper-readiness` 不 OK
+
+- **`submit_to_broker_false` / `auto_paper.enabled_false_yaml`**：默认安全；按需编辑 `config/forex_ict_1m.yaml`。  
+- **`runtime_forex_auto_paper_enabled_false`**：`forex-auto-paper-enable --json` 或写入 `data/runtime/forex_auto_paper_enabled.json`。  
+- **`kill_switch`**：解除 Kill。  
+- **`tws_unreachable`**：纸面 TWS + API。  
+- **launchd 不交易**：门控未全满足时不会下单；查 `~/Library/Logs/StrategyLab/forex_auto_paper_supervisor.log`。
+
+---
+
+## Paper：成交对账与 broker snapshot（跨节引用）
+
 - **第一层**：先有 **broker snapshot**（`broker-snapshot-refresh`）核对券商持仓与委托。  
 - **第二层**：用 **`reconcile-fills`**（只读 executions，`broker_readonly`）把真实成交对齐到 Strategy Lab 本地委托行；写入 `data/runtime/fills_reconciliation_last.json`（默认 gitignore）。**不**代为推断平仓价。手册见 `docs/strategy-lab-user-manual.md` §1.2。
 

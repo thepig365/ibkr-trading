@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Forex paper / 外汇纸面{% endblock %}
+{% block subtitle %}
+<div class="page-sub">Forex ICT 1m paper orders (JSONL) — local files only</div>
+{% endblock %}
+
+{% block content %}
+  {% set fxa = forex_auto_ui|default({}) %}
+
+  <div class="section">
+    <h2>Forex ICT 1M Auto Paper / 外汇 ICT 1分钟自动纸面交易</h2>
+    <p class="text-dim text-small" style="line-height:1.55;">{{ forex_disclaimer_en }}</p>
+    <p class="text-dim text-small" style="line-height:1.55;">{{ forex_disclaimer_zh }}</p>
+
+    <div class="grid mb-12" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); max-width:900px;">
+      <div class="card">
+        <div class="card-title">Mode</div>
+        <div class="card-value text-small">{{ fxa.mode|default('—') }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Melbourne</div>
+        <div class="card-value text-small">{{ 'open' if fxa.melbourne_session_open else 'closed' }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">launchd</div>
+        <div class="card-value">{% if fxa.launchd_forex_installed %}yes{% else %}no{% endif %}</div>
+      </div>
+    </div>
+
+    <div class="form-row flex-wrap" style="gap:10px;margin-bottom:14px;">
+      {% with command='forex-auto-paper-readiness', args='--json', label='Check Forex Readiness', return_to='/forex' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='run-forex-auto-paper-supervisor', args='--dry-run --json', label='Forex Dry-Run', return_to='/forex', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='forex-auto-paper-enable', args='--json', label='Enable runtime flag', return_to='/forex', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='forex-auto-paper-disable', args='--json', label='Disable runtime flag', return_to='/forex' %}{% include "_command_form.html" %}{% endwith %}
+      <a class="btn ghost" href="{{ ret(url_for('dashboard')) }}">Dashboard</a>
+    </div>
+    <p class="text-small text-dim">Install background: <code>bash scripts/install_forex_auto_paper_launchd.sh</code></p>
+  </div>
+
+  <div class="section">
+    <h2>Recent Forex order events</h2>
+    <p class="text-dim text-small">From <code>data/forex_orders/*-forex-paper-orders.jsonl</code>. Charts use local <code>data/candles_forex</code>.</p>
+    {% if not forex_order_rows %}
+      <p class="text-dim text-small">No rows yet.</p>
+    {% else %}
+      <div style="overflow-x:auto;">
+        <table class="text-small" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid var(--border);">
+              <th>Time (UTC)</th>
+              <th>Pair</th>
+              <th>Phase</th>
+              <th>Dir</th>
+              <th>Notional USD≈</th>
+              <th>Broker OK</th>
+              <th>Status</th>
+              <th>Note</th>
+              <th>Chart</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in forex_order_rows %}
+              <tr style="border-bottom:1px solid var(--border);vertical-align:top;">
+                <td><code>{{ row.ts_utc or '—' }}</code></td>
+                <td><code>{{ row.pair or '—' }}</code></td>
+                <td>{{ row.phase or '—' }}</td>
+                <td>{{ row.direction or '—' }}</td>
+                <td>{% if row.notional_usd_est is not none %}{{ '{:,.0f}'.format(row.notional_usd_est|float) }}{% else %}—{% endif %}</td>
+                <td>{% if row.broker_acceptance is sameas true %}<span class="pill good">yes</span>{% elif row.broker_acceptance is sameas false %}<span class="pill bad">no</span>{% else %}—{% endif %}</td>
+                <td>{{ row.fill_hint or row.local_state or '—' }}</td>
+                <td class="text-dim">{{ (row.reject_reason or '')[:120] }}</td>
+                <td>
+                  {% if row.chart_png_href %}
+                    <img src="{{ row.chart_png_href }}" alt="1m" style="max-width:240px;height:auto;border:1px solid var(--border);" />
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

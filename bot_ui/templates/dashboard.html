@@ -76,6 +76,55 @@
       <a class="btn ghost" href="{{ ret(url_for('trades_page')) }}">Open Trades (see broker + journal rows)</a>
     </div>
 
+    {% set fxa = forex_auto_ui|default({}) %}
+    <h2 style="margin:24px 0 6px;">{{ fxa.title_en|default('Forex ICT 1M Auto Paper') }} / {{ fxa.title_zh|default('外汇 ICT 1分钟自动纸面交易') }}</h2>
+    <p class="text-dim text-small" style="margin:0 0 8px;line-height:1.55;">{{ fxa.legal_en|default('') }}</p>
+    <p class="text-dim text-small" style="margin:0 0 10px;line-height:1.55;">{{ fxa.legal_zh|default('') }}</p>
+    <div class="grid mb-12" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); max-width:980px;">
+      <div class="card">
+        <div class="card-title">Mode</div>
+        <div class="card-value text-small">{{ fxa.mode|default('—') }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Session MEL</div>
+        <div class="card-value text-small">{{ 'open' if fxa.melbourne_session_open else 'closed' }} · {{ fxa.session_window|default('09:00–17:00') }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Daily cap / used / rem (USD)</div>
+        <div class="card-value text-mono text-small">
+          {{ "{:,.0f}".format(fxa.daily_cap_usd|float) }}
+          · {{ "{:,.0f}".format(fxa.daily_used_usd|float) }}
+          · {{ "{:,.0f}".format(fxa.daily_remaining_usd|float) }}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Kill</div>
+        <div class="card-value">{% if fxa.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">launchd forex</div>
+        <div class="card-value">{% if fxa.launchd_forex_installed %}yes{% else %}no{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">YAML auto / submit</div>
+        <div class="card-value text-small">{{ fxa.yaml_auto_paper_enabled|default(false) }} · {{ fxa.yaml_submit_to_broker|default(false) }}</div>
+      </div>
+    </div>
+    {% if fxa.loop_state %}
+    <p class="text-small text-dim mb-8" style="max-width:980px;">last_order: {{ fxa.loop_state.last_order_status|default('—') }} · next: {{ fxa.loop_state.next_action|default('—') }}</p>
+    {% endif %}
+    {% if fxa.readiness and fxa.readiness.get('blockers') %}
+      <p class="text-small mb-8"><strong>Blockers:</strong> {{ fxa.readiness.blockers | join(', ') }}</p>
+    {% endif %}
+    <div class="form-row flex-wrap" style="gap:10px;margin-bottom:14px;">
+      {% with command='forex-auto-paper-readiness', args='--json', label='Check Forex Readiness / 检查外汇就绪', return_to='/dashboard' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='run-forex-auto-paper-supervisor', args='--dry-run --json', label='Run Forex Dry-Run Loop / 运行 dry-run', return_to='/dashboard', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='forex-auto-paper-enable', args='--json', label='Enable Forex Paper Auto / 启用外汇纸面自动', return_to='/dashboard', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+      {% with command='forex-auto-paper-disable', args='--json', label='Disable Forex Paper Auto / 停止外汇纸面自动', return_to='/dashboard' %}{% include "_command_form.html" %}{% endwith %}
+      <a class="btn ghost" href="{{ ret(url_for('forex_page')) }}">Forex orders / 外汇记录</a>
+    </div>
+    <p class="text-small text-dim mb-8">Paper only. Install launchd manually: <code>bash scripts/install_forex_auto_paper_launchd.sh</code> (starts one supervisor pass per minute when machine is on).</p>
+
     <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.broker_truth_heading') }}</h3>
     <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.truth_vs_local_explainer') }}</p>
 

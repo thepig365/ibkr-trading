@@ -74,6 +74,10 @@ def test_is_allowed_only_returns_true_for_allowlisted_safe_commands() -> None:
     assert is_allowed("rm") is False
     assert is_allowed("portfolio") is True
     assert is_allowed("fetch-forex-candles") is True
+    assert is_allowed("forex-auto-paper-readiness") is True
+    assert is_allowed("forex-auto-paper-enable") is True
+    assert is_allowed("forex-auto-paper-disable") is True
+    assert is_allowed("run-forex-auto-paper-supervisor") is True
     assert is_allowed("run-forex-ict-1m") is True
     assert is_allowed("run-automatic-paper-engine") is True
     assert is_allowed("automatic-paper-engine-readiness") is True
@@ -110,6 +114,10 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     ),
     "fetch-forex-candles": ("--pair", "AUD/USD", "--json"),
     "run-forex-ict-1m": ("--dry-run", "--json"),
+    "forex-auto-paper-readiness": ("--json",),
+    "forex-auto-paper-enable": ("--json",),
+    "forex-auto-paper-disable": ("--json",),
+    "run-forex-auto-paper-supervisor": ("--dry-run", "--json"),
     "backtest-intraday-smc": (
         "--symbol", "CRM",
         "--start", "2026-04-01",
@@ -398,6 +406,14 @@ def test_validate_build_watchlist_accepts_ibkr_and_limit() -> None:
         )
     )
     assert ok, err
+
+
+def test_forex_supervisor_actual_pass_not_allowlisted_via_ui_validator() -> None:
+    accepted, reason = validate_request(
+        CommandRequest(command="run-forex-auto-paper-supervisor", args=("--json",)),
+    )
+    assert accepted is False
+    assert "dry-run" in reason.lower()
 
 
 # ---------------------------------------------------------------------------

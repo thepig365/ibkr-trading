@@ -95,6 +95,7 @@ def create_app(
     from .routes import backtest as backtest_routes  # noqa: PLC0415
     from .routes import dashboard as dashboard_routes  # noqa: PLC0415
     from .routes import edge as edge_routes  # noqa: PLC0415
+    from .routes import forex as forex_routes  # noqa: PLC0415
     from .routes import journal as journal_routes  # noqa: PLC0415
     from .routes import logs as logs_routes  # noqa: PLC0415
     from .routes import paper as paper_routes  # noqa: PLC0415
@@ -112,6 +113,7 @@ def create_app(
     app.include_router(watchlist_routes.router)
     app.include_router(signals_routes.router)
     app.include_router(paper_routes.router)
+    app.include_router(forex_routes.router)
     app.include_router(trades_routes.router)
     app.include_router(journal_routes.router)
     app.include_router(strategies_routes.router)

@@ -3263,6 +3263,133 @@ def run_forex_ict_1m_cmd(
     raise typer.Exit(0)
 
 
+@app.command("forex-auto-paper-readiness")
+def forex_auto_paper_readiness_cmd(
+    probe_ibkr: bool = typer.Option(
+        False,
+        "--probe-ibkr",
+        help="Optional: open a short broker_readonly IBKR probe.",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON only."),
+) -> None:
+    """Gates checklist for Forex auto paper supervisor."""
+    cfg, journal = _bootstrap()
+    from bot.forex.auto_paper_readiness import build_forex_auto_paper_readiness
+
+    root = Path(cfg.absolute(""))
+    out = build_forex_auto_paper_readiness(root, cfg, probe_ibkr=probe_ibkr)
+    if as_json:
+        print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+    else:
+        console.print(Panel.fit(json.dumps(out, indent=2), title="forex-auto-paper-readiness"))
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="forex-auto-paper-readiness",
+        payload={"ok": out.get("ok"), "probe_ibkr": probe_ibkr},
+    )
+    raise typer.Exit(0)
+
+
+@app.command("run-forex-auto-paper-supervisor")
+def run_forex_auto_paper_supervisor_cmd(
+    dry_run: bool = typer.Option(False, "--dry-run", help="No orders — scan + readiness only."),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON only."),
+) -> None:
+    """Forex ICT 1m automatic paper supervisor (one iteration per run)."""
+
+    cfg, journal = _bootstrap()
+    from bot.forex.auto_paper_supervisor import run_forex_auto_paper_supervisor
+
+    root = Path(cfg.absolute(""))
+    out = run_forex_auto_paper_supervisor(root, dry_run=dry_run, journal=journal)
+
+    if as_json:
+        print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+    else:
+        console.print(Panel.fit(json.dumps(out, indent=2), title="run-forex-auto-paper-supervisor"))
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="run-forex-auto-paper-supervisor",
+        payload={
+            "dry_run": dry_run,
+            "blockers_head": out.get("blockers", [])[:3],
+            "strategy_id": out.get("strategy_id"),
+        },
+    )
+    raise typer.Exit(0)
+
+
+@app.command("forex-auto-paper-enable")
+def forex_auto_paper_enable_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
+    """Set runtime data/runtime/forex_auto_paper_enabled.json (does not edit YAML)."""
+
+    cfg, journal = _bootstrap()
+    from bot.forex.runtime_auto import write_runtime_auto_enabled
+
+    root = Path(cfg.absolute(""))
+    p = write_runtime_auto_enabled(root, True)
+
+    notify: dict[str, object] = {
+        "ok": True,
+        "path": str(p),
+        "enabled": True,
+        "hint": (
+            "Set config/forex_ict_1m.yaml auto_paper.enabled and "
+            "execution.submit_to_broker when intentionally ready."
+        ),
+    }
+
+    send_telegram_message(
+        "<pre>[Forex Auto] runtime flag ENABLED — YAML gates still required for live submit</pre>",
+        cfg=cfg,
+        journal=journal,
+    )
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="forex-auto-paper-enable",
+        payload=notify,
+    )
+    blob = json.dumps(notify, indent=2, ensure_ascii=False)
+    if as_json:
+        print(blob)
+    else:
+        console.print(Panel.fit(blob, title="forex-auto-paper-enable"))
+    raise typer.Exit(0)
+
+
+@app.command("forex-auto-paper-disable")
+def forex_auto_paper_disable_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
+    """Clear runtime Forex auto flag."""
+
+    cfg, journal = _bootstrap()
+    from bot.forex.runtime_auto import write_runtime_auto_enabled
+
+    root = Path(cfg.absolute(""))
+    p = write_runtime_auto_enabled(root, False)
+    notify = {"ok": True, "path": str(p), "enabled": False}
+
+    send_telegram_message(
+        "<pre>[Forex Auto] runtime flag DISABLED</pre>",
+        cfg=cfg,
+        journal=journal,
+    )
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="forex-auto-paper-disable",
+        payload=notify,
+    )
+    blob = json.dumps(notify, indent=2, ensure_ascii=False)
+    if as_json:
+        print(blob)
+    else:
+        console.print(Panel.fit(blob, title="forex-auto-paper-disable"))
+    raise typer.Exit(0)
+
+
 def _run_backtest_intraday_smc(
     cfg: AppConfig,
     journal: Journal,

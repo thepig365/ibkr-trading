@@ -28,6 +28,7 @@ from bot.automatic_paper_preflight import build_automatic_paper_engine_preflight
 from bot.config import load_config
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH, build_full_auto_paper_readiness
 from bot.forex.runner import build_forex_test_ui_context
+from bot.forex.ui_auto import build_forex_auto_paper_dashboard
 from bot.launchd_full_auto_ui import build_background_runner_ui_context
 from bot.broker_snapshot import load_broker_snapshot
 from bot.tws_health_alerts import ui_alert_overlay
@@ -179,6 +180,11 @@ def paper_page(request: Request) -> HTMLResponse:
         ctx["forex_readiness_card"] = build_forex_test_ui_context(root, cfg=cfg)
     except (OSError, TypeError, ValueError):
         ctx["forex_readiness_card"] = {}
+
+    try:
+        ctx["forex_auto_ui"] = build_forex_auto_paper_dashboard(root, cfg=cfg)
+    except (OSError, TypeError, ValueError):
+        ctx["forex_auto_ui"] = {}
 
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 

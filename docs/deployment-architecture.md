@@ -187,6 +187,9 @@ UI command runner allowlist additions for v2:
 - `news-monitor-readiness` (read-only; env + config for market-news monitor; no provider fetch)
 - `market-news-check` (Finnhub/FMP REST when keys present; default `--dry-run` avoids Telegram; never trades)
 - `journal-generate-trade-chart` / `generate-trade-chart` (writes `data/reports/trade_charts/<trade_id>.png` from **local** 1m cache only via `--trade-id` plus optional `--json`, `--force`, `--window-before-minutes`, `--window-after-minutes`; no IBKR; no orders)
+- `forex-auto-paper-readiness` (optional `--json`, `--probe-ibkr`; no orders)
+- `run-forex-auto-paper-supervisor` (**from UI** only `--dry-run --json`; non-dry-run via CLI/launchd when gates pass)
+- `forex-auto-paper-enable` / `forex-auto-paper-disable` (`--json`; runtime `data/runtime/forex_auto_paper_enabled.json` only)
 - `generate-trade-charts` / `journal-generate-trade-charts` (**batch** PNGs for recent paper journal rows via `--latest` or `--date`; optional `--limit`, `--json`; no IBKR; no orders; summary may be written under `data/runtime/trade_chart_batch_last.json`)
 
 `run-auto-paper-intraday-loop` remains **forbidden** in the UI (use

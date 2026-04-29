@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Substituted by install_forex_auto_paper_launchd.sh → ~/Library/LaunchAgents/
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.strategy-lab.forex-auto-paper</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>WorkingDirectory</key>
+  <string>__WORK_DIR__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__WRAPPER_SH__</string>
+  </array>
+  <key>StandardOutPath</key>
+  <string>__OUT_LOG__</string>
+  <key>StandardErrorPath</key>
+  <string>__ERR_LOG__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>IBKR_ACCOUNT_MODE</key>
+    <string>paper</string>
+    <key>STRATEGY_LAB_REPO_DIR</key>
+    <string>__REPO_ROOT__</string>
+  </dict>
+</dict>
+</plist>

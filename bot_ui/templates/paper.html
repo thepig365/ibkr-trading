@@ -21,6 +21,23 @@
         {% with command='fetch-forex-candles', args='--pair AUD/USD --bar-size \"1 min\" --duration \"1 D\" --json', label='Fetch AUD/USD 1m (read-only)', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
       </div>
     </div>
+    {% set fxa = forex_auto_ui|default({}) %}
+    <div class="card mt-12" style="max-width: 60rem; border-style: dashed;">
+      <div class="card-title">Forex ICT 1M Auto Paper / 外汇 ICT 1分钟自动纸面</div>
+      <p class="text-small text-dim">{{ fxa.legal_en|default('') }}</p>
+      <div class="grid mb-8" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+        <div><span class="text-dim">mode</span><br/><strong>{{ fxa.mode|default('—') }}</strong></div>
+        <div><span class="text-dim">Melbourne</span><br/>{% if fxa.melbourne_session_open %}open{% else %}closed{% endif %}</div>
+        <div><span class="text-dim">daily used / cap USD</span><br/>{{ '{:,.0f}'.format(fxa.daily_used_usd|float) }} / {{ '{:,.0f}'.format(fxa.daily_cap_usd|float) }}</div>
+      </div>
+      <div class="form-row flex-wrap" style="gap:8px;">
+        {% with command='forex-auto-paper-readiness', args='--json', label='Check Forex readiness', return_to='/paper' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='run-forex-auto-paper-supervisor', args='--dry-run --json', label='Forex dry-run', return_to='/paper', btn_class='ghost' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='forex-auto-paper-enable', args='--json', label='Enable runtime', return_to='/paper', btn_class='warn' %}{% include "_command_form.html" %}{% endwith %}
+        {% with command='forex-auto-paper-disable', args='--json', label='Disable runtime', return_to='/paper' %}{% include "_command_form.html" %}{% endwith %}
+        <a class="btn ghost" href="{{ ret(url_for('forex_page')) }}">Forex ledger</a>
+      </div>
+    </div>
   </div>
 
   <div class="section">

@@ -55,4 +55,88 @@ def estimate_units_for_risk(
     )
 
 
-__all__ = ["estimate_units_for_risk", "FxSizeResult"]
+def estimate_notional_usd_approx(
+    spec: FxPairSpec,
+    *,
+    units: float,
+    mid_price: float,
+    usd_per_jpy: float | None = None,
+) -> float:
+    """Rough USD notion for daily / per-trade caps (spot FX heuristic)."""
+
+    qj = float(usd_per_jpy or (1.0 / 151.0))
+    u = abs(float(units))
+    mid = abs(float(mid_price))
+    if spec.base == "USD":
+        return float(u)
+    if spec.quote == "USD":
+        return float(u * mid)
+    if spec.quote == "JPY":
+        jpy_nominal = float(u * mid)
+        return float(jpy_nominal * qj)
+    return float(u * mid)
+
+
+def shrink_units_for_notional_caps(
+    spec: FxPairSpec,
+    *,
+    units_in: float,
+    mid_price: float,
+    max_trade_usd: float,
+    pair_remaining_usd: float,
+    daily_remaining_usd: float,
+    usd_per_jpy: float | None,
+) -> tuple[float, str]:
+    """Reduce units until notional meets min(per-trade, pair-rem, daily-rem)."""
+
+    lim = float(
+        max(0.0, min(max_trade_usd, pair_remaining_usd, daily_remaining_usd))
+    )
+    if lim <= 0:
+        return 0.0, "no_remaining_notional"
+
+    u_hi = abs(float(units_in))
+    if u_hi <= 0:
+        return 0.0, "units_zero"
+
+    if estimate_notional_usd_approx(
+        spec, units=u_hi, mid_price=mid_price, usd_per_jpy=usd_per_jpy
+    ) <= lim:
+        return float(u_hi), "ok"
+
+    lo, hi = 0.0, u_hi
+    best = 0.0
+    for _ in range(52):
+        mid_u = (lo + hi) / 2.0
+        n_u = estimate_notional_usd_approx(
+            spec, units=mid_u, mid_price=mid_price, usd_per_jpy=usd_per_jpy
+        )
+        if n_u <= lim:
+            best = mid_u
+            lo = mid_u
+        else:
+            hi = mid_u
+        if hi - lo < min(250.0, u_hi / 9000):
+            break
+
+    best = round(max(0.0, best))
+    snap = round(best / 25000) * 25000 if best >= 12500 else best
+    if snap > 0 and estimate_notional_usd_approx(
+        spec, units=snap, mid_price=mid_price, usd_per_jpy=usd_per_jpy
+    ) <= lim:
+        return float(snap), "ok"
+
+    last = estimate_notional_usd_approx(
+        spec, units=best, mid_price=mid_price, usd_per_jpy=usd_per_jpy
+    )
+    if last <= lim:
+        return float(best), "ok"
+    return 0.0, "cannot_fit_under_notional_caps"
+
+
+__all__ = [
+    "estimate_units_for_risk",
+    "FxSizeResult",
+    "estimate_notional_usd_approx",
+    "shrink_units_for_notional_caps",
+]

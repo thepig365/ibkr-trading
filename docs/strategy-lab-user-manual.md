@@ -39,6 +39,13 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **流程**：先在纸面、`Kill switch` off 下拉 **1 分钟 MIDPOINT** → `fetch-forex-candles` → 本地 **`run-forex-ict-1m --dry-run`** → 确认就绪前 **不要** 把 YAML 设为 `submit_to_broker: true`。  
 - **硬性约束**：**仅 paper、仅限价括号（实现为 LMT 括号）、不写市价单**；干跑不写单；实盘提交需 **显式 YAML 启用** — 不改变股票自动纸引擎代码路径。
 
+### 1.3a Forex ICT 1 分钟「自动纸」监督（可选）
+
+- **与股票 `run-automatic-paper-engine` / full-auto 完全分离**：独立 CLI `run-forex-auto-paper-supervisor`、独立 loop 状态 `data/runtime/forex_auto_paper_loop_state.json`、独立 launchd 标签 `com.strategy-lab.forex-auto-paper`（默认 `StartInterval` 60s，仅当你显式安装 plist）。  
+- **三重门控**：① `data/runtime/forex_auto_paper_enabled.json` 里 `enabled: true`；② `config/forex_ict_1m.yaml` 中 `auto_paper.enabled: true` 且 `execution.submit_to_broker: true`；③ `Kill switch` 未激活、账户为 **paper**、墨尔本窗口内、未触达每日/每对名义上限（默认 **USD 100,000/日** 等，见 YAML `risk`）。  
+- **UI**：Dashboard / Paper / **`/forex`** 提供白名单命令（含 `forex-auto-paper-readiness --json`、**仅** `run-forex-auto-paper-supervisor --dry-run --json`；实际循环由 **launchd 或终端 CLI** 执行 `--json` **无** `--dry-run`）。  
+- **launchd**：`bash scripts/install_forex_auto_paper_launchd.sh`，日志 `~/Library/Logs/StrategyLab/forex_auto_paper_supervisor.log`；卸载 `scripts/uninstall_forex_auto_paper_launchd.sh`，状态 `scripts/status_forex_auto_paper_launchd.sh`。
+
 ## 2. 每个页面用途
 
 | 页面 | 路径 | 用途 |
@@ -47,6 +54,7 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 | Watchlist | `/watchlist` | ICT/SMC 研究用**股票池**（磁盘 JSON）；自选说明与重建按钮见下文 §2.1a |
 | Signals (MTF) | `/signals` | 多周期 SMC/ICT 信号汇总（只读展示） |
 | Paper Trading | `/paper` | 纸交易与自动纸策略**安全命令**入口（白名单）；含 **券商快照**摘要与「连接 / 刷新 TWS」（同 Dashboard，只读；GET 不自动连 IBKR） |
+| **Forex（外汇纸面）** | **`/forex`** | 外汇 ICT 1m 自动纸相关白名单命令 + **最近 `data/forex_orders/*.jsonl` 行**与本地 1m 预览图（GET 不连 IBKR） |
 | **Trade Records（交易记录）** | **`/trades`** | **交易员视角**按笔复盘；**「本地状态 / 券商侧状态」**两列：**券商侧状态**依赖最近一次 **`broker_snapshot`** 文件——未点「连接 / 刷新 TWS」或未跑 CLI 时多为「尚未核对」。图表使用落盘在 `data/candles/.../1min/*.csv` 的 **1 分钟 K 线**（数据**来源于 IBKR**，经**只读**历史拉取、`fetch-candles`、或 **report-on-exit** 补档后本地保存）；**`/trades` 页面 GET 不连 IBKR**；无 exit 时「尚未记录平仓」，**不编造** |
 | Journal（技术流水 / 审计） | `/journal` | 引擎 **JSONL 技术流水**与回测表格：可展开 **仓位/原始键**；如需「每笔一眼看完」请优先用 **`/trades`** |
 | Strategies | `/strategies` | 策略注册表与多策略扫描入口 |

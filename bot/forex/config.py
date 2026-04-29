@@ -25,7 +25,11 @@ def load_forex_ict_config(project_root: Path | str) -> dict[str, Any]:
 def melbourne_session_open(cfg: dict[str, Any], *, now_tz: Any) -> tuple[bool, str]:
     """Return (in_window, hhmm-local) — uses session.timezone/window."""
 
-    sess = cfg.get("session") if isinstance(cfg.get("session"), dict) else {}
+    from .yaml_utils import effective_session_dict
+
+    eff_cfg = dict(cfg)
+    eff_cfg["session"] = effective_session_dict(cfg)
+    sess = eff_cfg.get("session") if isinstance(eff_cfg.get("session"), dict) else {}
     tz_name = str(sess.get("timezone") or "Australia/Melbourne")
 
     win = str(sess.get("window") or "00:00-23:59")

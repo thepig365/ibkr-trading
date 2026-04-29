@@ -19,6 +19,7 @@ from .pairs import parse_pair, pip_size_for_pair
 from .preflight import validate_bracket
 from .signals import FxIctSignal, simple_fx_ict_scan  # noqa: F401 — re-export compat
 from .sizing import estimate_units_for_risk
+from .yaml_utils import pairs_list_from_forex_yaml
 
 LOG = logging.getLogger(__name__)
 
@@ -85,8 +86,7 @@ def run_forex_ict_1m(
     fx = load_forex_ict_config(root)
     risk = fx.get("risk") if isinstance(fx.get("risk"), dict) else {}
     execution = fx.get("execution") if isinstance(fx.get("execution"), dict) else {}
-    pairs_raw = fx.get("pairs") if isinstance(fx.get("pairs"), list) else []
-    pairs = [str(x) for x in pairs_raw]
+    pairs = pairs_list_from_forex_yaml(fx)
 
     strategy_id = str(fx.get("strategy_id") or "ict_fx_1m_test")
     enabled = bool(fx.get("enabled", False))
@@ -343,7 +343,7 @@ def build_forex_test_ui_context(
     cfg = cfg or load_config(project_root=root)
     rp = _forex_runtime_path(root)
 
-    pairs = fx.get("pairs") if isinstance(fx.get("pairs"), list) else []
+    pairs = pairs_list_from_forex_yaml(fx)
     counts = _read_today_jsonl_counts(root)
 
     runtime = None

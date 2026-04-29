@@ -20,7 +20,7 @@
 - [ ] 2b. 如需切换 **scan / backtest / edge / paper** 的默认：打开 **/strategies**（Strategy Center），`data/runtime/selected_strategy.json` 不提交  
 - [ ] 3. **Research** — 需要时运行报告 / Telegram 变体  
 - [ ] 4. **Watchlist（/watchlist）** — 看磁盘上的 `*-dynamic-watchlist.json`：**页面本身不报价**；若 Latest price / Rel vol 为空，需在 TWS 纸面可用时 **显式**白名单 **`build-watchlist --ibkr`**（只读日线）才会写入；仅离线 **`build-watchlist`** 时 `source`=static，标的可能不变、仍会 OK。Reason **static_core** = 配置的固定核心池，不是故障。  
-- [ ] （可选）**Forex ICT 1m（独立纸面外汇测试模式）**：与美股 ICT **无关** — 仅用 `config/forex_ict_1m.yaml`；先 **`fetch-forex-candles --pair AUD/USD`** 再 **`run-forex-ict-1m --dry-run --json`**；勿在未读用户手册 Forex 小节时打开 `submit_to_broker`。  
+- [ ] （可选）**Forex ICT 1m（独立纸面外汇）**：见 `config/forex_ict_1m.yaml`。干跑：`run-forex-ict-1m --dry-run --json`。自动纸：**先** `forex-auto-paper-readiness --json`，再按需 `forex-auto-paper-enable --json`，YAML 显式开启 `auto_paper` + `submit_to_broker` 后，`run-forex-auto-paper-supervisor --dry-run --json` 或安装 `scripts/install_forex_auto_paper_launchd.sh`。默认名义上限 USD 100k/日、`/forex` 页可查 JSONL。  
 - [ ] 6. 若休市：**Backtest** — 先用 **Check Data Coverage** / `candle-coverage` 看 1m 缓存是否够；或一键 **Fetch Missing Data & Run Backtest**（`backtest-oneclick`，仅在你**明确点击**后才会连 IBKR 拉历史；不点则只读本地）。分步时：需要拉线再用 **Fetch missing candles**（`fetch-candles` + `--ibkr`）  
 - [ ] 7. **Edge** — 建立画像（默认缓存）  
 - [ ] 8. **Paper** — Readiness / Activation；**不**在无意向时点 First Paper Pass  

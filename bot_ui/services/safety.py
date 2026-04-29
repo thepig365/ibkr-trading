@@ -45,6 +45,14 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "fetch-candles": "Fetch historical OHLCV candles from IBKR into the local cache (read-only).",
     "fetch-forex-candles": "Forex: read-only 1m MIDPOINT pull into data/candles_forex (CASH/IDEALPRO; no orders).",
     "run-forex-ict-1m": "Forex ICT 1m test: scan local FX candles; optional paper path per config/forex_ict_1m.yaml.",
+    "forex-auto-paper-readiness": (
+        "Forex auto paper: read-only gates (Melbourne session, caps, YAML flags; optional --probe-ibkr)."
+    ),
+    "run-forex-auto-paper-supervisor": (
+        "Forex auto paper: UI may only run dry-run --json; use CLI for launchd single pass."
+    ),
+    "forex-auto-paper-enable": "Set runtime flag data/runtime/forex_auto_paper_enabled.json (no YAML edit; no orders).",
+    "forex-auto-paper-disable": "Clear runtime Forex auto flag (no orders).",
     "candle-coverage": "Read-only check of local 1m cache coverage for a date range (no IBKR, no backtest).",
     "backtest-oneclick": (
         "Check 1m coverage, fetch missing 1m from IBKR if needed, then run intraday backtest (read-only data fetch; no orders)."
@@ -1373,6 +1381,56 @@ def validate_auto_loop_readiness_args(args: tuple[str, ...]) -> tuple[bool, str]
     return True, ""
 
 
+_FOREX_AUTO_PAPER_READINESS_FLAGS: frozenset[str] = frozenset({"--json", "--probe-ibkr"})
+
+
+def validate_forex_auto_paper_readiness_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("forex-auto-paper-readiness", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
+    for t in args:
+        if t not in _FOREX_AUTO_PAPER_READINESS_FLAGS:
+            return (
+                False,
+                "forex-auto-paper-readiness: only "
+                f"{sorted(_FOREX_AUTO_PAPER_READINESS_FLAGS)} or empty, got {t!r}.",
+            )
+    if args.count("--json") > 1 or args.count("--probe-ibkr") > 1:
+        return False, "forex-auto-paper-readiness: duplicate flag."
+    return True, ""
+
+
+def validate_run_forex_auto_paper_supervisor_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    """UI may only trigger a dry-run (--dry-run --json). Use CLI for launchd loop."""
+    ok, err = _check_no_forbidden("run-forex-auto-paper-supervisor", args)
+    if not ok:
+        return ok, err
+    if args == ("--dry-run", "--json"):
+        return True, ""
+    return (
+        False,
+        "run-forex-auto-paper-supervisor: from UI use only --dry-run --json "
+        "(paper loop: launchd or `python3 -m bot.cli run-forex-auto-paper-supervisor --json`).",
+    )
+
+
+def validate_forex_auto_paper_enable_disable_args(
+    command: str, args: tuple[str, ...]
+) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden(command, args)
+    if not ok:
+        return ok, err
+    if args == ("--json",):
+        return True, ""
+    return False, f"{command}: only --json."
+
+
 _AUTO_ENG_READINESS_FLAGS = frozenset({"--json", "--no-json", "--probe-ibkr"})
 
 
@@ -2062,6 +2120,12 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_fetch_forex_candles_args(args)
     if command == "run-forex-ict-1m":
         return validate_run_forex_ict_1m_args(args)
+    if command == "forex-auto-paper-readiness":
+        return validate_forex_auto_paper_readiness_args(args)
+    if command == "run-forex-auto-paper-supervisor":
+        return validate_run_forex_auto_paper_supervisor_args(args)
+    if command in {"forex-auto-paper-enable", "forex-auto-paper-disable"}:
+        return validate_forex_auto_paper_enable_disable_args(command, args)
     if command == "candle-coverage":
         return validate_candle_coverage_args(args)
     if command == "backtest-oneclick":

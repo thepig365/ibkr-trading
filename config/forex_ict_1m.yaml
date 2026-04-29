@@ -1,18 +1,32 @@
-# Forex ICT 1-minute PAPER TEST mode — SEPARATE from US stock ICT (ict_smc_intraday_v1).
-# Flip enabled only after dry-run readiness; never enables live trading from this file.
+# Forex ICT 1-minute automatic PAPER trading — SEPARATE from US stock ICT (ict_smc_intraday_v1).
 
 strategy_id: ict_fx_1m_test
 asset_class: forex
 mode: paper
 enabled: false
 
+auto_paper:
+  enabled: false
+  session_timezone: Australia/Melbourne
+  session_window: "09:00-17:00"
+  poll_interval_seconds: 60
+  max_trades_per_day: 10
+  max_trades_per_pair: 3
+  max_open_positions: 3
+  max_daily_notional_usd: 100000
+  max_notional_per_trade_usd: 10000
+  allow_scale_in: false
+  kill_switch_respected: true
+
 pairs:
-  - AUD/USD
-  - USD/JPY
-  - AUD/JPY
-  - NZD/USD
-  - EUR/JPY
-  - AUD/NZD
+  primary:
+    - AUD/USD
+    - USD/JPY
+    - AUD/JPY
+  secondary:
+    - NZD/USD
+    - EUR/JPY
+    - AUD/NZD
 
 session:
   timezone: Australia/Melbourne
@@ -25,23 +39,30 @@ ibkr:
   client_id_roster: forex_fetch
 
 risk:
+  paper_only: true
+  max_daily_notional_usd: 100000
+  max_notional_per_trade_usd: 10000
+  per_pair_notional_cap_usd: 30000
   max_daily_loss_r: 3
   max_trades_per_day: 10
   max_trades_per_pair: 3
   max_open_positions: 3
   max_units_per_trade: 100000
   min_order_size_check: true
-  paper_only: true
   no_market_orders: true
   bracket_required: true
   risk_per_trade_pct: 0.05
+  # Rough JPY conversion for nominal USD caps when quote is JPY
+  usd_jpy_for_conversion: 151
 
 execution:
-  order_type: LMT
-  allow_marketable_limit: false
-  tif: DAY
-  outside_rth: true
   submit_to_broker: false
+  order_type: LMT
+  no_market_orders: true
+  bracket_required: true
   capture_order_status: true
   capture_reject_reason: true
+  tif: DAY
+  outside_rth: true
   order_ref_prefix: STRATEGYLAB_FX_ICT_1M
+  allow_marketable_limit: false
