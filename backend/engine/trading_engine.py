@@ -16,7 +16,8 @@ from backend.db.database import Database
 from backend.db.models import SignalRecord
 from backend.execution.risk_manager import RiskManager
 from backend.execution.trade_manager import TradeManager
-from backend.notifications.finnhub_feed import FinnhubFeed
+from backend.notifications.finnhub_feed import FinnhubFeed, NewsAlertPayload
+
 from backend.notifications.telegram_bot import TelegramBot
 from backend.strategy.base import BaseStrategy
 from backend.strategy.ict_strategy import ICTStrategy
@@ -54,10 +55,72 @@ class TradingEngine:
         self.paused: bool = False
         self._eod_done_for: Optional[Any] = None
         self._bias_done_for: Optional[Any] = None
+        self._daily_news_bundle_sent_date: Optional[Any] = None
         self.trades.set_on_close(self._on_trade_close)
 
     async def start(self) -> None:
         logger.info("TradingEngine started; strategy=%s", self.strategy.name)
+        asyncio.create_task(self._send_startup_news_summary())
+
+    def news_open_symbols(self) -> list[str]:
+        return [
+            sym
+            for sym, pos in self.trades.positions.items()
+            if not pos.closed
+        ]
+
+    def _watchlist_earnings_today_rows(self) -> list[dict[str, Any]]:
+        wl = {s.upper() for s in self.news_feed.watchlist}
+        return [
+            e
+            for e in self.news_feed.earnings_today()
+            if str(e.get("symbol", "")).upper() in wl
+        ]
+
+    async def deliver_high_impact_news_alerts(
+        self, payloads: list[NewsAlertPayload]
+    ) -> None:
+        for p in payloads:
+            await self.telegram_bot.send_news_alert(
+                symbol=p.symbol,
+                headline=p.headline,
+                score=p.score,
+                source=p.source,
+                url=p.url,
+                reason=";".join(p.reasons),
+            )
+
+    async def _send_daily_news_bundle(self, tag: str) -> None:
+        nf = self.news_feed
+        finnhub_disabled = not nf.is_finnhub_live()
+
+        await self.telegram_bot.send_daily_news_digest(
+            tag=tag,
+            earnings=self._watchlist_earnings_today_rows(),
+            economic=nf.economic_events_snapshot(),
+            top_news=nf.get_high_impact_news(60, 6),
+            blackouts=nf.active_blackouts() if nf.is_finnhub_live() else [],
+            finnhub_disabled=finnhub_disabled,
+        )
+        if not finnhub_disabled:
+            await self.telegram_bot.send_earnings_alert(
+                self._watchlist_earnings_today_rows()
+            )
+
+    async def _send_startup_news_summary(self) -> None:
+        await asyncio.sleep(0)
+        await self._maybe_send_daily_news_bundle("startup")
+
+    async def _maybe_send_daily_news_bundle(self, tag: str) -> None:
+        today = datetime.now(NY).date()
+        if self._daily_news_bundle_sent_date == today:
+            return
+        try:
+            await self._send_daily_news_bundle(tag)
+        except Exception:  # noqa: BLE001
+            logger.exception("Daily news bundle failed (%s)", tag)
+            return
+        self._daily_news_bundle_sent_date = today
 
     async def stop(self) -> None:
         logger.info("TradingEngine stopped")
@@ -237,6 +300,20 @@ class TradingEngine:
                 ):
                     await self._compute_premarket_bias()
                     self._bias_done_for = today
+
+                if (
+                    now.time() >= PREMARKET_BIAS
+                    and now.time() < time(9, 30)
+                    and self._daily_news_bundle_sent_date != today
+                ):
+                    try:
+                        if self.news_feed.is_finnhub_live():
+                            await self.news_feed.refresh(
+                                position_symbols=list(self.news_open_symbols()),
+                            )
+                        await self._maybe_send_daily_news_bundle("9am_et")
+                    except Exception:  # noqa: BLE001
+                        logger.exception("9:00 AM ET news bundle failed")
 
                 if (
                     now.time() >= EOD_FORCE_CLOSE

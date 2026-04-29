@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import pytz
 
 from backend.config import AppConfig
+from backend.notifications.finnhub_feed import NewsAlertPayload
 from backend.strategy.models import Signal
 
 if TYPE_CHECKING:  # pragma: no cover - import cycle guard
@@ -154,6 +155,89 @@ class TelegramBot:
             )
         await self.send_text("\n".join(lines))
 
+    async def send_news_alert(
+        self,
+        *,
+        symbol: str,
+        headline: str,
+        score: int,
+        source: str,
+        url: str,
+        reason: str,
+    ) -> None:
+        url_line = f"\n{url}" if url else ""
+        await self.send_text(
+            "[NEWS HIGH-IMPACT]"
+            f"\n{symbol} score={score}"
+            f"\n{headline[:380]}"
+            f"\n src={source} reasons={reason}"
+            f"{url_line}"
+            f"\n(not a trade signal; blackouts advisory only)"
+        )
+
+
+    async def send_earnings_alert(
+        self,
+        entries: list[dict[str, Any]],
+    ) -> None:
+        if not entries:
+            await self.send_text("[EARNINGS] none on watchlist today")
+            return
+        lines = ["[EARNINGS today] watchlist:"]
+        for e in entries[:20]:
+            sym = e.get("symbol") or "?"
+            eps = e.get("epsEstimate")
+            act = e.get("epsActual")
+            lines.append(f"- {sym}: est={eps} act={act}")
+        await self.send_text("\n".join(lines))
+
+    async def send_daily_news_digest(
+        self,
+        *,
+        tag: str,
+        earnings: list[dict[str, Any]],
+        economic: dict[str, Any],
+        top_news: list[NewsAlertPayload],
+        blackouts: list[dict[str, Any]],
+        finnhub_disabled: bool,
+    ) -> None:
+        hdr = f"[News digest — {tag} — {datetime.now(NY).strftime('%Y-%m-%d %H:%M')} ET]"
+        lines = [hdr]
+        if finnhub_disabled:
+            lines.append("Finnhub unavailable (missing key or SDK error); no econ/news scrape.")
+            await self.send_text("\n".join(lines))
+            return
+        ev = economic.get("events") or []
+        econ_err = economic.get("error")
+        if econ_err:
+            lines.append(f"Economic calendar note: {econ_err}")
+        if ev:
+            lines.append("Economy (today, sample ≤6):")
+            for row in ev[:6]:
+                lines.append(str(row))
+        elif not econ_err:
+            lines.append("Economic calendar: no rows for today.")
+
+        wl_earn = [e for e in earnings if str(e.get("symbol", "")).upper()]
+        lines.append(f"Earnings touches watchlist: {len(wl_earn)}")
+        lines.append("")
+        lines.append(f"Blackouts active ({len(blackouts)}):")
+        if not blackouts:
+            lines.append("(none)")
+        else:
+            for b in blackouts[:20]:
+                lines.append(f"- {b.get('symbol')}: {b.get('reason')} until {b.get('until')}")
+
+        lines.append("")
+        lines.append(f"High-impact headline batch (digest only, scored ≥60, top ≤5): {len(top_news)}")
+        for p in top_news[:5]:
+            lines.append(f"- {p.symbol} ({p.score}): {p.headline[:120]}")
+
+        body = "\n".join(lines)
+        if len(body) > 3500:
+            body = body[:3480] + "\n...[truncated]"
+        await self.send_text(body)
+
     # ---------- Inbound commands ---------- #
 
     async def _cmd_status(self, update: Any, context: Any) -> None:
@@ -221,15 +305,36 @@ class TelegramBot:
             await update.message.reply_text("Usage: /news SYMBOL")
             return
         symbol = context.args[0].upper()
-        items = await self._engine.news_feed.fetch_company_news(symbol, limit=5)
+        nf = self._engine.news_feed
+        items = await nf.fetch_company_news(symbol, limit=8)
         if not items:
             await update.message.reply_text(f"No recent news for {symbol}")
             return
-        lines = [f"{symbol}:"]
+        wl_set = {s.upper() for s in nf.watchlist}
+        open_syms = {s.upper() for s in self._engine.news_open_symbols()}
+        now_et = datetime.now(NY)
+        lines = [f"{symbol} (scored)"]
         for item in items:
+            if not isinstance(item, dict):
+                continue
+            sc, rs = nf.score_news_item(
+                symbol,
+                item,
+                now_et=now_et,
+                open_position_symbols=open_syms,
+                watch_symbols=wl_set,
+            )
             headline = item.get("headline") or item.get("summary") or "(no title)"
-            lines.append(f"- {headline[:160]}")
-        await update.message.reply_text("\n".join(lines))
+            url = item.get("url") or ""
+            src = item.get("source") or item.get("category") or ""
+            suf = ""
+            if url:
+                suf = f" | {url[:120]}"
+            lines.append(f"- [{sc}] {headline[:120]} ({src}) {rs}{suf}")
+        body = "\n".join(lines)
+        if len(body) > 4000:
+            body = body[:3980] + "\n...[truncated]"
+        await update.message.reply_text(body)
 
     async def _cmd_bias(self, update: Any, context: Any) -> None:
         if not self._engine:
@@ -252,10 +357,33 @@ class TelegramBot:
             return
         risk = self._engine.risk.status_dict()
         positions = self._engine.trades.open_positions_dict()
-        await update.message.reply_text(
-            "Daily report\n"
-            f"PnL: {risk['realized_pnl_day']:.2f}\n"
-            f"Trades: {risk['trades_today']}\n"
-            f"Capital used: {risk['daily_capital_used']:.0f} / {risk['daily_capital_limit']:.0f}\n"
-            f"Open positions: {len(positions)}"
-        )
+        nf = self._engine.news_feed
+        finnhub_disabled = not nf.is_finnhub_live()
+        black = nf.active_blackouts() if not finnhub_disabled else []
+        tops = nf.get_high_impact_news(60, 6) if not finnhub_disabled else []
+        earn = nf.earnings_today() if not finnhub_disabled else []
+        econ = nf.economic_events_snapshot() if not finnhub_disabled else {"events": [], "error": None}
+        lines = [
+            "Daily report",
+            f"PnL: {risk['realized_pnl_day']:.2f}",
+            f"Trades: {risk['trades_today']} / {risk['max_trades_per_day']}",
+            f"Capital used: {risk['daily_capital_used']:.0f} / {risk['daily_capital_limit']:.0f}",
+            f"Open positions: {len(positions)}",
+            f"Blackouts active: {len(black)}",
+        ]
+        if positions:
+            sym_line = ", ".join(p["symbol"] for p in positions[:24])
+            lines.append(f"Symbols open: {sym_line}")
+        if earn:
+            lines.append(f"Earnings rows IB (watchlist-filter in feed): {len(earn)}")
+        if econ.get("error"):
+            lines.append(f"Econ cal: {econ['error']}")
+        if tops:
+            lines.append("Top impact news (cached):")
+            for p in tops[:4]:
+                lines.append(f"- {p.symbol} ({p.score}): {p.headline[:80]}")
+        body = "\n".join(lines)
+        if len(body) > 4000:
+            body = body[:3980] + "\n...[truncated]"
+        await update.message.reply_text(body)
+

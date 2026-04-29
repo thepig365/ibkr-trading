@@ -84,6 +84,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         news_feed=news_feed,
         telegram_bot=telegram_bot,
     )
+    news_feed.bind_position_resolver(lambda: trading_engine.news_open_symbols())
+    news_feed.set_high_impact_handler(trading_engine.deliver_high_impact_news_alerts)
 
     data_feed.set_on_bar(trading_engine.on_bar)
     telegram_bot.bind_engine(trading_engine)
@@ -100,6 +102,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.news_feed = news_feed
     app.state.telegram_bot = telegram_bot
     app.state.engine = trading_engine
+    app.state.last_account_snapshot_monotonic = 0.0
 
     await connection_manager.connect()
     if connection_manager.state == ConnectionState.CONNECTED:
