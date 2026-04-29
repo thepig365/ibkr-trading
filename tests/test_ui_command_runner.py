@@ -133,6 +133,7 @@ _DEFAULT_ARGS_FOR: dict[str, tuple[str, ...]] = {
     "complete-trade-charts": ("--latest", "--limit", "50"),
     "broker-snapshot-refresh": (),
     "broker-refresh": (),
+    "reconcile-fills": ("--latest", "--json"),
     "tradervue-complete-charts": ("--latest", "--limit", "50"),
     "complete-journal-charts": ("--latest", "--limit", "50"),
     "build-edge-profile": (

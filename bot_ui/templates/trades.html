@@ -45,6 +45,13 @@
       <button type="submit" class="btn ghost" style="padding:4px 10px;">{{ t('trades.apply_filters') }}</button>
     </form>
 
+    {% if not fills_reconciliation_last_exists %}
+      <p class="text-small text-dim mb-8">{{ t('trades.recon_run_hint') }}</p>
+      <div class="form-row flex-wrap mb-12" style="gap:10px;">
+        {% with command='reconcile-fills', args='--latest --json', label=t('dashboard.fill_recon_btn'), return_to='/trades' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+    {% endif %}
+
     <div class="mt-12">
       <h3 class="text-small" style="margin:0 0 8px 0;font-weight:600;">{{ t('trades.complete_charts_h') }}</h3>
       <p class="text-dim text-small" style="margin:0 0 10px 0;">{{ t('trades.complete_charts_blurb') }}</p>
@@ -67,6 +74,8 @@
               <th>{{ t('trades.th_status') }}</th>
               <th>{{ t('trades.th_local_state') }}</th>
               <th>{{ t('trades.th_broker_state') }}</th>
+              <th>{{ t('trades.th_entry_fill') }}</th>
+              <th>{{ t('trades.th_exit_fill') }}</th>
               <th>{{ t('trades.th_entry') }}</th>
               <th>{{ t('trades.th_exit') }}</th>
               <th>{{ t('trades.th_stop') }}</th>
@@ -81,12 +90,15 @@
           <tbody>
             {% for r in ledger_rows %}
               <tr>
+                {% set fr = r.fill_reconciliation %}
                 <td class="text-mono text-small">{{ (r.submitted_time or '')[:19] }}</td>
                 <td><strong>{{ r.symbol }}</strong></td>
                 <td>{{ (r.direction or '-')|upper }}</td>
-                <td>{{ t(trade_status_key(r.status_slug)) }}</td>
+                <td>{{ t(trade_status_key(trade_display_slug(r))) }}</td>
                 <td class="text-small">{{ t('trades.ls_' ~ infer_local_trade_state_token(r)) }}</td>
                 <td class="text-small">{{ t('trades.bs_' ~ broker_state_slug(r.symbol)) }}</td>
+                <td class="text-mono text-small">{% if fr and fr.entry_fill_time %}{{ (fr.entry_fill_time|string)[:19] }}{% else %}—{% endif %}</td>
+                <td class="text-mono text-small">{% if fr and fr.exit_fill_time %}{{ (fr.exit_fill_time|string)[:19] }}{% else %}—{% endif %}</td>
                 <td>{% if r.entry_price is not none %}{{ "%.2f"|format(r.entry_price) }}{% else %}—{% endif %}</td>
                 <td>
                   {% if r.exit_price is not none and r.exit_time %}

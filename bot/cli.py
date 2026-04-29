@@ -20,7 +20,7 @@ import logging
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -31,6 +31,7 @@ from rich.table import Table
 
 from .broker import Broker
 from .broker_snapshot import refresh_broker_snapshot
+from .fills_reconciliation import reconcile_fills_cli
 from .config import AppConfig, load_config
 from .ibkr_client import IBKRClient, IBKRClientError, LiveTradingBlocked
 from .ibkr_connection import PUBLIC_COLLISION_HINT, connect_readonly_roster_retry
@@ -358,6 +359,85 @@ def broker_snapshot_refresh_cmd(
         + (summary[:800] + ("…" if len(str(summary)) > 800 else "") if summary else ""),
         title="broker-snapshot-refresh",
         style="cyan" if st == "ok" else ("yellow" if st == "unavailable" else "red"),
+    )
+    console.print(rc)
+    raise typer.Exit(0)
+
+
+@app.command("reconcile-fills")
+def reconcile_fills_cmd(
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Use NY calendar date = today for local rows and execution filtering.",
+    ),
+    session_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        help="Trading day YYYY-MM-DD (NY) for ledger filter and execution archive.",
+    ),
+    symbols: Optional[str] = typer.Option(
+        None,
+        "--symbols",
+        help="Comma-separated symbols (optional), e.g. AAPL,MSFT.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Compute summary only; do not write JSON files."),
+    write: bool = typer.Option(
+        True,
+        "--write/--no-write",
+        help="Persist under data/runtime, data/reconciled_trades, data/executions (unless --dry-run).",
+    ),
+    json_only: bool = typer.Option(
+        False,
+        "--json",
+        help="Print summary JSON envelope to stdout.",
+    ),
+) -> None:
+    """Read-only roster: IBKR executions + local paper ledger → reconciliation JSON (no orders)."""
+
+    cfg, _journal = _bootstrap()
+    root = cfg.project_root
+    parsed: Optional[date] = None
+    if session_date:
+        try:
+            parsed = date.fromisoformat(str(session_date).strip()[:10])
+        except ValueError:
+            console.print("[red]reconcile-fills: --date must be YYYY-MM-DD.[/red]")
+            raise typer.Exit(2)
+    if latest and parsed is not None:
+        console.print("[red]reconcile-fills: use only one of --latest or --date.[/red]")
+        raise typer.Exit(2)
+
+    sym_list: Optional[list[str]] = None
+    if symbols and str(symbols).strip():
+        sym_list = [s.strip().upper() for s in str(symbols).split(",") if s.strip()]
+
+    write_disk = bool(write) and not dry_run
+    envelope = reconcile_fills_cli(
+        root,
+        session_date=parsed,
+        latest=latest,
+        symbols=sym_list,
+        dry_run=dry_run,
+        write_disk=write_disk,
+    )
+    if json_only:
+        console.print(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
+        raise typer.Exit(0)
+
+    st = envelope.get("date") or ""
+    rc = Panel.fit(
+        f"date=[bold]{st}[/bold]\n"
+        f"fills={envelope.get('fills_count')} "
+        f"closed={envelope.get('closed_count')} "
+        f"filled_open={envelope.get('filled_open_count')} "
+        f"submitted_nf={envelope.get('submitted_not_filled_count')} "
+        f"unknown={envelope.get('unknown_count')}\n"
+        f"ΣR={envelope.get('realized_r_total')} "
+        f"reconciled_at={envelope.get('reconciled_at_utc')}\n"
+        + str(envelope.get("errors") or envelope.get("warnings") or ""),
+        title="reconcile-fills",
+        style="cyan",
     )
     console.print(rc)
     raise typer.Exit(0)

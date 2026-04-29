@@ -101,6 +101,7 @@ nobody can accidentally point the local UI at production.
 The UI may only run these subcommands of `python -m bot.cli`:
 
 - `paper-reconcile`
+- `reconcile-fills` (read-only: TWS executions vs local Strategy Lab paper rows; **`broker_readonly`** roster)
 - `refresh-paper-account-state`
 - `build-watchlist`
 - `scan-mtf-smc-watchlist`

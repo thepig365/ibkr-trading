@@ -19,6 +19,7 @@ from bot.trade_journal_chart import (
 from bot.trade_ledger import (
     build_trade_records,
     chart_png_exists,
+    effective_status_slug,
     find_trade_record,
     ledger_summary_counts,
     skipped_reason_human_for,
@@ -31,6 +32,15 @@ from bot.broker_snapshot import (
 
 from ..i18n import get_locale
 from ._helpers import base_context
+
+_FILLS_RECON_LAST = Path("data") / "runtime" / "fills_reconciliation_last.json"
+
+
+def _fills_reconciliation_last_exists(project_root: Path) -> bool:
+    """True when CLI has written the runtime JSON (pure path probe; no IBKR imports)."""
+
+    return (Path(project_root).resolve() / _FILLS_RECON_LAST).is_file()
+
 
 router = APIRouter()
 
@@ -45,7 +55,18 @@ def _status_key(slug: str) -> str:
         "pending": "trades.status_pending",
         "partial": "trades.status_partial",
         "unknown": "trades.status_unknown",
+        "filled_open": "trades.status_filled_open",
+        "submitted_not_filled": "trades.status_submitted_not_filled",
+        "reconciliation_unknown": "trades.status_reconciliation_unknown",
     }.get(slug, "trades.status_unknown")
+
+
+def display_trade_status_slug(rec: object) -> str:
+    """Prefer reconciled status labels when overlay exists."""
+
+    if hasattr(rec, "fill_reconciliation"):
+        return effective_status_slug(rec)  # type: ignore[arg-type]
+    return str(getattr(rec, "status_slug", "") or "unknown")
 
 
 def _close_reason_key(slug: str) -> str:
@@ -150,6 +171,7 @@ def trades_page(
 
     ctx = base_context(request, active="trades")
     broker_snapshot = load_broker_snapshot(root)
+    recon_exists = _fills_reconciliation_last_exists(root)
 
     def _trade_bs_slug(sym: str) -> str:
         return infer_symbol_broker_state(sym, broker_snapshot)
@@ -160,6 +182,8 @@ def trades_page(
             "ledger_counts": counts,
             "trade_rows_all_count": len(rows_all),
             "trade_status_key": _status_key,
+            "trade_display_slug": display_trade_status_slug,
+            "fills_reconciliation_last_exists": recon_exists,
             "close_reason_key": _close_reason_key,
             "skipped_human": lambda rec: skipped_reason_human_for(rec, locale=loc),
             "trade_review_chart_png_exists": lambda tid: chart_png_exists(root, tid),
@@ -233,7 +257,7 @@ def trade_detail_page(
     ctx.update(
         {
             "tr": rec,
-            "trade_status_key": _status_key(rec.status_slug),
+            "trade_status_key": _status_key(display_trade_status_slug(rec)),
             "close_reason_i18n": _close_reason_key(rec.close_reason),
             "skipped_human": skipped_reason_human_for(rec, locale=loc),
             "has_chart": has_chart,

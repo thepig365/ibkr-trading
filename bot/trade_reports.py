@@ -74,6 +74,22 @@ def realized_pnl_usd_from_raw(obj: dict[str, Any]) -> float | None:
     return None
 
 
+def realized_pnl_usd_from_trade_record(rec: TradeLedgerRecord) -> float | None:
+    """Prefer reconciliation USD when present; else explicit JSON keys on the row."""
+
+    fr = getattr(rec, "fill_reconciliation", None)
+    if isinstance(fr, dict):
+        u = fr.get("realized_pnl_usd")
+        if u is not None:
+            try:
+                x = float(u)
+                if abs(x) < 1e12:
+                    return x
+            except (TypeError, ValueError):
+                pass
+    return realized_pnl_usd_from_raw(rec.raw_json)
+
+
 def _closed_with_r(rec: TradeLedgerRecord) -> bool:
     return rec.status_slug == "closed" and rec.realized_r is not None
 
@@ -82,12 +98,12 @@ def _closed_with_pnl(rec: TradeLedgerRecord) -> tuple[bool, float | None]:
     ok = rec.status_slug == "closed" and rec.exit_time and rec.exit_price is not None
     if not ok:
         return False, None
-    p = realized_pnl_usd_from_raw(rec.raw_json)
+    p = realized_pnl_usd_from_trade_record(rec)
     return p is not None, p
 
 
 def all_closed_trades_have_reliable_usd(records: list[TradeLedgerRecord]) -> bool:
-    """True only if every *closed* row has explicit realized USD in JSON (same rule as P/L curve)."""
+    """True only if every closed row has reconciliation or JSON realized USD (same rule as P/L curve)."""
 
     closed = [r for r in records if r.status_slug == "closed"]
     if not closed:
@@ -654,6 +670,10 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
         ar.append("tws_broker_not_checked")
     out["action_required"] = ar
 
+    from .fills_reconciliation import load_fills_reconciliation_last  # noqa: PLC0415
+
+    out["fills_reconciliation"] = load_fills_reconciliation_last(root)
+
     return out
 
 
@@ -665,4 +685,5 @@ __all__ = [
     "build_journal_analytics_for_project",
     "build_dashboard_trade_context",
     "realized_pnl_usd_from_raw",
+    "realized_pnl_usd_from_trade_record",
 ]

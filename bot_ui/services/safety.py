@@ -125,6 +125,10 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Explicit read-only broker snapshot → data/runtime/broker_snapshot_last.json (positions/orders/exec)."
     ),
     "broker-refresh": "Alias of broker-snapshot-refresh.",
+    "reconcile-fills": (
+        "Read-only TWS executions vs local paper ledger → data/runtime/fills_reconciliation_last.json "
+        "(no orders; optional --date / --latest)."
+    ),
     "complete-journal-charts": "Alias of complete-trade-charts.",
 }
 
@@ -1073,6 +1077,52 @@ def validate_broker_snapshot_refresh_args(args: tuple[str, ...]) -> tuple[bool, 
     )
 
 
+def validate_reconcile_fills_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Allow --latest / --date / --symbols / --dry-run / --json / --write / --no-write."""
+
+    ok, err = _check_no_forbidden("reconcile-fills", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
+    i = 0
+    saw_latest = False
+    saw_date = False
+    while i < len(args):
+        a = args[i]
+        if a == "--latest":
+            saw_latest = True
+            i += 1
+            continue
+        if a == "--date":
+            if i + 1 >= len(args):
+                return False, "reconcile-fills: --date requires YYYY-MM-DD."
+            ds = str(args[i + 1]).strip()
+            if not _DATE_RE.match(ds):
+                return False, "reconcile-fills: --date must be YYYY-MM-DD."
+            saw_date = True
+            i += 2
+            continue
+        if a == "--symbols":
+            if i + 1 >= len(args):
+                return False, "reconcile-fills: --symbols requires a comma-separated list."
+            raw_syms = str(args[i + 1]).strip().upper().replace(" ", "")
+            if not raw_syms or not _TICKER_LIST_RE.match(raw_syms):
+                return (
+                    False,
+                    "reconcile-fills: --symbols must look like AAPL or AAPL,MSFT (uppercase tickers only).",
+                )
+            i += 2
+            continue
+        if a in {"--dry-run", "--json", "--write", "--no-write"}:
+            i += 1
+            continue
+        return False, f"reconcile-fills: unexpected token {a!r}."
+    if saw_latest and saw_date:
+        return False, "reconcile-fills: use at most one of --latest or --date."
+    return True, ""
+
+
 
 _PAPER_REPORT_OUTPUT_DIR_RE = re.compile(
     r"^data/reports(/paper)?$|^data/reports/paper/?$"
@@ -1983,6 +2033,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_complete_trade_charts_args(command, args)
     if command in {"broker-snapshot-refresh", "broker-refresh"}:
         return validate_broker_snapshot_refresh_args(args)
+    if command == "reconcile-fills":
+        return validate_reconcile_fills_args(args)
     return True, ""
 
 

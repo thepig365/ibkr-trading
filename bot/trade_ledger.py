@@ -192,6 +192,28 @@ class TradeLedgerRecord:
     chart_status: str = ""
     chart_path: str | None = None
     raw_json: dict[str, Any] = field(default_factory=dict)
+    fill_reconciliation: dict[str, Any] | None = None
+
+
+def effective_status_slug(rec: TradeLedgerRecord) -> str:
+    """Prefer fill reconciliation status when overlay present."""
+
+    fc = rec.fill_reconciliation
+    if fc and isinstance(fc, dict):
+        st = str(fc.get("status") or "")
+        if st:
+            return _recon_slug_to_display_slug(st)
+    return rec.status_slug
+
+
+def _recon_slug_to_display_slug(st: str) -> str:
+    return {
+        "submitted_not_filled": "submitted_not_filled",
+        "filled_open": "filled_open",
+        "closed": "closed",
+        "partially_filled": "partially_filled",
+        "unknown": "reconciliation_unknown",
+    }.get(st, st)
 
 
 def skipped_reason_human_for(rec: TradeLedgerRecord, locale: str = "en") -> str:
@@ -289,10 +311,15 @@ def raw_dict_to_trade_record(abs_path: str, line_no: int, obj: dict[str, Any]) -
         ict_1m=obj.get("one_min_trigger_found") if obj.get("one_min_trigger_found") is not None else None,
         edge_summary=edge_summary_from_payload(obj),
         raw_json=dict(obj),
+        fill_reconciliation=None,
     )
 
 
-def build_trade_records(project_root: Path) -> list[TradeLedgerRecord]:
+def build_trade_records(
+    project_root: Path,
+    *,
+    apply_fill_reconciliation: bool = True,
+) -> list[TradeLedgerRecord]:
     """All intraday paper order rows newest-first (sorted by timestamp string descending)."""
 
     root = Path(project_root).resolve()
@@ -323,7 +350,12 @@ def build_trade_records(project_root: Path) -> list[TradeLedgerRecord]:
             continue
     out.sort(key=lambda x: x[0], reverse=True)
     rows = [r for _, r in out]
-    return [hydrate_record_chart_fields(r, root) for r in rows]
+    out_rows = [hydrate_record_chart_fields(r, root) for r in rows]
+    if apply_fill_reconciliation:
+        from .fills_reconciliation import apply_reconciliation_to_records
+
+        apply_reconciliation_to_records(out_rows, root)
+    return out_rows
 
 
 def find_trade_record(project_root: Path, trade_id: str) -> TradeLedgerRecord | None:
@@ -352,7 +384,11 @@ def find_trade_record(project_root: Path, trade_id: str) -> TradeLedgerRecord | 
                         continue
                     rec = raw_dict_to_trade_record(abs_p, line_no, obj)
                     if rec.trade_id == want:
-                        return hydrate_record_chart_fields(rec, root)
+                        hydrate_record_chart_fields(rec, root)
+                        from .fills_reconciliation import apply_reconciliation_to_records
+
+                        apply_reconciliation_to_records([rec], root)
+                        return rec
         except OSError:
             continue
     return None
@@ -385,6 +421,7 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
     charts_ok = charts_miss = pend = na = pend_row = rej = 0
     realized_sum = 0.0
     realized_n = 0
+    recon_nf = recon_fo = recon_cl = recon_pf = recon_unk = 0
     for r in records:
         if bool(r.raw_json.get("submitted")) or r.submitted_to_broker:
             submitted += 1
@@ -405,6 +442,19 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
             pend_row += 1
         if r.status_slug == "rejected":
             rej += 1
+        fc = r.fill_reconciliation
+        if isinstance(fc, dict):
+            st = str(fc.get("status") or "")
+            if st == "submitted_not_filled":
+                recon_nf += 1
+            elif st == "filled_open":
+                recon_fo += 1
+            elif st == "closed":
+                recon_cl += 1
+            elif st == "partially_filled":
+                recon_pf += 1
+            elif st == "unknown":
+                recon_unk += 1
         tier = _tier_for_trade_record(r, root)
         if tier == "available":
             charts_ok += 1
@@ -432,6 +482,11 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
         "total": len(records),
         "realized_r_sum": realized_sum,
         "realized_r_count": realized_n,
+        "recon_submitted_not_filled": recon_nf,
+        "recon_filled_open": recon_fo,
+        "recon_closed": recon_cl,
+        "recon_partially_filled": recon_pf,
+        "recon_unknown": recon_unk,
     }
 
 

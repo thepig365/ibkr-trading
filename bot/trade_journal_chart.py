@@ -61,9 +61,13 @@ def trade_chart_cli_payload(
         out["status"] = "trade_not_found"
         out["detail"] = "Trade row not found in local journal files."
         return out
+    from bot.fills_reconciliation import merge_reconciliation_into_trade_payload  # noqa: PLC0415
+
+    obj = merge_reconciliation_into_trade_payload(proj, tid, dict(obj))
     sym = str(obj.get("symbol") or "").strip().upper()
     out["symbol"] = sym or None
-    anchor = trade_anchor_utc(obj)
+    ef_raw = str(obj.get("entry_fill_time") or "").strip()
+    anchor = iso_timestamp_to_utc(ef_raw) if ef_raw else trade_anchor_utc(obj)
     if anchor is not None:
         out["date"] = anchor.astimezone(_NY).date().isoformat()
     res = generate_trade_journal_chart_png(
@@ -245,10 +249,29 @@ def generate_trade_journal_chart_png(
     obj = find_paper_order_payload_by_trade_id(proj, tid)
     if obj is None:
         return TradeChartOutcome(ok=False, message="Trade row not found in local journal files.")
+    from bot.fills_reconciliation import merge_reconciliation_into_trade_payload  # noqa: PLC0415
+    from bot.fills_reconciliation import trade_reconciliation_map  # noqa: PLC0415
+
+    obj = merge_reconciliation_into_trade_payload(proj, tid, dict(obj))
+
+    mmap = trade_reconciliation_map(proj)
+    tr_snap = mmap.get(tid)
+    rr_trade: float | None = None
+    if tr_snap and tr_snap.get("realized_r") is not None:
+        try:
+            rr_trade = float(tr_snap["realized_r"])
+        except (TypeError, ValueError):
+            rr_trade = None
+    recon_st = str(obj.get("_recon_status") or "").strip()
+
     sym = str(obj.get("symbol") or "").strip().upper()
     if not sym:
         return TradeChartOutcome(ok=False, message="Missing symbol on journal row.")
-    anchor = trade_anchor_utc(obj)
+
+    ef_raw = str(obj.get("entry_fill_time") or "").strip()
+    anchor = iso_timestamp_to_utc(ef_raw) if ef_raw else None
+    if anchor is None:
+        anchor = trade_anchor_utc(obj)
     if anchor is None:
         return TradeChartOutcome(ok=False, message="Missing timestamp on journal row.")
     cand_path = local_candle_file_for_trade(proj, sym, anchor)
@@ -314,6 +337,13 @@ def generate_trade_journal_chart_png(
     zh = str(locale).strip().lower().startswith("zh")
     skipped_human_loc = _first_skip_human_line(skipped_raw, locale=locale)
     struct_notes = _structure_notes_from_obj(obj)
+    has_recon = bool(recon_st)
+    show_exit_missing_note = (
+        not has_recon
+        and bool(submitted or obj.get("submitted_to_broker"))
+        and not has_skip
+        and not planned_exit
+    )
     ok_write = _write_matplotlib_chart(
         filtered,
         outfile,
@@ -334,12 +364,14 @@ def generate_trade_journal_chart_png(
         locale=locale,
         exit_price=exit_px if planned_exit else None,
         exit_time_utc=exit_dt_utc if planned_exit else None,
-        show_exit_missing_note=(bool(submitted or obj.get("submitted_to_broker")) and not has_skip and not planned_exit),
+        show_exit_missing_note=show_exit_missing_note,
         ict_htf=ict_h,
         ict_5m=ict5,
         ict_1m=ict1,
         zh_locale=zh,
         structure_notes=struct_notes,
+        recon_status=recon_st if recon_st else None,
+        realized_r_trade=rr_trade,
     )
     if not ok_write.startswith("OK"):
         return TradeChartOutcome(ok=False, message=ok_write)
@@ -433,6 +465,8 @@ def _write_matplotlib_chart(
     ict_1m: bool | None = None,
     zh_locale: bool = False,
     structure_notes: str = "",
+    recon_status: str | None = None,
+    realized_r_trade: float | None = None,
 ) -> str:
     try:
         import matplotlib
@@ -464,6 +498,8 @@ def _write_matplotlib_chart(
         "reward": "Reward zone",
         "ict_prefix": "ICT:",
         "status_line": "Status:",
+        "not_filled_yet": "Not filled yet",
+        "realized_r": "Realized R",
     }
     _ZH = {
         "curve": "收盘",
@@ -478,6 +514,8 @@ def _write_matplotlib_chart(
         "reward": "盈利区",
         "ict_prefix": "ICT：",
         "status_line": "状态：",
+        "not_filled_yet": "尚未成交",
+        "realized_r": "已实现 R",
     }
 
     def lab(key: str) -> str:
@@ -624,7 +662,14 @@ def _write_matplotlib_chart(
             if not hk
             else "括号保护不完整 — 请在 TWS 中核实"
         )
-    if show_exit_missing_note:
+    rs_raw = (recon_status or "").strip()
+    if rs_raw == "submitted_not_filled":
+        extra_lines.append(lab("not_filled_yet"))
+    elif rs_raw == "filled_open":
+        extra_lines.append(lab("exit_missing"))
+    elif rs_raw == "closed" and realized_r_trade is not None:
+        extra_lines.append(f"{lab('realized_r')}: {realized_r_trade:g}")
+    elif show_exit_missing_note:
         extra_lines.append(lab("exit_missing"))
 
     title_blob = title_line + "\n" + "\n".join(extra_lines)

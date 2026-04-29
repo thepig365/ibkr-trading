@@ -82,6 +82,9 @@ data/scheduler/
 data/telegram_commands/
 data/account_snapshots*
 data/paper_orders/
+# Fills reconciliation CLI output (TWS executions + matched ledger; never commit)
+data/reconciled_trades/
+data/executions/
 # Prompt 13E: backtest engine reports — runtime artifacts; never commit.
 data/backtests/*
 !data/backtests/.gitkeep

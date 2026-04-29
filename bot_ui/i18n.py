@@ -127,8 +127,29 @@ M: dict[str, dict[str, str]] = {
         "zh": "券商真实状态来自最近一次 TWS 快照；本地引擎记录来自 Strategy Lab 日志。",
     },
     "dashboard.local_records_explainer": {
-        "en": "Counts below are ledger-only (submitted signals, skips, charts). Compare with Broker Truth.",
-        "zh": "以下数字来自本地账本（提交、跳过、缺图）；请与上文券商真实状态对照。",
+        "en": "Submitted records, broker snapshots, and reconciled fills are different: run Reconcile Fills to align TWS executions with this ledger.",
+        "zh": "已提交记录、券商快照与对账成交是三件事；请运行「成交对账」将 TWS 成交与本地账本对齐。",
+    },
+    "dashboard.fill_recon_heading": {"en": "Fill Reconciliation", "zh": "成交对账"},
+    "dashboard.fill_recon_intro": {
+        "en": "Last explicit reconcile-fills run (read-only TWS). Separate from Broker Truth above; both are useful.",
+        "zh": "最近一次显式 reconcile-fills（只读 TWS）。与上方券商快照互补，请结合使用。",
+    },
+    "dashboard.fill_recon_last": {"en": "Last reconciled", "zh": "最近对账时间"},
+    "dashboard.fill_recon_fills": {"en": "Fills found", "zh": "成交笔数"},
+    "dashboard.fill_recon_closed": {"en": "Closed trades", "zh": "已平仓笔数"},
+    "dashboard.fill_recon_filled_open": {"en": "Filled open", "zh": "已成交未平"},
+    "dashboard.fill_recon_submitted_nf": {"en": "Submitted not filled", "zh": "已报未成交"},
+    "dashboard.fill_recon_unknown": {"en": "Unknown / unmatched", "zh": "未知/未匹配"},
+    "dashboard.fill_recon_r_sum": {"en": "Realized ΣR", "zh": "已实现ΣR"},
+    "dashboard.fill_recon_btn": {"en": "Reconcile Fills", "zh": "成交对账"},
+    "dashboard.fill_recon_none": {
+        "en": "Fill reconciliation has not been run yet. Click Reconcile Fills to update trade outcomes.",
+        "zh": "尚未运行成交对账。点击「成交对账」更新交易结果。",
+    },
+    "dashboard.flash_reconcile_fills": {
+        "en": "{base}. Fills={fills}, closed={closed}, filled_open={fo}, submitted_nf={snf}.",
+        "zh": "{base}。成交={fills}，已平={closed}，已成交未平={fo}，已报未成交={snf}。",
     },
     "dashboard.account_not_checked_short": {
         "en": "Not checked yet. Click Connect / Refresh TWS.",
@@ -614,6 +635,15 @@ M: dict[str, dict[str, str]] = {
     "trades.status_protection_incomplete": {"en": "Protection incomplete", "zh": "保护不完整"},
     "trades.status_partial": {"en": "Partial", "zh": "部分提交"},
     "trades.status_unknown": {"en": "Unknown", "zh": "未知"},
+    "trades.status_filled_open": {"en": "Filled open", "zh": "已成交未平"},
+    "trades.status_submitted_not_filled": {"en": "Submitted, not filled", "zh": "已报未成交"},
+    "trades.status_reconciliation_unknown": {"en": "Unknown / unmatched", "zh": "未知/未匹配"},
+    "trades.th_entry_fill": {"en": "Entry fill (TWS)", "zh": "入场成交"},
+    "trades.th_exit_fill": {"en": "Exit fill (TWS)", "zh": "出场成交"},
+    "trades.recon_run_hint": {
+        "en": "Run Fill Reconciliation to confirm fills from TWS.",
+        "zh": "请运行「成交对账」以确认 TWS 成交。",
+    },
     "trades.audit_journal": {"en": "Open audit log (Journal)", "zh": "打开技术流水（Journal）"},
     "trades.complete_charts_h": {"en": "Complete trade charts", "zh": "补齐交易复盘图"},
     "trades.complete_charts_blurb": {

@@ -5,6 +5,15 @@
 
 ---
 
+---
+
+## 本地「已提交」与 TWS 成交 / R 曲线不齐
+
+- **第一层**：先有 **broker snapshot**（`broker-snapshot-refresh`）核对券商持仓与委托。  
+- **第二层**：用 **`reconcile-fills`**（只读 executions，`broker_readonly`）把真实成交对齐到 Strategy Lab 本地委托行；写入 `data/runtime/fills_reconciliation_last.json`（默认 gitignore）。**不**代为推断平仓价。手册见 `docs/strategy-lab-user-manual.md` §1.2。
+
+---
+
 ## Dashboard：本地有「已提交记录」但快照里券商持仓为零
 
 - **正常可能原因**：订单未成交、已撤销/过期，或你**尚未**运行过一次 **Connect / Refresh TWS** / `broker-snapshot-refresh`，快照仍是旧的或不存在。  

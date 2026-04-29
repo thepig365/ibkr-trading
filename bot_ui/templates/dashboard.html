@@ -107,6 +107,52 @@
       </ul>
     {% endif %}
 
+    {# Fill reconciliation (last explicit CLI run; read-only artifact) #}
+    {% set fr = trader_dash.fills_reconciliation %}
+    <h3 style="margin:16px 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.fill_recon_heading') }}</h3>
+    <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.fill_recon_intro') }}</p>
+    {% if fr %}
+      <div class="grid mb-16" style="grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));">
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_last') }}</div>
+          <div class="card-value text-mono text-small">{{ fr.reconciled_at_utc or '—' }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_fills') }}</div>
+          <div class="card-value">{{ fr.fills_count if fr.fills_count is not none else '—' }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_closed') }}</div>
+          <div class="card-value">{{ fr.closed_count if fr.closed_count is not none else '—' }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_filled_open') }}</div>
+          <div class="card-value">{{ fr.filled_open_count if fr.filled_open_count is not none else '—' }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_submitted_nf') }}</div>
+          <div class="card-value">{{ fr.submitted_not_filled_count if fr.submitted_not_filled_count is not none else '—' }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_unknown') }}</div>
+          <div class="card-value">{{ fr.unknown_count if fr.unknown_count is not none else '—' }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_r_sum') }}</div>
+          <div class="card-value text-mono">{% if fr.realized_r_total is not none %}{{ "%.2f"|format(fr.realized_r_total) }}{% else %}—{% endif %}</div>
+        </div>
+      </div>
+      <div class="form-row flex-wrap" style="gap:10px; align-items:center; margin-bottom:18px;">
+        {% with command='reconcile-fills', args='--latest --json', label=t('dashboard.fill_recon_btn'), return_to='/dashboard', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+    {% else %}
+      <div class="card mb-16" style="max-width:640px;"><p class="text-small">{{ t('dashboard.fill_recon_none') }}</p>
+        <div class="mt-12">
+          {% with command='reconcile-fills', args='--latest --json', label=t('dashboard.fill_recon_btn'), return_to='/dashboard' %}{% include "_command_form.html" %}{% endwith %}
+        </div>
+      </div>
+    {% endif %}
+
     <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.local_engine_heading') }}</h3>
     <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.local_records_explainer') }}</p>
 

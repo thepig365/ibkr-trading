@@ -186,6 +186,26 @@ def dashboard_flash_from_recent_command(
             )
             return {"kind": "ok" if result.exit_code == 0 else "fail", "message": msg}
 
+    if cmd == "reconcile-fills" and "--json" in result.request.args:
+        sj = _parse_json_tail(result.stdout or "")
+        if isinstance(sj, dict) and (sj.get("date") or sj.get("reconciled_at_utc")):
+
+            def pick_num(k: str) -> str:
+                v = sj.get(k)
+                return str(v) if v is not None else "—"
+
+            return {
+                "kind": "ok" if result.exit_code == 0 else "fail",
+                "message": t(
+                    "dashboard.flash_reconcile_fills",
+                    base=(base["message"]).rstrip("."),
+                    fills=pick_num("fills_count"),
+                    closed=pick_num("closed_count"),
+                    fo=pick_num("filled_open_count"),
+                    snf=pick_num("submitted_not_filled_count"),
+                ),
+            }
+
     return base
 
 

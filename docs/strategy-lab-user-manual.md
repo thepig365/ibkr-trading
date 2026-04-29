@@ -23,6 +23,13 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 
 ---
 
+### 1.2 成交对账（Fill reconciliation，只读）
+
+- **是什么**：CLI `python3 -m bot.cli reconcile-fills`（或与 Dashboard「**成交对账**」等价白名单命令）只读连接 TWS，拉取 **Executions/Fills**，与本地 **`data/paper_orders/*.jsonl`** 里已发送到券商的记录按 **委托号（parent/stop/target order id）** 等方式对齐。  
+- **不是什么**：**不等同**「本地提交了就有持仓」；**不**根据计划止损/止盈价臆造平仓；**不**下单、不改单。**UI 打开页面本身不连 IBKR**；只对显式 CLI/按钮会话使用 **`broker_readonly`** client id。  
+- **产出（默认 gitignore）**：最近一次摘要 `data/runtime/fills_reconciliation_last.json`；可按日存档 `data/reconciled_trades/YYYY-MM-DD-reconciled-trades.json`、`data/executions/YYYY-MM-DD-ibkr-executions.json`。  
+- **之后才可靠**：Dashboard **成交对账**卡片、**累计 R / 交易图上的 Entry·Exit**，在存在真实成交记录并对账后更准确；若无成交或未跑对账，可能仍为「已提交未成交」或缺 Exit 标记。
+
 ## 2. 每个页面用途
 
 | 页面 | 路径 | 用途 |
