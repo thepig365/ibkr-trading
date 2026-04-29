@@ -462,6 +462,7 @@ Edge、新闻、表内分数、相对成交量**不能**单独触发下单。缺
 ## 15. Telegram 适合做什么
 
 - 在配置正确时，用于**通知**对账失败、重要跳过原因、研究摘要等（见 `docs/telegram-notifications.md`）。  
+- **TWS 健康（限流）**：当本机 TWS/网关不可达、会话异常或（可选）对账探针失败时，可经 `trading.tws_health_alerts` 发送 **【TWS 警报】**；恢复后可选 **【TWS 恢复】**。同一告警代码默认 **15 分钟内不重复**。CLI：`python3 -m bot.cli tws-health-alert-check`；集成于 **full-auto supervisor**（美东日盘相关窗口）与 **`broker-snapshot-refresh`**。状态文件：`data/runtime/tws_health_alert_state.json`。Dashboard / Paper 页显示上次代码与时间（不含密钥）。  
 - **入站命令**（在聊天里发 `/status`、`/news` 等并收到回复）与**通知推送**是两件不同的事：推送只要配置了 `TELEGRAM_*` 就会发；**要收到命令回复**，本机需运行 **`python3 -m bot.cli telegram-command-listener`**（或安装 `scripts/install_telegram_command_listener_launchd.sh` 的 launchd 任务）以轮询 `getUpdates`。**Settings** 页有只读状态说明。详见 `docs/telegram-commands.md`。
 - **不是**远程下单通道；不替代 Kill Switch 与对账。Telegram 的 `/stop`、`/kill` **不会**在磁盘上写 KILL 文件，请用 UI 或终端。
 

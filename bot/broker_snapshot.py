@@ -128,6 +128,34 @@ def _write_snapshot(root: Path, payload: dict[str, Any]) -> None:
     )
 
 
+def _maybe_notify_broker_snap_tws(
+    *,
+    cfg: "AppConfig",
+    journal: "Journal | None",
+    snap: BrokerSnapshot,
+) -> None:
+    tac = getattr(cfg.settings.trading, "tws_health_alerts", None)
+    if tac is not None and not getattr(tac, "enabled", True):
+        return
+    try:
+        from .tws_health_alerts import (  # noqa: PLC0415
+            health_status_from_broker_snapshot,
+            maybe_send_tws_health_alert,
+        )
+
+        mapped = health_status_from_broker_snapshot(snap.to_dict())
+        maybe_send_tws_health_alert(
+            cfg,
+            journal,
+            mapped,
+            source="broker-snapshot",
+        )
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning("broker_snap TWS alert (non-fatal): %s", exc)
+
+
 def refresh_broker_snapshot(
     *,
     cfg: "AppConfig | None" = None,
@@ -161,6 +189,7 @@ def refresh_broker_snapshot(
             meta=meta,
         )
         _write_snapshot(root, snap.to_dict())
+        _maybe_notify_broker_snap_tws(cfg=cfg, journal=journal, snap=snap)
         return snap
 
     if outcome.client is None:
@@ -174,6 +203,7 @@ def refresh_broker_snapshot(
             meta=meta,
         )
         _write_snapshot(root, snap.to_dict())
+        _maybe_notify_broker_snap_tws(cfg=cfg, journal=journal, snap=snap)
         return snap
 
     client = outcome.client
@@ -243,6 +273,7 @@ def refresh_broker_snapshot(
             pass
 
     _write_snapshot(root, snap.to_dict())
+    _maybe_notify_broker_snap_tws(cfg=cfg, journal=journal, snap=snap)
     return snap
 
 
@@ -263,6 +294,7 @@ def refresh_broker_snapshot_best_effort(*, cfg: "AppConfig | None" = None) -> Br
         )
         try:
             _write_snapshot(root, snap.to_dict())
+            _maybe_notify_broker_snap_tws(cfg=cfg, journal=None, snap=snap)
         except Exception:
             pass
         return snap

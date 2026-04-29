@@ -4904,6 +4904,64 @@ def automatic_paper_engine_readiness_cmd(
     raise typer.Exit(0 if payload.get("ok") else 2)
 
 
+@app.command("tws-health-alert-check")
+def tws_health_alert_check_cmd(
+    as_json: bool = typer.Option(
+        True,
+        "--json/--no-json",
+        help="Print probe result JSON (default on).",
+    ),
+    send_telegram: bool = typer.Option(
+        False,
+        "--send-telegram/--no-send-telegram",
+        help="Throttle Telegram unhealthy/recovery notices (must be configured).",
+    ),
+    source: str = typer.Option(
+        "manual",
+        "--source",
+        help="full-auto | broker-snapshot | manual",
+    ),
+) -> None:
+    """Read-only TWS/API probes + optional Telegram throttle (never places orders)."""
+    from .tws_health_alerts import (  # noqa: PLC0415
+        check_tws_health_for_alerts,
+        maybe_send_tws_health_alert,
+        status_as_dict,
+    )
+
+    src = (source or "manual").strip().lower()
+    if src not in {"manual", "full-auto", "broker-snapshot"}:
+        console.print("[red]--source must be manual|full-auto|broker-snapshot[/red]")
+        raise typer.Exit(2)
+
+    cfg, journal = _bootstrap()
+    hs = check_tws_health_for_alerts(cfg, journal)
+    send_info = maybe_send_tws_health_alert(
+        cfg,
+        journal,
+        hs,
+        source=src,
+        send_telegram=send_telegram,
+    )
+    payload: dict[str, Any] = {
+        "probe": status_as_dict(hs),
+        "telegram": send_info,
+        "configured": bool(cfg.telegram.bot_token),
+    }
+    if as_json:
+        console.print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(payload, indent=2, ensure_ascii=False, default=str),
+                title="tws-health-alert-check",
+            )
+        )
+
+    unhealthy = hs.status != "healthy"
+    raise typer.Exit(2 if unhealthy else 0)
+
+
 @app.command("run-automatic-paper-engine")
 def run_automatic_paper_engine_cmd(
     session: str = typer.Option(

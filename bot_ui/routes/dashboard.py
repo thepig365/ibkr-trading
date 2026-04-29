@@ -17,11 +17,12 @@ from bot.paper_activation import build_paper_activation_status
 from bot.premarket.storage import find_latest_premarket_brief
 from bot.reports.email_config_status import build_email_config_status
 from bot.reports.news_monitor_readiness import build_news_monitor_readiness
-from bot.telegram_listener_ui import build_telegram_listener_ui_context
+from bot.tws_health_alerts import ui_alert_overlay
 from bot.reports.report_hub_ui import build_report_hub_ui_context
 from bot.reports.operational_hints import load_operational_hints
 from bot.reports.report_email_status import load_report_email_status
 from bot.reports.telegram_report_dedup import read_state
+from bot.telegram_listener_ui import build_telegram_listener_ui_context
 from bot.trade_reports import build_dashboard_trade_context
 from bot.ux.dashboard_context import DashboardUX
 
@@ -216,6 +217,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "news_monitor": nmon,
             "report_hub": build_report_hub_ui_context(root),
             "telegram_command_listener_dash": tg_listener_dash,
+            "tws_health_ui": ui_alert_overlay(root),
         }
     )
     ctx["flash"] = dashboard_flash_from_recent_command(

@@ -231,6 +231,26 @@ def run_full_auto_paper_supervisor(
         # Deduped blocker Telegram: relevant when we would trade or are in premarket / session
         # Weekday ~08:30–16:30 NY: alert TWS/gates; no overnight spam
         alert_band = w < 5 and (8 * 60 + 30) <= m <= (16 * 60 + 30)
+
+        if getattr(cfg.settings.trading.tws_health_alerts, "enabled", True) and alert_band:
+            try:
+                from .tws_health_alerts import (  # noqa: PLC0415
+                    check_tws_health_for_alerts,
+                    maybe_send_tws_health_alert,
+                )
+
+                pj = journal if preprobe else None
+                hs = check_tws_health_for_alerts(cfg, pj)
+                maybe_send_tws_health_alert(
+                    cfg,
+                    journal,
+                    hs,
+                    source="full-auto supervisor",
+                    send_telegram=want_tg,
+                )
+            except Exception as exc:
+                logger.warning("tws health alert (supervisor, non-fatal): %s", exc)
+
         if want_tg and blockers and alert_band:
             st = _maybe_telegram_blockers(
                 cfg,

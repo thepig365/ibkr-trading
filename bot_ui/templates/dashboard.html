@@ -38,6 +38,19 @@
     <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.broker_truth_heading') }}</h3>
     <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.truth_vs_local_explainer') }}</p>
 
+    <div class="card mb-12" style="max-width:680px;">
+      <div class="card-title">{{ t('dashboard.tws_alert_title') }}</div>
+      <p class="text-dim text-small" style="margin:0 0 10px;line-height:1.55;">{{ t('dashboard.tws_alert_blurb') }}</p>
+      <ul class="text-small mb-8" style="margin:0;padding-left:18px;line-height:1.65;">
+        <li><strong>{{ t('dashboard.tws_alert_code') }}</strong>: <code>{{ tws_health_ui.last_alert_code or '—' }}</code>
+          {% if tws_health_ui.healthy_hint %} · <span class="pill good">healthy_hint</span>{% else %} · <span class="pill warn">was_alerting</span>{% endif %}
+        </li>
+        <li>last_alert_at: <code>{{ tws_health_ui.last_alert_sent_at_utc or '—' }}</code></li>
+        <li>{{ t('dashboard.tws_recovery') }}: <code>{{ tws_health_ui.last_recovery_sent_at_utc or '—' }}</code></li>
+        {% if tws_health_ui.last_reason_safe %}<li class="text-dim">{{ tws_health_ui.last_reason_safe[:240] }}</li>{% endif %}
+      </ul>
+    </div>
+
     {% if not bs %}
       <div class="card mb-16" style="max-width:640px;"><p class="text-small mb-8">{{ t('dashboard.account_not_checked_short') }}</p></div>
     {% else %}

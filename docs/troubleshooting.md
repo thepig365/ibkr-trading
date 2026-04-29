@@ -243,6 +243,16 @@
 
 ---
 
+## TWS down / Telegram 健康告警
+
+- **`trading.tws_health_alerts`**（`enabled`、`min_interval_minutes`、`send_recovery`）控制 **网关不可达 → Telegram** 的行为；**不写订单**。  
+- 手工探针（不默认发 Telegram）：`python3 -m bot.cli tws-health-alert-check --json --no-send-telegram`。  
+- 若持续收太多：**加大** `min_interval_minutes`** 或在** `settings.local.yaml` 里关 **`enabled`。  
+- Dashboard / Paper **TWS health** 卡仅读 `data/runtime/tws_health_alert_state.json`；若误删则由下次告警再写。**`.env`** 仍为 Telegram 密钥来源，不入库。
+
+---
+
+
 ## Kill Switch 处于激活
 
 - 若存在 `data/KILL_SWITCH`：先确认是否**故意**；删除该文件前确保团队流程允许。  

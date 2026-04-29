@@ -29,6 +29,7 @@ from bot.config import load_config
 from bot.full_auto_paper_readiness import FULL_AUTO_STATE_RELPATH, build_full_auto_paper_readiness
 from bot.launchd_full_auto_ui import build_background_runner_ui_context
 from bot.broker_snapshot import load_broker_snapshot
+from bot.tws_health_alerts import ui_alert_overlay
 from bot.execution.intraday_paper_sizing import ledger_snapshot_for_status
 from bot.paper_activation import (
     FIRST_PAPER_PASS_LAST_RELPATH,
@@ -171,6 +172,7 @@ def paper_page(request: Request) -> HTMLResponse:
             "last_supervisor_state": {},
         }
     ctx["broker_snapshot"] = load_broker_snapshot(root)
+    ctx["tws_health_ui"] = ui_alert_overlay(root)
 
     return request.app.state.templates.TemplateResponse(request, "paper.html", ctx)
 

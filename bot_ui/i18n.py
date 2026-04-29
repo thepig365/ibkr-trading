@@ -121,6 +121,16 @@ M: dict[str, dict[str, str]] = {
     },
     "dashboard.connect_tws_btn": {"en": "Connect / Refresh TWS", "zh": "连接 / 刷新 TWS"},
     "dashboard.broker_truth_heading": {"en": "Broker Truth", "zh": "券商真实状态"},
+    "dashboard.tws_alert_title": {
+        "en": "TWS health (Telegram, throttled)",
+        "zh": "TWS 健康（Telegram 限流告警）",
+    },
+    "dashboard.tws_alert_blurb": {
+        "en": "Last alert / recovery times from runtime state disk (Strategy Lab sends only when probes fail — no spam). Page load never connects to IBKR.",
+        "zh": "来自运行时文件的最近一次告警/恢复时间（仅在探测异常时发往 Telegram）。本页加载不连接 IBKR。",
+    },
+    "dashboard.tws_alert_code": {"en": "Last alert code", "zh": "最近一次警报代码"},
+    "dashboard.tws_recovery": {"en": "Last recovery Telegram", "zh": "最近恢复通知"},
     "dashboard.local_engine_heading": {"en": "Local Engine Records", "zh": "本地引擎记录"},
     "dashboard.truth_vs_local_explainer": {
         "en": "Broker Truth comes from the latest TWS snapshot. Local Engine Records come from Strategy Lab logs.",

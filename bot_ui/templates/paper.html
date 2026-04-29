@@ -28,6 +28,16 @@
       </div>
       <p class="text-dim text-small mt-8"><a href="{{ ret(url_for('dashboard')) }}">{{ t('paper.broker_to_dashboard') }}</a></p>
     </div>
+
+    <div class="card" style="max-width: 60rem;">
+      <div class="card-title">{{ t('dashboard.tws_alert_title') }}</div>
+      <p class="text-dim text-small">{{ t('dashboard.tws_alert_blurb') }}</p>
+      <ul class="text-small mt-8" style="margin:0;padding-left:18px;">
+        <li><strong>{{ t('dashboard.tws_alert_code') }}</strong>: <code>{{ tws_health_ui.last_alert_code or '—' }}</code></li>
+        <li>alert_at / recovery_at: <code>{{ tws_health_ui.last_alert_sent_at_utc or '—' }}</code> /
+          <code>{{ tws_health_ui.last_recovery_sent_at_utc or '—' }}</code></li>
+      </ul>
+    </div>
   </div>
 
   <div class="grid">

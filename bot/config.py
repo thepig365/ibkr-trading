@@ -229,6 +229,16 @@ class TradeChartsCompletionSettings(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class TwsHealthAlertsConfig(BaseModel):
+    """Throttle Telegram notices when TWS/API is unreachable (operator visibility)."""
+
+    enabled: bool = True
+    min_interval_minutes: int = 15
+    send_recovery: bool = True
+
+    model_config = {"extra": "ignore"}
+
+
 class TradingConfig(BaseModel):
     enabled: bool = False
     dry_run_default: bool = True
@@ -250,6 +260,9 @@ class TradingConfig(BaseModel):
     # 13F: intraday paper bracket execution (PAPER only; never live).
     intraday_paper: IntradayPaperConfig = Field(default_factory=IntradayPaperConfig)
     trade_charts: TradeChartsCompletionSettings = Field(default_factory=TradeChartsCompletionSettings)
+    tws_health_alerts: TwsHealthAlertsConfig = Field(default_factory=TwsHealthAlertsConfig)
+
+    model_config = {"extra": "ignore"}
 
 
 class RiskConfig(BaseModel):

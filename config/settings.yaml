@@ -75,6 +75,12 @@ trading:
     max_trades_per_run: 50
     candle_window_before_minutes: 30
     candle_window_after_minutes: 90
+  # When TWS/IBKR is down during full-auto or broker snapshots, Telegram
+  # notifies (throttled) + optional recovery ping when probes succeed again.
+  tws_health_alerts:
+    enabled: true
+    min_interval_minutes: 15
+    send_recovery: true
   # Asset class allow-list. All disabled in the foundation milestone.
   allow_options: false
   allow_crypto: false

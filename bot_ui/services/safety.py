@@ -92,6 +92,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
     "full-auto-paper-readiness": (
         "Read-only gates for run-full-auto-paper-supervisor; optional --probe-ibkr."
     ),
+    "tws-health-alert-check": (
+        "Probe TWS/API + optional throttled Telegram notices (read-only; never places orders)."
+    ),
     "run-full-auto-paper-supervisor": (
         "Full-auto paper supervisor — outer loop, Telegram blockers, ICT/SMC engine (paper only)."
     ),
@@ -1320,6 +1323,35 @@ def validate_automatic_paper_engine_readiness_args(
     return True, ""
 
 
+def validate_tws_health_alert_check_args(
+    args: tuple[str, ...],
+) -> tuple[bool, str]:
+    ok, err = _check_no_forbidden("tws-health-alert-check", args)
+    if not ok:
+        return ok, err
+    flags = frozenset(
+        {"--json", "--no-json", "--send-telegram", "--no-send-telegram"}
+    )
+    i = 0
+    while i < len(args):
+        tok = args[i]
+        if tok in flags:
+            i += 1
+            continue
+        if tok == "--source":
+            if i + 1 >= len(args):
+                return False, "tws-health-alert-check: --source needs a value."
+            v = str(args[i + 1])
+            if v not in {"manual", "full-auto", "broker-snapshot"}:
+                return False, f"tws-health-alert-check: bad --source {v!r}."
+            i += 2
+            continue
+        return False, f"tws-health-alert-check: unexpected token {tok!r}."
+    if "--send-telegram" in args and "--no-send-telegram" in args:
+        return False, "tws-health-alert-check: conflicting send flags."
+    return True, ""
+
+
 def validate_run_automatic_paper_engine_args(
     args: tuple[str, ...],
 ) -> tuple[bool, str]:
@@ -2001,6 +2033,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_run_automatic_paper_engine_args(args)
     if command == "full-auto-paper-readiness":
         return validate_full_auto_paper_readiness_args(args)
+    if command == "tws-health-alert-check":
+        return validate_tws_health_alert_check_args(args)
     if command == "run-full-auto-paper-supervisor":
         return validate_run_full_auto_paper_supervisor_args(args)
     if command == "eod-paper-checklist":
