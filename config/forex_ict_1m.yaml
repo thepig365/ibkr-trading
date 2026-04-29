@@ -6,7 +6,7 @@ mode: paper
 enabled: false
 
 auto_paper:
-  enabled: false
+  enabled: true
   session_timezone: Australia/Melbourne
   session_window: "09:00-17:00"
   poll_interval_seconds: 60
@@ -23,10 +23,7 @@ pairs:
     - AUD/USD
     - USD/JPY
     - AUD/JPY
-  secondary:
-    - NZD/USD
-    - EUR/JPY
-    - AUD/NZD
+  secondary: []
 
 session:
   timezone: Australia/Melbourne
@@ -56,7 +53,7 @@ risk:
   usd_jpy_for_conversion: 151
 
 execution:
-  submit_to_broker: false
+  submit_to_broker: true
   order_type: LMT
   no_market_orders: true
   bracket_required: true
