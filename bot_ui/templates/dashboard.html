@@ -244,8 +244,20 @@
           <div class="card-title">{{ t('dashboard.fill_recon_r_sum') }}</div>
           <div class="card-value text-mono">{% if fr.realized_r_total is not none %}{{ "%.2f"|format(fr.realized_r_total) }}{% else %}—{% endif %}</div>
         </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.realized_pnl_card') }}</div>
+          <div class="card-value text-mono">{% if fr.broker_snapshot_realized_pnl_usd is not none %}${{ "%.2f"|format(fr.broker_snapshot_realized_pnl_usd|float) }}{% else %}—{% endif %}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">{{ t('dashboard.fill_recon_usd_local') }}</div>
+          <div class="card-value text-mono">{% if fr.realized_pnl_usd_total is not none %}${{ "%.2f"|format(fr.realized_pnl_usd_total|float) }}{% else %}—{% endif %}</div>
+        </div>
       </div>
+      {% if fr.broker_vs_local_realized_pnl_mismatch %}
+        <p class="text-small mb-12" style="color:#b45309;">{{ t('dashboard.broker_vs_local_warn') }}</p>
+      {% endif %}
       <div class="form-row flex-wrap" style="gap:10px; align-items:center; margin-bottom:18px;">
+        {% with command='reconcile-stock-fills', args='--recent-days 14 --json', label=t('trades.reconcile_stock_btn'), return_to='/dashboard', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
         {% with command='reconcile-fills', args='--latest --json', label=t('dashboard.fill_recon_btn'), return_to='/dashboard', btn_class='' %}{% include "_command_form.html" %}{% endwith %}
       </div>
     {% else %}

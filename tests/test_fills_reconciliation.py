@@ -73,7 +73,22 @@ def test_closed_target_hit_via_order_ids(tmp_path: Path) -> None:
             },
         ],
     }
-    out = match_fills_to_local_trades([rec], fills_by_order, positions_by_symbol={}, open_orders_by_id={})
+    flat_fills: list[dict] = []
+    for oid, lst in fills_by_order.items():
+        for row in lst:
+            d = dict(row)
+            if d.get("order_id") is None:
+                d["order_id"] = oid
+            flat_fills.append(d)
+
+    used: set[str] = set()
+    out = match_fills_to_local_trades(
+        [rec],
+        flat_fills,
+        positions_by_symbol={},
+        open_orders_by_id={},
+        used_exec_fingerprints=used,
+    )
     assert len(out) == 1
     t = out[0]
     assert t.status == TradeReconStatus.closed
@@ -93,5 +108,11 @@ def test_submitted_no_fills(tmp_path: Path) -> None:
         "quantity": 1,
     }
     rec = _rec(abs_p, 0, row)
-    out = match_fills_to_local_trades([rec], {}, positions_by_symbol={}, open_orders_by_id={})
+    out = match_fills_to_local_trades(
+        [rec],
+        [],
+        positions_by_symbol={},
+        open_orders_by_id={},
+        used_exec_fingerprints=set(),
+    )
     assert out[0].status == TradeReconStatus.submitted_not_filled

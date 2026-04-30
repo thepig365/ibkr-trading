@@ -151,6 +151,16 @@ M: dict[str, dict[str, str]] = {
     "dashboard.fill_recon_filled_open": {"en": "Filled open", "zh": "已成交未平"},
     "dashboard.fill_recon_submitted_nf": {"en": "Submitted not filled", "zh": "已报未成交"},
     "dashboard.fill_recon_unknown": {"en": "Unknown / unmatched", "zh": "未知/未匹配"},
+    "dashboard.fill_recon_usd_local": {
+        "en": "Reconciled Σ USD (last run)",
+        "zh": "上次成交对账已实现美元合计",
+    },
+    "dashboard.broker_vs_local_realized_intro": {
+        "en": "Broker realized P&L (account tag) vs last reconcile Σ USD.",
+        "zh": "券商账户标签已实现盈亏 vs 最近成交对账汇总之美元盈亏。",
+    },
+    "dashboard.broker_vs_local_warn": {"en": "Mismatch — widen date range / refresh snapshot.", "zh": "不一致 — 可扩大日期范围或刷新快照后重跑对账。"},
+
     "dashboard.fill_recon_r_sum": {"en": "Realized ΣR", "zh": "已实现ΣR"},
     "dashboard.fill_recon_btn": {"en": "Reconcile Fills", "zh": "成交对账"},
     "dashboard.fill_recon_none": {
@@ -624,6 +634,30 @@ M: dict[str, dict[str, str]] = {
     "trades.bs_position_confirmed": {"en": "Position confirmed", "zh": "券商确认持仓"},
     "trades.bs_has_open_orders": {"en": "Open orders @ broker", "zh": "券商侧未完成委托"},
     "trades.bs_flat_no_position": {"en": "No position / flat", "zh": "无持仓 / 已平"},
+    "trades.th_fill_state": {"en": "Fill state", "zh": "成交状态"},
+    "trades.th_realized_pnl_usd": {"en": "Realized P&L USD", "zh": "已实现盈亏（美元）"},
+    "trades.th_recon_yes_no": {"en": "Recon closed", "zh": "对账已平仓"},
+    "trades.summary_recon_closed": {"en": "Reconciled closed (fills)", "zh": "成交对账已平仓"},
+    "trades.fs_none": {"en": "—", "zh": "—"},
+    "trades.fs_submitted_nf": {"en": "Submitted, not filled", "zh": "已报未成交"},
+    "trades.fs_filled_open": {"en": "Filled, open leg", "zh": "已成交未平仓"},
+    "trades.fs_closed": {"en": "Closed", "zh": "已平仓"},
+    "trades.fs_unknown_recon": {"en": "Reconcile unknown", "zh": "对账未知"},
+    "trades.fs_partial": {"en": "Partial fill", "zh": "部分成交"},
+    "trades.ls_reconciled_closed": {"en": "Reconciled: closed", "zh": "对账：已平仓"},
+    "trades.ls_reconciled_filled_open_no_exit": {
+        "en": "Reconciled: broker filled, exit not reconciled yet",
+        "zh": "对账：开仓已匹配，平仓未对齐",
+    },
+    "trades.ls_reconciled_submitted_not_filled": {
+        "en": "Reconciled: no fills on recorded order ids yet",
+        "zh": "对账：暂无与订单 ID 匹配的成交",
+    },
+    "trades.unmatched_exec_intro": {"en": "Broker-only executions (read-only reconcile)", "zh": "券商侧未匹配的成交（只读对账）"},
+    "trades.reconcile_stock_btn": {
+        "en": "Stock fills reconcile (today / range)",
+        "zh": "股票成交对账（今日/区间）",
+    },
 
     "trades.th_entry": {"en": "Entry", "zh": "入场"},
     "trades.th_exit": {"en": "Exit", "zh": "平仓"},

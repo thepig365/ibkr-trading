@@ -142,6 +142,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Read-only TWS executions vs local paper ledger → data/runtime/fills_reconciliation_last.json "
         "(no orders; optional --date / --latest)."
     ),
+    "reconcile-stock-fills": (
+        "Stock STK executions vs intraday ledger over an NY window (--today / --recent-days); read-only reconcile."
+    ),
     "reconcile-forex-fills": (
         "Paper Forex: correlate JSONL brackets with TWS fills(); optional exit Telegram; read-only."
     ),
@@ -1208,6 +1211,59 @@ def validate_reconcile_fills_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return True, ""
 
 
+def validate_reconcile_stock_fills_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Rolling NY window reconcile for stock ledger rows."""
+
+    ok, err = _check_no_forbidden("reconcile-stock-fills", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
+    i = 0
+    saw_recent = False
+    saw_today = False
+    while i < len(args):
+        a = args[i]
+        if a == "--today":
+            saw_today = True
+            i += 1
+            continue
+        if a == "--recent-days":
+            if i + 1 >= len(args):
+                return False, "reconcile-stock-fills: --recent-days requires N."
+            tok = str(args[i + 1]).strip()
+            if not tok.isdigit() or not (1 <= int(tok) <= 180):
+                return False, "reconcile-stock-fills: --recent-days N must be 1–180."
+            saw_recent = True
+            i += 2
+            continue
+        if a == "--symbols":
+            if i + 1 >= len(args):
+                return False, "reconcile-stock-fills: --symbols requires a comma-separated list."
+            raw_syms = str(args[i + 1]).strip().upper().replace(" ", "")
+            if not raw_syms or not _TICKER_LIST_RE.match(raw_syms):
+                return (
+                    False,
+                    "reconcile-stock-fills: --symbols must look like AAPL or AAPL,MSFT (uppercase tickers only).",
+                )
+            i += 2
+            continue
+        if a in {
+            "--dry-run",
+            "--json",
+            "--write",
+            "--no-write",
+            "--no-telegram",
+            "--no-charts",
+        }:
+            i += 1
+            continue
+        return False, f"reconcile-stock-fills: unexpected token {a!r}."
+    if saw_recent and saw_today:
+        return False, "reconcile-stock-fills: do not combine --recent-days with --today."
+    return True, ""
+
+
 def validate_reconcile_forex_fills_args(args: tuple[str, ...]) -> tuple[bool, str]:
     """Paper Forex reconcile: optional --dry-run/--json/--write/--no-write/--limit N; temporal --latest/--today/--since/--until."""
 
@@ -2265,6 +2321,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_broker_snapshot_refresh_args(args)
     if command == "reconcile-fills":
         return validate_reconcile_fills_args(args)
+    if command == "reconcile-stock-fills":
+        return validate_reconcile_stock_fills_args(args)
     if command == "reconcile-forex-fills":
         return validate_reconcile_forex_fills_args(args)
     return True, ""

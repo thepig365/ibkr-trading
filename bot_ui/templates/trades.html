@@ -15,6 +15,8 @@
     <div class="card"><div class="card-title">{{ t('trades.summary_charts') }}</div><div class="card-value">{{ lc.charts_available }}</div></div>
     <div class="card"><div class="card-title">{{ t('trades.summary_missing_candles') }}</div><div class="card-value">{{ lc.charts_missing_candles }}</div></div>
     <div class="card"><div class="card-title">{{ t('trades.summary_realized_sum') }}</div><div class="card-value">{{ "%.2f"|format(lc.realized_r_sum or 0) }} <span class="text-dim text-small">(n={{ lc.realized_r_count }})</span></div></div>
+    <div class="card"><div class="card-title">{{ t('trades.summary_recon_closed') }}</div><div class="card-value">{{ lc.recon_closed }}</div></div>
+    <div class="card"><div class="card-title">{{ t('trades.th_realized_pnl_usd') }}</div><div class="card-value text-mono">{% if lc.recon_realized_usd_sum is not none %}${{ "%.2f"|format(lc.recon_realized_usd_sum|float) }}{% else %}—{% endif %}</div></div>
   </div>
 
   <div class="section mt-12">
@@ -48,7 +50,24 @@
     {% if not fills_reconciliation_last_exists %}
       <p class="text-small text-dim mb-8">{{ t('trades.recon_run_hint') }}</p>
       <div class="form-row flex-wrap mb-12" style="gap:10px;">
+        {% with command='reconcile-stock-fills', args='--today --json', label=t('trades.reconcile_stock_btn'), return_to='/trades' %}{% include "_command_form.html" %}{% endwith %}
         {% with command='reconcile-fills', args='--latest --json', label=t('dashboard.fill_recon_btn'), return_to='/trades' %}{% include "_command_form.html" %}{% endwith %}
+      </div>
+    {% endif %}
+
+    {% if unmatched_broker_executions %}
+      <div class="card mb-12" style="max-width:900px;">
+        <div class="card-title">{{ t('trades.unmatched_exec_intro') }}</div>
+        <ul class="text-small text-dim mb-0" style="padding-left:18px;line-height:1.6;margin:8px 0 0 0;">
+          {% for u in unmatched_broker_executions %}
+            <li>{{ u.message }} —
+              <span class="text-mono">{{ u.symbol }}</span>
+              {{ u.side }} {{ u.quantity }} @ {{ u.price }}
+              {% if u.time %}· {{ (u.time|string)[:19] }}{% endif %}
+              {% if u.order_id %}· oid={{ u.order_id }}{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
       </div>
     {% endif %}
 
@@ -74,6 +93,9 @@
               <th>{{ t('trades.th_status') }}</th>
               <th>{{ t('trades.th_local_state') }}</th>
               <th>{{ t('trades.th_broker_state') }}</th>
+              <th>{{ t('trades.th_fill_state') }}</th>
+              <th>{{ t('trades.th_realized_pnl_usd') }}</th>
+              <th>{{ t('trades.th_recon_yes_no') }}</th>
               <th>{{ t('trades.th_entry_fill') }}</th>
               <th>{{ t('trades.th_exit_fill') }}</th>
               <th>{{ t('trades.th_entry') }}</th>
@@ -97,6 +119,15 @@
                 <td>{{ t(trade_status_key(trade_display_slug(r))) }}</td>
                 <td class="text-small">{{ t('trades.ls_' ~ infer_local_trade_state_token(r)) }}</td>
                 <td class="text-small">{{ t('trades.bs_' ~ broker_state_slug(r.symbol)) }}</td>
+                <td class="text-small">{{ t(trade_fill_state_key(r)) }}</td>
+                <td class="text-mono text-small">
+                  {% if fr and fr.realized_pnl_usd is not none %}
+                    ${{ "%.2f"|format(fr.realized_pnl_usd|float) }}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-small text-center">
+                  {% if fr and fr.status == 'closed' %}✓{% else %}—{% endif %}
+                </td>
                 <td class="text-mono text-small">{% if fr and fr.entry_fill_time %}{{ (fr.entry_fill_time|string)[:19] }}{% else %}—{% endif %}</td>
                 <td class="text-mono text-small">{% if fr and fr.exit_fill_time %}{{ (fr.exit_fill_time|string)[:19] }}{% else %}—{% endif %}</td>
                 <td>{% if r.entry_price is not none %}{{ "%.2f"|format(r.entry_price) }}{% else %}—{% endif %}</td>
@@ -114,8 +145,12 @@
                 <td class="text-small">
                   {% if r.status_slug == 'skipped' %}
                     {{ skipped_human(r) }}
-                  {% elif r.status_slug == 'closed' %}
-                    {{ t(close_reason_key(r.close_reason)) }}
+                  {% elif trade_display_slug(r) == 'closed' %}
+                    {% if fr and fr.close_reason_bucket %}
+                      {{ fr.close_reason_bucket }}
+                    {% else %}
+                      {{ t(close_reason_key(r.close_reason)) }}
+                    {% endif %}
                   {% else %}
                     —
                   {% endif %}

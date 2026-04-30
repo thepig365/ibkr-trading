@@ -14,7 +14,12 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .broker_snapshot import load_broker_snapshot
-from .trade_ledger import TradeLedgerRecord, build_trade_records, ledger_summary_counts
+from .trade_ledger import (
+    TradeLedgerRecord,
+    build_trade_records,
+    fills_reconciliation_last_exists,
+    ledger_summary_counts,
+)
 
 _NY = ZoneInfo("America/New_York")
 
@@ -670,9 +675,12 @@ def build_dashboard_trade_context(project_root: Path | str) -> dict[str, Any]:
         ar.append("tws_broker_not_checked")
     out["action_required"] = ar
 
-    from .fills_reconciliation import load_fills_reconciliation_last  # noqa: PLC0415
+    if fills_reconciliation_last_exists(root):
+        from .fills_reconciliation import load_fills_reconciliation_last  # noqa: PLC0415
 
-    out["fills_reconciliation"] = load_fills_reconciliation_last(root)
+        out["fills_reconciliation"] = load_fills_reconciliation_last(root)
+    else:
+        out["fills_reconciliation"] = None
 
     return out
 

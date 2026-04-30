@@ -126,6 +126,10 @@ def ensure_trade_chart_if_possible(
     if payload is None:
         return EnsureTradeChartResult(status="error", trade_id=tid, detail="Trade not found.")
 
+    from .fills_reconciliation import merge_reconciliation_into_trade_payload
+
+    payload = merge_reconciliation_into_trade_payload(root, tid, dict(payload))
+
     cls = classify_paper_trade_for_auto_chart(payload)
     if cls == "not_applicable":
         return EnsureTradeChartResult(status="not_applicable", trade_id=tid)

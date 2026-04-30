@@ -29,7 +29,6 @@ from bot.broker_snapshot import (
     infer_symbol_broker_state,
     load_broker_snapshot,
 )
-
 from ..i18n import get_locale
 from ._helpers import base_context
 
@@ -98,9 +97,11 @@ def _filter_ledger_rows(
     cf = (chart_filter or "all").strip().lower()
 
     def ok(r: object) -> bool:
-        if vf == "open" and getattr(r, "status_slug", "") != "open":
+        es = effective_status_slug(r)
+        slug = getattr(r, "status_slug", "") or ""
+        if vf == "open" and slug != "open" and es != "filled_open":
             return False
-        if vf == "closed" and getattr(r, "status_slug", "") != "closed":
+        if vf == "closed" and es != "closed":
             return False
         if vf == "skipped" and getattr(r, "status_slug", "") != "skipped":
             return False
@@ -149,6 +150,20 @@ def _risk_reward_per_share(tr: object) -> tuple[float | None, float | None]:
     return risk, reward
 
 
+def _fill_state_i18n_key(rec: object) -> str:
+    fr = getattr(rec, "fill_reconciliation", None)
+    if not isinstance(fr, dict):
+        return "trades.fs_none"
+    st = str(fr.get("status") or "").strip()
+    return {
+        "submitted_not_filled": "trades.fs_submitted_nf",
+        "filled_open": "trades.fs_filled_open",
+        "closed": "trades.fs_closed",
+        "unknown": "trades.fs_unknown_recon",
+        "partially_filled": "trades.fs_partial",
+    }.get(st, "trades.fs_unknown_recon")
+
+
 @router.get("/trades", response_class=HTMLResponse, name="trades_page")
 def trades_page(
     request: Request,
@@ -172,6 +187,15 @@ def trades_page(
     ctx = base_context(request, active="trades")
     broker_snapshot = load_broker_snapshot(root)
     recon_exists = _fills_reconciliation_last_exists(root)
+    if recon_exists:
+        from bot.fills_reconciliation import load_fills_reconciliation_last
+
+        recon_last = load_fills_reconciliation_last(root)
+    else:
+        recon_last = None
+    unmatched_execs: list = []
+    if isinstance(recon_last, dict):
+        unmatched_execs = list(recon_last.get("unmatched_broker_executions") or [])[:40]
 
     def _trade_bs_slug(sym: str) -> str:
         return infer_symbol_broker_state(sym, broker_snapshot)
@@ -184,6 +208,9 @@ def trades_page(
             "trade_status_key": _status_key,
             "trade_display_slug": display_trade_status_slug,
             "fills_reconciliation_last_exists": recon_exists,
+            "fills_reconciliation_preview": recon_last,
+            "unmatched_broker_executions": unmatched_execs,
+            "trade_fill_state_key": _fill_state_i18n_key,
             "close_reason_key": _close_reason_key,
             "skipped_human": lambda rec: skipped_reason_human_for(rec, locale=loc),
             "trade_review_chart_png_exists": lambda tid: chart_png_exists(root, tid),

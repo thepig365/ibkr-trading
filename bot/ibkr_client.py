@@ -141,6 +141,7 @@ class ExecutionRow:
     price: float
     time: str | None
     exchange: str | None
+    order_ref: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -766,6 +767,9 @@ class IBKRClient:
                     price=float(getattr(e, "price", 0) or 0),
                     time=str(getattr(e, "time", "")) or None,
                     exchange=getattr(e, "exchange", None),
+                    order_ref=(
+                        str(getattr(e, "orderRef", "") or "").strip() or None
+                    ),
                 )
             )
         return out

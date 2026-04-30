@@ -18,6 +18,16 @@ from .trade_journal_chart import candles_available_for_trade, trade_review_chart
 from .ux.humanize import humanize_skip_reason
 
 
+_FILLS_RECON_LAST_RUNTIME = Path("data") / "runtime" / "fills_reconciliation_last.json"
+
+
+def fills_reconciliation_last_exists(project_root: Path) -> bool:
+    """True if CLI reconciliation wrote the snapshot JSON (pure path probe, no ibkr imports)."""
+
+    root = Path(project_root).resolve()
+    return (root / _FILLS_RECON_LAST_RUNTIME).is_file()
+
+
 def _f(v: Any) -> float | None:
     if v is None:
         return None
@@ -265,9 +275,28 @@ def raw_dict_to_trade_record(abs_path: str, line_no: int, obj: dict[str, Any]) -
     cr_slug = normalized_close_reason_slug(obj, status)
     ict_lbl = format_ict_labels(obj)
 
-    po = obj.get("parent_entry_order_id") or obj.get("entry_order_id")
+    po = obj.get("parent_entry_order_id") or obj.get("entry_order_id") or obj.get("parent_order_id")
     sl = obj.get("parent_sl_order_id") or obj.get("stop_order_id")
     tp = obj.get("parent_tp_order_id") or obj.get("target_order_id")
+
+    oids_raw = obj.get("order_ids")
+    oids_list: list[int] = []
+    if isinstance(oids_raw, list):
+        for item in oids_raw:
+            try:
+                if item is not None:
+                    oids_list.append(int(item))
+            except (TypeError, ValueError):
+                continue
+    if len(oids_list) >= 3:
+        # Same ordering as bot.execution.intraday_paper_execution.verify_intraday_paper_bracket_trades
+        parent_oid, target_oid, stop_oid = oids_list[0], oids_list[1], oids_list[2]
+        if po is None:
+            po = parent_oid
+        if tp is None:
+            tp = target_oid
+        if sl is None:
+            sl = stop_oid
 
     def _iid(v: Any) -> int | None:
         try:
@@ -351,7 +380,7 @@ def build_trade_records(
     out.sort(key=lambda x: x[0], reverse=True)
     rows = [r for _, r in out]
     out_rows = [hydrate_record_chart_fields(r, root) for r in rows]
-    if apply_fill_reconciliation:
+    if apply_fill_reconciliation and fills_reconciliation_last_exists(root):
         from .fills_reconciliation import apply_reconciliation_to_records
 
         apply_reconciliation_to_records(out_rows, root)
@@ -385,9 +414,10 @@ def find_trade_record(project_root: Path, trade_id: str) -> TradeLedgerRecord | 
                     rec = raw_dict_to_trade_record(abs_p, line_no, obj)
                     if rec.trade_id == want:
                         hydrate_record_chart_fields(rec, root)
-                        from .fills_reconciliation import apply_reconciliation_to_records
+                        if fills_reconciliation_last_exists(root):
+                            from .fills_reconciliation import apply_reconciliation_to_records
 
-                        apply_reconciliation_to_records([rec], root)
+                            apply_reconciliation_to_records([rec], root)
                         return rec
         except OSError:
             continue
@@ -422,6 +452,8 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
     realized_sum = 0.0
     realized_n = 0
     recon_nf = recon_fo = recon_cl = recon_pf = recon_unk = 0
+    recon_usd_sum = 0.0
+    recon_usd_n = 0
     for r in records:
         if bool(r.raw_json.get("submitted")) or r.submitted_to_broker:
             submitted += 1
@@ -455,6 +487,11 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
                 recon_pf += 1
             elif st == "unknown":
                 recon_unk += 1
+            if st == "closed":
+                ru = fc.get("realized_pnl_usd")
+                if ru is not None:
+                    recon_usd_sum += float(ru)
+                    recon_usd_n += 1
         tier = _tier_for_trade_record(r, root)
         if tier == "available":
             charts_ok += 1
@@ -487,6 +524,8 @@ def ledger_summary_counts(records: list[TradeLedgerRecord], project_root: Path) 
         "recon_closed": recon_cl,
         "recon_partially_filled": recon_pf,
         "recon_unknown": recon_unk,
+        "recon_realized_usd_sum": recon_usd_sum if recon_usd_n else None,
+        "recon_realized_usd_count": recon_usd_n,
     }
 
 

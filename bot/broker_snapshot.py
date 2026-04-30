@@ -338,6 +338,16 @@ def infer_symbol_broker_state(symbol: str, snap: dict[str, Any] | None) -> str:
 def infer_local_trade_state_token(rec: Any) -> str:
     """Stable token for trades table Local State column."""
 
+    fr = getattr(rec, "fill_reconciliation", None)
+    if isinstance(fr, dict):
+        rst = str(fr.get("status") or "").strip()
+        if rst == "closed":
+            return "reconciled_closed"
+        if rst == "filled_open":
+            return "reconciled_filled_open_no_exit"
+        if rst == "submitted_not_filled":
+            return "reconciled_submitted_not_filled"
+
     slug = getattr(rec, "status_slug", "") or ""
     sj = getattr(rec, "submitted_to_broker", False)
     raw = getattr(rec, "raw_json", {}) or {}

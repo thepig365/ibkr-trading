@@ -20,7 +20,7 @@ import logging
 import os
 import re
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -437,6 +437,96 @@ def reconcile_fills_cmd(
         f"reconciled_at={envelope.get('reconciled_at_utc')}\n"
         + str(envelope.get("errors") or envelope.get("warnings") or ""),
         title="reconcile-fills",
+        style="cyan",
+    )
+    console.print(rc)
+    raise typer.Exit(0)
+
+
+@app.command("reconcile-stock-fills")
+def reconcile_stock_fills_cmd(
+    today: bool = typer.Option(
+        False,
+        "--today",
+        help="NY-only day window: today for both local ledger rows and execution pulls.",
+    ),
+    recent_days: int = typer.Option(
+        14,
+        "--recent-days",
+        min=1,
+        max=180,
+        help="Inclusive NY calendar days ending today (ignored when --today).",
+    ),
+    symbols: Optional[str] = typer.Option(
+        None,
+        "--symbols",
+        help="Comma-separated symbols (optional), e.g. AAPL,MSFT.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Compute only; skip JSON writes / side effects."),
+    write: bool = typer.Option(
+        True,
+        "--write/--no-write",
+        help="Persist reconciliation JSON (unless --dry-run).",
+    ),
+    no_telegram: bool = typer.Option(
+        False,
+        "--no-telegram",
+        help="Do not send Telegram when reconciler marks new closed trades.",
+    ),
+    no_charts: bool = typer.Option(
+        False,
+        "--no-charts",
+        help="Do not auto-generate PNG charts for newly reconciled closes.",
+    ),
+    json_only: bool = typer.Option(False, "--json", help="Print summary JSON envelope to stdout."),
+) -> None:
+    """Read-only roster: stock STK fills ↔ local paper_orders (wide NY window by default)."""
+
+    from zoneinfo import ZoneInfo as _ZoneInfo
+
+    cfg, _journal = _bootstrap()
+    root = cfg.project_root
+
+    sym_list: Optional[list[str]] = None
+    if symbols and str(symbols).strip():
+        sym_list = [s.strip().upper() for s in str(symbols).split(",") if s.strip()]
+
+    ny = _ZoneInfo("America/New_York")
+    end_d = datetime.now(ny).date()
+    if today:
+        start_d = end_d
+    else:
+        start_d = end_d - timedelta(days=int(recent_days) - 1)
+
+    write_disk = bool(write) and not dry_run
+    envelope = reconcile_fills_cli(
+        root,
+        session_date=None,
+        latest=False,
+        symbols=sym_list,
+        dry_run=dry_run,
+        write_disk=write_disk,
+        ledger_ny_range=(start_d, end_d),
+        executions_ny_range=(start_d, end_d),
+        notify_telegram_newly_closed=not no_telegram,
+        generate_closed_trade_charts=not no_charts,
+    )
+    if json_only:
+        console.print(json.dumps(envelope, indent=2, ensure_ascii=False, default=str))
+        raise typer.Exit(0)
+
+    st = envelope.get("ledger_ny_range") or {}
+    window = f"{st.get('start', '?')}→{st.get('end', '?')}" if st else str(envelope.get("date"))
+    rc = Panel.fit(
+        f"window=[bold]{window}[/bold]\n"
+        f"fills={envelope.get('fills_count')} "
+        f"closed={envelope.get('closed_count')} "
+        f"unmatched_execs={envelope.get('unmatched_broker_executions_count')} "
+        f"newly_closed={len(envelope.get('newly_closed_trades') or [])}\n"
+        f"ΣR={envelope.get('realized_r_total')} "
+        f"reconciled_at={envelope.get('reconciled_at_utc')}\n"
+        + str(envelope.get("errors") or envelope.get("warnings") or ""),
+        title="reconcile-stock-fills",
         style="cyan",
     )
     console.print(rc)
