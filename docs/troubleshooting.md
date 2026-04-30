@@ -21,6 +21,13 @@
 - **`tws_unreachable`**：纸面 TWS + API。  
 - **launchd 不交易**：门控未全满足时不会下单；查 `~/Library/Logs/StrategyLab/forex_auto_paper_supervisor.log`。
 
+## Forex：`Error 110` — 最小跳动（minimum price variation）
+
+- **现象**：TWS / ib_async 报 **110**：`The price does not conform to the minimum price variation for this contract`；括号限价/止损上常见过长小数尾（例如 `0.7126009999999999`）。  
+- **原因**：价格未落在 IBKR **`minTick`** 网格上（执行层合规，不是 ICT 逻辑本身）。  
+- **Strategy Lab**：发单前经 **`preflight`**，用 `Decimal` 与 **合约 `minTick`（若有）→ YAML `execution.forex_tick_fallback`** 做括号几何合规舍入；舍入後若无法满足 long/short 的 `stop/entry/target` 顺序 → 本地 **`forex_invalid_rounded_bracket_geometry`**，不写单。详见 **`docs/strategy-lab-user-manual.md`** §1.3。  
+- **若仍见 110**：在 TWS 合约详情核对 **Min tick**，并谨慎调整 **`forex_tick_fallback`**。**不得**改用市价规避（Forex 引擎只允许 **LMT 括号**）。
+
 ---
 
 ## Paper：成交对账与 broker snapshot（跨节引用）

@@ -17,9 +17,10 @@ from .candle_store import load_forex_candles
 from .config import load_forex_ict_config, melbourne_session_open
 from .orders_log import append_forex_order_event, forex_orders_path
 from .pairs import parse_pair, pip_size_for_pair
-from .preflight import validate_bracket
+from .preflight import preflight_rounded_forex_bracket
 from .signals import FxIctSignal, simple_fx_ict_scan  # noqa: F401 — re-export compat
 from .sizing import estimate_units_for_risk
+from .ticks import fetch_ibkr_contract_min_tick, resolve_forex_min_tick
 from .yaml_utils import pairs_list_from_forex_yaml
 
 LOG = logging.getLogger(__name__)
@@ -190,15 +191,30 @@ def run_forex_ict_1m(
             results.append(row)
             continue
 
-        pf = validate_bracket(
-            direction=sig.direction,
-            entry=float(sig.entry or 0),
-            stop=float(sig.stop or 0),
-            target=float(sig.target or 0),
-            min_tick=pip,
-            order_type=str(execution.get("order_type") or "LMT"),
+        qc, qerr = fetch_ibkr_contract_min_tick(cfg, spec)
+        if qc is None:
+            LOG.debug("runner forex min_tick qualify: %s", qerr)
+        tick_bundle = resolve_forex_min_tick(
+            spec.display, contract_details=qc, fallback_config=execution
         )
-        row["preflight"] = {"ok": pf.ok, "reasons": pf.reasons}
+        pip_mt = pip_size_for_pair(spec, mt=float(tick_bundle.min_tick))
+
+        bpf = preflight_rounded_forex_bracket(
+            direction=sig.direction,
+            original_entry=float(sig.entry or 0),
+            original_stop=float(sig.stop or 0),
+            original_target=float(sig.target or 0),
+            tick=tick_bundle,
+            order_type=str(execution.get("order_type") or "LMT"),
+            entry_rounding_mode=str(execution.get("entry_rounding_mode") or "nearest"),
+        )
+        pf_audit = bpf.to_audit_dict()
+        pf = bpf
+        row["preflight"] = {
+            "ok": pf.ok,
+            "reasons": pf.reasons,
+            **pf_audit,
+        }
         if not pf.ok:
             append_forex_order_event(
                 root,
@@ -208,6 +224,7 @@ def run_forex_ict_1m(
                     "phase": "preflight_blocked",
                     "signal": sdict,
                     "reasons": pf.reasons,
+                    **pf_audit,
                 },
             )
             row["skipped"] = "preflight"
@@ -221,7 +238,7 @@ def run_forex_ict_1m(
             entry=float(sig.entry or 0),
             stop=float(sig.stop or 0),
             max_units=max_units,
-            pip_size=pip,
+            pip_size=pip_mt,
         )
         row["sizing"] = {
             "units": size.units,
@@ -325,6 +342,7 @@ def run_forex_ict_1m(
             order_ref_prefix=order_ref,
             tif=tif,
             journal=journal,
+            preflight_audit=pf_audit,
         )
         row["broker"] = sr
         results.append(row)

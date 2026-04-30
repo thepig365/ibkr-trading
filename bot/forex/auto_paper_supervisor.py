@@ -19,7 +19,7 @@ from .daily_notional import can_add_notional, load_notional_day, record_notional
 from .fetch_bridge import fetch_forex_1m_duration
 from .orders_log import append_forex_order_event
 from .pairs import parse_pair, pip_size_for_pair
-from .preflight import validate_bracket
+from .preflight import preflight_rounded_forex_bracket
 from .runner import _account_equity_usd  # noqa: PLC0415
 from .runtime_auto import read_runtime_auto_enabled
 from .signals import simple_fx_ict_scan
@@ -29,6 +29,7 @@ from .sizing import (
     shrink_units_for_notional_caps,
 )
 from .telegram_fx import send_fx_telegram
+from .ticks import fetch_ibkr_contract_min_tick, resolve_forex_min_tick
 from .yaml_utils import effective_session_dict, pairs_list_from_forex_yaml
 
 LOG = logging.getLogger(__name__)
@@ -120,6 +121,14 @@ def run_forex_auto_paper_supervisor(
     equity = _account_equity_usd(cfg)
     pairs = pairs_list_from_forex_yaml(fx)
 
+    def _resolve_tick_bundle(spec_: Any, *, try_ibkr: bool) -> Any:
+        qc = None
+        if try_ibkr:
+            qc, _terr = fetch_ibkr_contract_min_tick(cfg, spec_)
+            if qc is None:
+                LOG.debug("forex_fetch_min_tick_fail %s", _terr)
+        return resolve_forex_min_tick(spec_.display, contract_details=qc, fallback_config=ex_cfg)
+
     if dry_run:
         scan_rows: list[dict[str, Any]] = []
         for pd in pairs[:4]:
@@ -147,6 +156,24 @@ def run_forex_auto_paper_supervisor(
                 "bars": len(bars),
                 "signal_direction": getattr(sig, "direction", None) if sig else None,
             }
+            if sig is not None and getattr(sig, "direction", None) not in (None, "flat"):
+                tick = _resolve_tick_bundle(spec, try_ibkr=True)
+                bp = preflight_rounded_forex_bracket(
+                    direction=str(sig.direction),
+                    original_entry=float(sig.entry or 0),
+                    original_stop=float(sig.stop or 0),
+                    original_target=float(sig.target or 0),
+                    tick=tick,
+                    order_type=str(ex_cfg.get("order_type") or "LMT"),
+                    entry_rounding_mode=str(ex_cfg.get("entry_rounding_mode") or "nearest"),
+                )
+                row["min_tick"] = bp.min_tick
+                row["min_tick_source"] = bp.min_tick_source
+                row["rounded_entry"] = bp.rounded_entry
+                row["rounded_stop"] = bp.rounded_stop
+                row["rounded_target"] = bp.rounded_target
+                row["geometry_ok"] = bp.geometry_ok
+                row["preflight_reasons"] = bp.reasons
             scan_rows.append(row)
 
         out = _finish(
@@ -250,7 +277,8 @@ def run_forex_auto_paper_supervisor(
         if tc_pair >= mx_tp:
             continue
 
-        pip = pip_size_for_pair(spec)
+        tick_bundle = _resolve_tick_bundle(spec, try_ibkr=True)
+        pip = pip_size_for_pair(spec, mt=float(tick_bundle.min_tick))
         pd_spent = 0.0
         bp = nt.get("by_pair")
         if isinstance(bp, dict) and slug_u in bp:
@@ -282,22 +310,25 @@ def run_forex_auto_paper_supervisor(
         if sig is None or sig.direction == "flat":
             continue
 
-        pf = validate_bracket(
-            direction=sig.direction,
-            entry=float(sig.entry or 0),
-            stop=float(sig.stop or 0),
-            target=float(sig.target or 0),
-            min_tick=pip,
+        bpf = preflight_rounded_forex_bracket(
+            direction=str(sig.direction),
+            original_entry=float(sig.entry or 0),
+            original_stop=float(sig.stop or 0),
+            original_target=float(sig.target or 0),
+            tick=tick_bundle,
             order_type=str(ex_cfg.get("order_type") or "LMT"),
+            entry_rounding_mode=str(ex_cfg.get("entry_rounding_mode") or "nearest"),
         )
-        if not pf.ok:
-            rej = ";".join(pf.reasons)
+        audit_bp = bpf.to_audit_dict()
+        if not bpf.ok:
+            rej = ";".join(bpf.reasons)
             append_forex_order_event(
                 root,
                 {
                     "phase": "preflight",
                     "pair": spec.display,
-                    "reasons": pf.reasons,
+                    "reasons": bpf.reasons,
+                    **audit_bp,
                 },
             )
             continue
@@ -378,6 +409,7 @@ def run_forex_auto_paper_supervisor(
             order_ref_prefix=order_ref,
             tif=tif,
             journal=journal,
+            preflight_audit=audit_bp,
         )
         append_forex_order_event(
             root,
@@ -414,10 +446,8 @@ def run_forex_auto_paper_supervisor(
                 body=f"[Forex Auto] Order issue {spec.display}: {json.dumps(sr)[:700]}",
             )
 
-        ot = (
-            "submitted"
-            if sr.get("ok")
-            else (sr.get("error") or "error")
+        ot = sr.get("broker_acceptance_status") or (
+            "accepted" if sr.get("ok") else (sr.get("error") or "error")
         )
         return _finish(
             {

@@ -64,8 +64,24 @@ def summarize_row_for_ui(rec: dict[str, Any]) -> dict[str, Any]:
     statuses = broker.get("statuses") or rec.get("child_status_snapshots") or []
     status_first = statuses[0] if isinstance(statuses, list) and statuses else {}
 
-    rej = broker.get("error") or rec.get("message") or status_first.get("status")
+    rej = broker.get("error") or broker.get("reject_reason") or rec.get("message") or status_first.get("status")
     ok_submit = broker.get("ok") if isinstance(broker.get("ok"), bool) else None
+
+    br_status = broker.get("broker_acceptance_status")
+    rej_code = broker.get("broker_reject_code")
+    rej_cls = broker.get("rejection_class")
+    mint = (
+        rec.get("min_tick")
+        or broker.get("min_tick")
+        or (status_first.get("min_tick") if isinstance(status_first, dict) else None)
+    )
+    o_e = rec.get("original_entry")
+    q_e = rec.get("entry") or broker.get("entry")
+    orig_px = f"orig {o_e or '—'} → rnd {q_e or '—'}" if (o_e or q_e) else ""
+
+    rej_line = rej
+    if rej_cls == "rejected_invalid_tick":
+        rej_line = f"rejected_invalid_tick (IBKR min tick)"
 
     return {
         "ts_utc": rec.get("ts_utc"),
@@ -76,14 +92,21 @@ def summarize_row_for_ui(rec: dict[str, Any]) -> dict[str, Any]:
         "direction": rec.get("direction"),
         "notional_usd_est": rec.get("notional_usd_est"),
         "entry": rec.get("entry"),
+        "original_entry": rec.get("original_entry"),
+        "rounded_entry": rec.get("rounded_entry") or rec.get("entry"),
         "stop": rec.get("stop"),
         "target": rec.get("target"),
         "units": rec.get("units"),
         "local_state": rec.get("status") or rec.get("phase"),
         "broker_acceptance": ok_submit,
+        "broker_acceptance_status": br_status,
         "fill_hint": status_first.get("status") if status_first else None,
         "filled_qty": status_first.get("filled"),
-        "reject_reason": rej,
+        "reject_reason": rej_line,
+        "reject_code": rej_code,
+        "rejection_class": rej_cls,
+        "min_tick": mint,
+        "prices_original_vs_rounded": orig_px.strip() if orig_px else None,
         "_raw": rec,
     }
 

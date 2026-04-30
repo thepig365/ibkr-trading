@@ -63,3 +63,8 @@ execution:
   outside_rth: true
   order_ref_prefix: STRATEGYLAB_FX_ICT_1M
   allow_marketable_limit: false
+  # IBKR IDEALPRO minTick fallbacks when contract details unavailable (Decimal strings).
+  forex_tick_fallback:
+    non_jpy_quote: "0.00005"
+    jpy_quote: "0.01"
+  entry_rounding_mode: nearest

@@ -37,13 +37,14 @@ Strategy Lab 是一套 **Python 后端（`bot`）+ 本地 FastAPI UI（`bot_ui`�
 - **目的**：墨尔本白天仍可验证「引擎链路 + IBKR IDEALPRO 只读/纸面」（外汇 24/5），**不靠**美盘股票时段。  
 - **推荐先试货币对**：`AUD/USD`、`USD/JPY`、`AUD/JPY`（YAML 中还列有可选币种）。  
 - **流程**：先在纸面、`Kill switch` off 下拉 **1 分钟 MIDPOINT** → `fetch-forex-candles` → 本地 **`run-forex-ict-1m --dry-run`** → 确认就绪前 **不要** 把 YAML 设为 `submit_to_broker: true`。  
-- **硬性约束**：**仅 paper、仅限价括号（实现为 LMT 括号）、不写市价单**；干跑不写单；实盘提交需 **显式 YAML 启用** — 不改变股票自动纸引擎代码路径。
+- **硬性约束**：**仅 paper、仅限价括号（实现为 LMT 括号）、不写市价单**；干跑不写单；实盘提交需 **显式 YAML 启用** — 不改变股票自动纸引擎代码路径。  
+- **IBKR Error 110（价格不符合最小跳动 / minimum price variation）**：策略算出的入场/止损/止盈可能是「数学上的浮点数」，而 IDEALPRO 现货外汇要求价格落在 **`minTick` 网格**上。Strategy Lab 在 **执行层（非信号层）** 用 `Decimal` 将 **入场 / 止损 / 止盈** 按 **long/short 括号几何**规则舍入后，再通过 `preflight` 校验 **`stop < entry < target`**（做多）或 **`target < entry < stop`**（做空）；若舍入破坏几何形状，则在本地 **`phase: preflight`** 拦截，**不提交**。`minTick` **优先取自 IBKR qualify 返回值**，失败时退回 `config/forex_ict_1m.yaml` 的 **`execution.forex_tick_fallback`**。提交后若在 TWS 侧仍收到 110，`broker_acceptance_status` 记为 **`broker_rejected`**，分类 **`rejected_invalid_tick`**，`/forex` 表中可见。
 
 ### 1.3a Forex ICT 1 分钟「自动纸」监督（可选）
 
 - **与股票 `run-automatic-paper-engine` / full-auto 完全分离**：独立 CLI `run-forex-auto-paper-supervisor`、独立 loop 状态 `data/runtime/forex_auto_paper_loop_state.json`、独立 launchd 标签 `com.strategy-lab.forex-auto-paper`（默认 `StartInterval` 60s，仅当你显式安装 plist）。  
 - **三重门控**：① `data/runtime/forex_auto_paper_enabled.json` 里 `enabled: true`；② `config/forex_ict_1m.yaml` 中 `auto_paper.enabled: true` 且 `execution.submit_to_broker: true`；③ `Kill switch` 未激活、账户为 **paper**、墨尔本窗口内、未触达每日/每对名义上限（默认 **USD 100,000/日** 等，见 YAML `risk`）。  
-- **UI**：Dashboard / Paper / **`/forex`** 提供白名单命令（含 `forex-auto-paper-readiness --json`、**仅** `run-forex-auto-paper-supervisor --dry-run --json`；实际循环由 **launchd 或终端 CLI** 执行 `--json` **无** `--dry-run`）。  
+- **UI**：Dashboard / Paper / **`/forex`** 提供白名单命令（含 `forex-auto-paper-readiness --json`、**仅** `run-forex-auto-paper-supervisor --dry-run --json`；实际循环由 **launchd 或终端 CLI** 执行 `--json` **无** `--dry-run`）。`/forex` 订单表中可对照 **原价 → 舍入价**、`minTick`、券商 **`broker_acceptance_status`** 与 **`rejected_invalid_tick`**（Error 110）。  
 - **launchd**：`bash scripts/install_forex_auto_paper_launchd.sh`，日志 `~/Library/Logs/StrategyLab/forex_auto_paper_supervisor.log`；卸载 `scripts/uninstall_forex_auto_paper_launchd.sh`，状态 `scripts/status_forex_auto_paper_launchd.sh`。
 
 ## 2. 每个页面用途

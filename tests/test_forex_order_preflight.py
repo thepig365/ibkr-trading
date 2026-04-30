@@ -27,7 +27,15 @@ def test_short_requires_target_below_entry_below_stop() -> None:
     ).ok
 
 
-def test_rejects_bad_long_geometry() -> None:
+def test_rejects_bad_long_geometry(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from bot.forex import preflight as pfmod
+
+    def _bad_long(**_kw):
+        from decimal import Decimal
+
+        return Decimal("1"), Decimal("1"), Decimal("2")
+
+    monkeypatch.setattr(pfmod, "round_bracket_prices_decimal", _bad_long)
     assert not validate_bracket(
         direction="long",
         entry=1.0,

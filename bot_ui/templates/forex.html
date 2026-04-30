@@ -55,6 +55,9 @@
               <th>Broker OK</th>
               <th>Status</th>
               <th>Note</th>
+              <th>Broker status</th>
+              <th>minTick</th>
+              <th>Prices (orig → rnd)</th>
               <th>trade_id</th>
               <th>Chart preview</th>
               <th>Saved PNG / Detail</th>
@@ -71,6 +74,9 @@
                 <td>{% if row.broker_acceptance is sameas true %}<span class="pill good">yes</span>{% elif row.broker_acceptance is sameas false %}<span class="pill bad">no</span>{% else %}—{% endif %}</td>
                 <td>{{ row.fill_hint or row.local_state or '—' }}</td>
                 <td class="text-dim">{{ (row.reject_reason or '')[:120] }}</td>
+                <td class="text-mono text-small">{{ row.broker_acceptance_status or '—' }}</td>
+                <td class="text-mono">{{ row.min_tick or '—' }}</td>
+                <td class="text-mono text-small">{{ row.prices_original_vs_rounded or '—' }}</td>
                 <td class="text-mono text-small">{{ (row.trade_id or '')[:24] }}</td>
                 <td>
                   {% if row.chart_png_href %}
