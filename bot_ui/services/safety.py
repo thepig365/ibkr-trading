@@ -142,6 +142,9 @@ ALLOWED_COMMANDS: dict[str, str] = {
         "Read-only TWS executions vs local paper ledger → data/runtime/fills_reconciliation_last.json "
         "(no orders; optional --date / --latest)."
     ),
+    "reconcile-forex-fills": (
+        "Paper Forex: correlate JSONL brackets with TWS fills(); optional exit Telegram; read-only."
+    ),
     "complete-journal-charts": "Alias of complete-trade-charts.",
 }
 
@@ -1205,6 +1208,60 @@ def validate_reconcile_fills_args(args: tuple[str, ...]) -> tuple[bool, str]:
     return True, ""
 
 
+def validate_reconcile_forex_fills_args(args: tuple[str, ...]) -> tuple[bool, str]:
+    """Paper Forex reconcile: optional --dry-run/--json/--write/--no-write/--limit N; temporal --latest/--today/--since/--until."""
+
+    ok, err = _check_no_forbidden("reconcile-forex-fills", args)
+    if not ok:
+        return ok, err
+    if not args:
+        return True, ""
+    i = 0
+    saw_latest = False
+    saw_since = False
+    saw_until = False
+    saw_today = False
+    while i < len(args):
+        a = args[i]
+        if a == "--latest":
+            saw_latest = True
+            i += 1
+            continue
+        if a == "--today":
+            saw_today = True
+            i += 1
+            continue
+        if a in {"--dry-run", "--json", "--write", "--no-write"}:
+            i += 1
+            continue
+        if a == "--limit":
+            if i + 1 >= len(args):
+                return False, "reconcile-forex-fills: --limit requires N (integer)."
+            tok = str(args[i + 1]).strip()
+            if not tok.isdigit() or int(tok) < 1:
+                return False, "reconcile-forex-fills: --limit N must be a positive integer."
+            i += 2
+            continue
+        if a == "--since":
+            if i + 1 >= len(args):
+                return False, "reconcile-forex-fills: --since requires UTC ISO timestamp."
+            saw_since = True
+            i += 2
+            continue
+        if a == "--until":
+            if i + 1 >= len(args):
+                return False, "reconcile-forex-fills: --until requires UTC ISO timestamp."
+            saw_until = True
+            i += 2
+            continue
+        return False, f"reconcile-forex-fills: unexpected token {a!r}."
+    if sum(1 for x in (saw_latest, saw_since, saw_until, saw_today) if x) > 1:
+        return (
+            False,
+            "reconcile-forex-fills: use at most one of --latest, --today, --since, --until.",
+        )
+    return True, ""
+
 
 _PAPER_REPORT_OUTPUT_DIR_RE = re.compile(
     r"^data/reports(/paper)?$|^data/reports/paper/?$"
@@ -2208,6 +2265,8 @@ def validate_args_for(command: str, args: tuple[str, ...]) -> tuple[bool, str]:
         return validate_broker_snapshot_refresh_args(args)
     if command == "reconcile-fills":
         return validate_reconcile_fills_args(args)
+    if command == "reconcile-forex-fills":
+        return validate_reconcile_forex_fills_args(args)
     return True, ""
 
 

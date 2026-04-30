@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Forex trade {{ trade_id }} / 外汇交易{% endblock %}
+{% block content %}
+<div class="section">
+  <p class="text-dim"><a href="{{ ret(url_for('forex_page')) }}">← Forex</a></p>
+  <h1>trade_id <code>{{ trade_id }}</code></h1>
+  {% set s = forex_trade_summary %}
+  {% if not forex_trade_rows_raw %}
+    <p class="text-dim">No JSONL rows for this id.</p>
+  {% else %}
+    <div class="grid mb-12" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr));max-width:900px;">
+      <div class="card"><div class="card-title">Pair</div><div class="card-value">{{ s.pair }}</div></div>
+      <div class="card"><div class="card-title">Dir</div><div class="card-value">{{ s.direction }}</div></div>
+      <div class="card"><div class="card-title">Phase</div><div class="card-value">{{ s.phase }}</div></div>
+    </div>
+    {% if forex_trade_chart_href %}
+      <div class="mb-12">
+        <h2>Saved chart / 已保存图表</h2>
+        <p class="text-dim text-small">{{ forex_trade_chart_href }}</p>
+        <img src="{{ forex_trade_chart_href }}" alt="forex chart" style="max-width:100%;border:1px solid var(--border);" />
+      </div>
+    {% else %}
+      <p class="text-dim text-small">No PNG at <code>data/reports/forex_trade_charts/</code> for this trade (preview may still work from cached candles).</p>
+      {% if s.chart_png_href %}<img src="{{ s.chart_png_href }}" alt="preview" style="max-width:100%;border:1px solid var(--border);" />{% endif %}
+    {% endif %}
+
+    <h2>Audit rows</h2>
+    <ul class="text-small text-mono">
+      {% for ev in forex_trade_rows_raw %}
+        <li style="margin-bottom:8px;">{{ ev }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>
+{% endblock %}

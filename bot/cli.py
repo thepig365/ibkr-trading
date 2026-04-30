@@ -3390,6 +3390,35 @@ def forex_auto_paper_disable_cmd(as_json: bool = typer.Option(False, "--json")) 
     raise typer.Exit(0)
 
 
+@app.command("reconcile-forex-fills")
+def reconcile_forex_fills_cmd(
+    latest: bool = typer.Option(True, "--latest/--no-latest"),
+    as_json: bool = typer.Option(False, "--json"),
+) -> None:
+    """Paper only: correlate Forex bracket JSONL with broker fills(); exit Telegram."""
+
+    cfg, journal = _bootstrap()
+    root = Path(cfg.absolute(""))
+
+    from bot.forex.reconcile_forex import reconcile_forex_fills
+
+    del latest  # reserved for future day filters
+    out = reconcile_forex_fills(root, cfg, journal=journal)
+    blob = json.dumps(out, indent=2, ensure_ascii=False, default=str)
+
+    if as_json:
+        print(blob)
+    else:
+        console.print(Panel.fit(blob, title="reconcile-forex-fills"))
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="reconcile-forex-fills",
+        payload=out,
+    )
+    raise typer.Exit(0 if out.get("ok") else 3)
+
+
 def _run_backtest_intraday_smc(
     cfg: AppConfig,
     journal: Journal,

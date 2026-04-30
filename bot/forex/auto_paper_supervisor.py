@@ -377,11 +377,13 @@ def run_forex_auto_paper_supervisor(
             target=float(sig.target or 0),
             order_ref_prefix=order_ref,
             tif=tif,
+            journal=journal,
         )
         append_forex_order_event(
             root,
             {
                 "phase": "auto_paper",
+                "trade_id": sr.get("trade_id"),
                 "pair": spec.display,
                 "notional_usd_est": n_usd_est,
                 "broker": sr,

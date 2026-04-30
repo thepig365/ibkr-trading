@@ -10,6 +10,7 @@ from typing import Any
 
 from bot.config import AppConfig, load_config
 from bot.execution.intraday_paper_execution import is_kill_switch_active
+from bot.journal import Journal
 
 from . import FOREX_ORDER_REF_PREFIX_DEFAULT, FOREX_RUNTIME_LAST
 from .candle_store import load_forex_candles
@@ -83,6 +84,7 @@ def run_forex_ict_1m(
 
     root = Path(project_root).resolve()
     cfg = load_config(project_root=root)
+    journal = Journal(cfg)
     fx = load_forex_ict_config(root)
     risk = fx.get("risk") if isinstance(fx.get("risk"), dict) else {}
     execution = fx.get("execution") if isinstance(fx.get("execution"), dict) else {}
@@ -322,6 +324,7 @@ def run_forex_ict_1m(
             target=float(sig.target or 0),
             order_ref_prefix=order_ref,
             tif=tif,
+            journal=journal,
         )
         row["broker"] = sr
         results.append(row)

@@ -69,6 +69,7 @@ def summarize_row_for_ui(rec: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "ts_utc": rec.get("ts_utc"),
+        "trade_id": rec.get("trade_id"),
         "phase": rec.get("phase"),
         "pair": rec.get("pair"),
         "pair_slug": _slug_from_record(rec),
@@ -87,4 +88,26 @@ def summarize_row_for_ui(rec: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["iter_forex_order_events", "summarize_row_for_ui"]
+def find_forex_trade_rows(
+    project_root: Path, trade_id: str, *, max_files: int = 30
+) -> list[dict[str, Any]]:
+    """All JSONL lines mentioning ``trade_id`` (case-insensitive)."""
+
+    tid = str(trade_id).strip().lower()
+    out: list[dict[str, Any]] = []
+    for row in iter_forex_order_events(project_root, max_files=max_files):
+        r = row.get("trade_id")
+        br = row.get("broker") if isinstance(row.get("broker"), dict) else {}
+        rb = br.get("trade_id") if isinstance(br, dict) else None
+        if isinstance(r, str) and r.strip().lower() == tid:
+            out.append(row)
+        elif isinstance(rb, str) and rb.strip().lower() == tid:
+            out.append(row)
+    return out
+
+
+__all__ = [
+    "find_forex_trade_rows",
+    "iter_forex_order_events",
+    "summarize_row_for_ui",
+]

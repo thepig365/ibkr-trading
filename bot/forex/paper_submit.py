@@ -6,6 +6,7 @@ Uses CASH @ IDEALPRO. Never submits unless caller passes all gates.
 from __future__ import annotations
 
 import logging
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +15,11 @@ from bot.ibkr_client import IBKRClient
 from bot.ibkr_client_ids import FOREX_FETCH
 from bot.ibkr_connection import ibkr_client_collision_message, with_ibkr_client_id
 
+from .forex_chart_save import save_forex_trade_chart_png
 from .orders_log import append_forex_order_event
 from .pairs import FxPairSpec, ibkr_contract_args
+from .telegram_fx import send_fx_telegram
+from .trade_lifecycle import format_entry_telegram, try_mark_alert_sent
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +36,7 @@ def submit_forex_paper_bracket(
     target: float,
     order_ref_prefix: str,
     tif: str = "DAY",
+    journal: Any = None,
 ) -> dict[str, Any]:
     """Place LMT bracket (no MKT) on paper account; return order ids + last known statuses."""
 
@@ -71,6 +76,8 @@ def submit_forex_paper_bracket(
 
     record_base: dict[str, Any] = {
         "phase": "submit",
+        "trade_id": secrets.token_hex(16),
+        "strategy_id": "ict_fx_1m_test",
         "pair": spec.display,
         "direction": d,
         "side": side,
@@ -175,7 +182,49 @@ def submit_forex_paper_bracket(
             "submit_ok": submit_ok,
         }
         append_forex_order_event(project_root, rec)
-        return {"ok": True, "order_ids": order_ids, "statuses": statuses}
+        tid = str(record_base["trade_id"])
+        out_ok: dict[str, Any] = {
+            "ok": True,
+            "trade_id": tid,
+            "order_ids": order_ids,
+            "statuses": statuses,
+        }
+        if try_mark_alert_sent(project_root, kind="entry", trade_id=tid):
+            rootp = Path(project_root).resolve()
+            cp = save_forex_trade_chart_png(
+                project_root,
+                trade_id=tid,
+                pair_slug=spec.slug.upper(),
+                entry=float(entry),
+                stop=float(stop),
+                target=float(target),
+            )
+            if cp:
+                append_forex_order_event(
+                    project_root,
+                    {
+                        "phase": "chart_saved",
+                        "trade_id": tid,
+                        "chart_png_relpath": str(cp.relative_to(rootp)),
+                    },
+                )
+            send_fx_telegram(
+                project_root=project_root,
+                cfg=cfg,
+                journal=journal,
+                throttle_key=None,
+                body=format_entry_telegram(
+                    trade_id=tid,
+                    pair=spec.display,
+                    direction=d,
+                    entry=float(entry),
+                    stop=float(stop),
+                    target=float(target),
+                    units=qty,
+                    order_ids=order_ids,
+                ),
+            )
+        return out_ok
     finally:
         try:
             client.disconnect()
