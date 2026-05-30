@@ -53,9 +53,11 @@ trading:
     max_concurrent_positions: 5
     max_one_position_per_symbol: true
     require_reconciliation_pass: true
-    no_new_entries_before: "09:45"
-    no_new_entries_after: "15:30"
-    exit_open_positions_at: "15:55"
+    # Wall-clock IANA TZ for the three HH:MM fields below (may span local midnight).
+    new_entries_wall_clock_timezone: Australia/Melbourne
+    no_new_entries_before: "22:30"
+    no_new_entries_after: "01:30"
+    exit_open_positions_at: "01:35"
     paper_only: true
     live_trading_allowed: false
     market_orders_allowed: false

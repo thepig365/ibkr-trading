@@ -74,6 +74,8 @@ class IntradayPaperConfig(BaseModel):
     require_reconciliation_pass: bool = True
     no_new_entries_before: str = "09:45"
     no_new_entries_after: str = "15:30"
+    #: IANA TZ for interpreting *no_new_entries_before* / *no_new_entries_after* / *exit_open_positions_at*.
+    new_entries_wall_clock_timezone: str = "America/New_York"
     exit_open_positions_at: str = "15:55"
     paper_only: bool = True
     live_trading_allowed: bool = False
@@ -193,6 +195,34 @@ class IntradayPaperConfig(BaseModel):
         if v < 0:
             raise ValueError("must be >= 0")
         return v
+
+    @field_validator("new_entries_wall_clock_timezone")
+    @classmethod
+    def _entry_wall_clock_tz_exists(cls, v: str) -> str:
+        from zoneinfo import ZoneInfo
+
+        s = (v or "America/New_York").strip()
+        try:
+            ZoneInfo(s)
+        except Exception as e:
+            raise ValueError(
+                f"invalid trading.intraday_paper.new_entries_wall_clock_timezone: {s!r}"
+            ) from e
+        return s
+
+    @field_validator("no_new_entries_before", "no_new_entries_after", "exit_open_positions_at")
+    @classmethod
+    def _intraday_hhmm_non_empty(cls, v: str) -> str:
+        s = (v or "").strip()
+        lp = s.split(":", 1)
+        try:
+            h = int(lp[0].strip())
+            mi = int((lp[1] if len(lp) > 1 else "0").strip())
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"expected HH:MM wall-clock time, got {v!r}") from e
+        if not (0 <= h <= 23 and 0 <= mi <= 59):
+            raise ValueError(f"hour/minute out of range: {v!r}")
+        return s
 
 
 class TradeChartsCompletionSettings(BaseModel):

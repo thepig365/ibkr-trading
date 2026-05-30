@@ -13,6 +13,16 @@ from zoneinfo import ZoneInfo
 
 from .automatic_paper_preflight import build_automatic_paper_engine_preflight
 from .config import AppConfig
+from .intraday_entry_window import (
+    between_overnight_sessions_weekday_quiet,
+    entry_timezone_now_display,
+    intraday_entries_overnight,
+    intraday_new_entries_allow_config,
+    intraday_session_label,
+    minute_of_day,
+    ny_premarket_compatible,
+    parse_hhmm,
+)
 from .journal import Journal
 from .reports.news_monitor_readiness import build_news_monitor_readiness
 
@@ -58,6 +68,8 @@ def _ny_parts() -> tuple[datetime, int, int, str]:
 
 
 def in_trading_window_full(weekday: int, minutes: int) -> bool:
+    """Legacy NY helper (09:45–15:30 Mon–Fri). Prefer :func:`intraday_new_entries_allow_config`."""
+
     if weekday >= 5:
         return False
     return _RTH[0] <= minutes <= _RTH[1]
@@ -111,7 +123,9 @@ def build_full_auto_paper_readiness(
 ) -> dict[str, Any]:
     """If ``ui_safe`` is True, skip TCP/IBKR probes (Strategy Lab page render)."""
     root = Path(project_root).resolve()
-    now, w, m, ny_hhmm = _ny_parts()
+    now_ny, nw, nm, ny_hhmm = _ny_parts()
+    ip = cfg.settings.trading.intraday_paper
+    entry_iso, entry_hhmm, ew, em = entry_timezone_now_display(ip)
     sess = (session or "full").strip().lower()
     if sess not in {"full", "morning"}:
         sess = "full"
@@ -151,10 +165,27 @@ def build_full_auto_paper_readiness(
     else:
         tws_listening_out = bool(tws_ok)
 
-    in_full = in_trading_window_full(w, m)
-    in_m = in_trading_window_morning(w, m)
-    in_win = in_m if sess == "morning" else in_full
-    in_pre = in_premarket_check_window(w, m)
+    if sess == "morning":
+        in_win = in_trading_window_morning(nw, nm)
+        weekend = nw >= 5
+        in_pre = in_premarket_check_window(nw, nm)
+        win_label = "09:45–11:30 NY"
+        weekday_for_ok = nw < 5
+        post_entry_quiet = nw < 5 and nm > _MORNING[1]
+    else:
+        in_win, _ = intraday_new_entries_allow_config(ip)
+        weekend = ew >= 5
+        in_pre = ny_premarket_compatible(ip, ny_weekday=nw, ny_minute=nm)
+        win_label = intraday_session_label(ip)
+        weekday_for_ok = ew < 5
+        sh = minute_of_day(*parse_hhmm(ip.no_new_entries_before))
+        eh = minute_of_day(*parse_hhmm(ip.no_new_entries_after))
+        if intraday_entries_overnight(open_m=sh, close_m=eh):
+            post_entry_quiet = between_overnight_sessions_weekday_quiet(
+                ip, weekday=ew, minute=em
+            )
+        else:
+            post_entry_quiet = ew < 5 and em > eh
 
     sup = _read_supervisor_state(root)
     engine_flag = bool(sup.get("engine_running")) or str(
@@ -170,13 +201,13 @@ def build_full_auto_paper_readiness(
         tws_for_ok = False
     else:
         tws_for_ok = bool(tws_ok)
-    ok = bool(pre.get("ok")) and tws_for_ok and in_win and w < 5
+    ok = bool(pre.get("ok")) and tws_for_ok and in_win and weekday_for_ok
 
     if engine_flag:
         status = FullAutoStatus.RUNNING.value
-    elif w >= 5:
+    elif weekend:
         status = FullAutoStatus.WAITING_FOR_SESSION.value
-    elif m > _RTH[1] and w < 5:
+    elif post_entry_quiet:
         status = FullAutoStatus.DONE.value
     elif not in_win:
         status = FullAutoStatus.WAITING_FOR_SESSION.value
@@ -190,7 +221,7 @@ def build_full_auto_paper_readiness(
     next_action = "none"
     if status == FullAutoStatus.RUNNING.value:
         next_action = "supervisor_engine_active"
-    elif not in_win and w < 5:
+    elif not in_win and not weekend:
         next_action = "wait_for_trading_window"
     elif in_pre:
         next_action = "premarket_readiness_checks"
@@ -205,14 +236,15 @@ def build_full_auto_paper_readiness(
     if probe_ibkr and pre.get("reconciliation_passed_probe") is not None:
         reconcile = "passed" if pre.get("reconciliation_passed_probe") else "failed"
 
-    win_label = "09:45–11:30 NY" if sess == "morning" else "09:45–15:30 NY"
-
     return {
         "ok": ok,
         "status": status,
         "blockers": blockers,
-        "current_ny_time": now.isoformat(),
+        "current_ny_time": now_ny.isoformat(),
         "current_ny_hhmm": ny_hhmm,
+        "intraday_entry_wall_clock_tz": ip.new_entries_wall_clock_timezone,
+        "intraday_entry_local_time": entry_iso,
+        "intraday_entry_local_hhmm": entry_hhmm,
         "session": sess,
         "session_window": win_label,
         "in_trading_window": in_win,

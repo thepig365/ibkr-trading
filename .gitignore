@@ -54,6 +54,7 @@ logs/
 logs/strategy-lab-ui.stdout.log
 logs/strategy-lab-ui.stderr.log
 data/runtime/strategy_lab_ui.pid
+data/KILL_SWITCH
 
 # Local Strategy Lab UI runtime / auto-paper loop state (machine-specific, never commit)
 data/runtime/

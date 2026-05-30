@@ -17,8 +17,8 @@ from .auto_paper_mtf import (
     is_runtime_mtf_auto_disabled_explicit,
     is_runtime_mtf_auto_enabled,
     run_auto_paper_mtf,
-    us_rth_allows_new_entries,
 )
+from .intraday_entry_window import intraday_new_entries_allow_config
 from .config import AppConfig
 from .journal import Journal
 from .notifications import send_telegram_message
@@ -119,7 +119,7 @@ def run_auto_paper_mtf_loop(
             sleep_fn(max(1.0, interval_minutes * 60.0))
             continue
         if market_hours_only:
-            ok, why = us_rth_allows_new_entries()
+            ok, why = intraday_new_entries_allow_config(cfg.settings.trading.intraday_paper)
             line["market_open"] = ok
             if not ok:
                 line["status"] = "skipped"
@@ -212,4 +212,4 @@ def run_auto_paper_mtf_loop(
         sleep_fn(float(max(1, interval_minutes * 60)))
 
 
-__all__ = ["run_auto_paper_mtf_loop", "us_rth_allows_new_entries"]
+__all__ = ["run_auto_paper_mtf_loop"]

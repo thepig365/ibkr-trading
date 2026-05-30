@@ -8,7 +8,7 @@ enabled: false
 auto_paper:
   enabled: true
   session_timezone: Australia/Melbourne
-  session_window: "09:00-17:00"
+  session_window: "08:00-22:00"
   poll_interval_seconds: 60
   max_trades_per_day: 10
   max_trades_per_pair: 3
@@ -27,7 +27,7 @@ pairs:
 
 session:
   timezone: Australia/Melbourne
-  window: "09:00-17:00"
+  window: "08:00-22:00"
   days: ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 ibkr:
@@ -53,7 +53,7 @@ risk:
   usd_jpy_for_conversion: 151
 
 execution:
-  submit_to_broker: true
+  submit_to_broker: false
   order_type: LMT
   no_market_orders: true
   bracket_required: true

@@ -27,6 +27,7 @@ from bot.reports.telegram_report_dedup import read_state
 from bot.telegram_listener_ui import build_telegram_listener_ui_context
 from bot.trade_reports import build_dashboard_trade_context
 from bot.ux.dashboard_context import DashboardUX
+from bot.ict_1m_continuous_supervisor import build_ict_1m_continuous_ui_context
 
 from ..strategy_lab_context import get_catalog_and_selection
 from ._helpers import base_context, dashboard_flash_from_recent_command
@@ -188,6 +189,11 @@ def dashboard(request: Request) -> HTMLResponse:
     except (OSError, TypeError, ValueError):
         forex_auto_ui = {}
 
+    try:
+        ict_1m_continuous_ui = build_ict_1m_continuous_ui_context(root, cfg=cfg)
+    except (OSError, TypeError, ValueError):
+        ict_1m_continuous_ui = {"state_present": False}
+
     ctx.update(
         {
             "trader_dash": trader_td,
@@ -232,6 +238,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "tws_health_ui": ui_alert_overlay(root),
             "forex_ict_ui": forex_ict_ui,
             "forex_auto_ui": forex_auto_ui,
+            "ict_1m_continuous_ui": ict_1m_continuous_ui,
         }
     )
     ctx["flash"] = dashboard_flash_from_recent_command(

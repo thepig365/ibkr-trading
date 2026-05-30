@@ -68,7 +68,19 @@ def test_engine_runner_called_when_gates_synthetic(
         calls.append("engine")
         return {"started": True, "finished": True, "blockers": []}
 
-    # Force NY time inside window
+    # session=full uses trading.intraday_paper wall-clock (not NY minutes alone).
+    monkeypatch.setattr(
+        mod,
+        "intraday_new_entries_allow_config",
+        lambda ip, *, now_local=None: (True, ""),
+    )
+    monkeypatch.setattr(
+        mod,
+        "entry_timezone_now_display",
+        lambda ip: ("2099-01-05T10:30:00+11:00", "10:30", 0, 10 * 60 + 30),
+    )
+
+    # NY parts still used for Telegram / health-band
     def fake_minutes():
         return 0, 10 * 60 + 30  # Mon 10:30
 

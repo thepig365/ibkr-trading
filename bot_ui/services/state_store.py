@@ -317,6 +317,7 @@ class IntradayPaperConfigView:
     require_reconciliation_pass: bool = True
     no_new_entries_before: str = "09:45"
     no_new_entries_after: str = "15:30"
+    new_entries_wall_clock_timezone: str = "America/New_York"
     exit_open_positions_at: str = "15:55"
     paper_only: bool = True
     live_trading_allowed: bool = False
@@ -1392,6 +1393,11 @@ class LocalFileStateStore:
             ),
             no_new_entries_before=str(merged.get("no_new_entries_before", "09:45")),
             no_new_entries_after=str(merged.get("no_new_entries_after", "15:30")),
+            new_entries_wall_clock_timezone=str(
+                merged.get(
+                    "new_entries_wall_clock_timezone", "America/New_York"
+                )
+            ),
             exit_open_positions_at=str(merged.get("exit_open_positions_at", "15:55")),
             paper_only=bool(merged.get("paper_only", True)),
             live_trading_allowed=bool(merged.get("live_trading_allowed", False)),

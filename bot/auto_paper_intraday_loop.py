@@ -25,7 +25,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .auto_paper_mtf import is_kill_switch_active as _shared_is_kill_switch_active
-from .ny_session_windows import us_morning_paper_window_allows, us_rth_allows_new_entries
+from .intraday_entry_window import intraday_new_entries_allow_config
+from .ny_session_windows import us_morning_paper_window_allows
 from .config import AppConfig
 from .execution.intraday_paper_execution import (
     INTRADAY_LOOP_STATE_RELPATH,
@@ -66,7 +67,8 @@ def run_auto_paper_intraday_loop(
     """Endless (or time-bounded) intraday paper loop.
 
     ``session``:
-        * ``full`` — default NY entry window 09:45–15:30 (see ``us_rth_allows_new_entries``).
+        * ``full`` — new entries only within ``trading.intraday_paper`` wall-clock window
+          (``new_entries_wall_clock_timezone`` + before/after HH:MM; may span midnight).
         * ``morning`` — US morning test window 09:45–11:30 NY only (paper forward-test prep).
 
     Telegram throttling: at most one heartbeat per ``heartbeat_minutes``;
@@ -144,7 +146,9 @@ def run_auto_paper_intraday_loop(
             if sess == "morning":
                 ok, why = us_morning_paper_window_allows()
             else:
-                ok, why = us_rth_allows_new_entries()
+                ok, why = intraday_new_entries_allow_config(
+                    cfg.settings.trading.intraday_paper
+                )
             line["session"] = sess
             line["market_open"] = ok
             if not ok:

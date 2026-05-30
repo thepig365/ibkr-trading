@@ -125,6 +125,69 @@
     </div>
     <p class="text-small text-dim mb-8">Paper only. Install launchd manually: <code>bash scripts/install_forex_auto_paper_launchd.sh</code> (starts one supervisor pass per minute when machine is on).</p>
 
+    {% set ic = ict_1m_continuous_ui|default({}) %}
+    <h2 style="margin:28px 0 6px;">ICT 1m continuous paper supervisor / ICT 1分钟常驻纸面督导</h2>
+    <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">
+      Reads <code>data/runtime/ict_1m_continuous_supervisor.json</code> updated by the long-lived CLI (<code>run-ict-1m-continuous-loop</code>).
+      Telegram UI cannot start this loop (CLI / terminal only). Forex window 08:00–22:00 · US ICT window 22:30–01:00 (Melbourne).
+    </p>
+    {% if ic.state_present %}
+    <div class="grid mb-12" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); max-width:980px;">
+      <div class="card">
+        <div class="card-title">Bot runtime</div>
+        <div class="card-value">{% if ic.bot_runtime == 'RUNNING' %}<span class="pill good">{{ ic.bot_runtime }}</span>{% else %}<span class="pill neutral">{{ ic.bot_runtime|default('—') }}</span>{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Trading permission</div>
+        <div class="card-value">{% if ic.trading_permission == 'ALLOWED' %}<span class="pill good">ALLOWED</span>{% else %}<span class="pill warn">BLOCKED</span>{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Block reason</div>
+        <div class="card-value text-mono text-small">{{ ic.block_reason|default('—') }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">ICT 1m</div>
+        <div class="card-value">{{ ic.ict_1m_status|default(ic.ict_1m_time_active) }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Forex MEL session</div>
+        <div class="card-value">{% if ic.forex_session_active %}open{% else %}closed{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">US stock MEL session</div>
+        <div class="card-value">{% if ic.us_stock_session_active %}open{% else %}closed{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Kill switch</div>
+        <div class="card-value">{% if ic.kill_switch_active %}<span class="pill bad">ON</span>{% else %}<span class="pill good">off</span>{% endif %}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">intraday dry_run</div>
+        <div class="card-value">{{ ic.intraday_paper_dry_run|default(false) }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Forex YAML submit_to_broker</div>
+        <div class="card-value">{{ ic.forex_yaml_submit_to_broker|default(false) }}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Forex supervisor --forex-dry-run</div>
+        <div class="card-value">{{ ic.supervisor_forex_dry_run_flag|default(false) }}</div>
+      </div>
+    </div>
+    <p class="text-small text-dim mb-6" style="max-width:980px;line-height:1.55;">
+      next_check_utc: <code>{{ ic.next_check_utc|default('—') }}</code>
+      · iter <code>{{ ic.iteration|default('—') }}</code>
+      · tws <code>{{ ic.tws_health_status|default('—') }}</code>
+    </p>
+    {% if ic.last_trade_check_result %}<p class="text-small mb-8" style="max-width:980px;line-height:1.5;"><strong>Last trade check:</strong> {{ ic.last_trade_check_result[:500] }}{% if ic.last_trade_check_result|length > 500 %}…{% endif %}</p>{% endif %}
+    {% if ic.monitor_note %}<p class="text-small mb-8 text-dim">{{ ic.monitor_note }}</p>{% endif %}
+    {% else %}
+    <div class="card mb-12" style="max-width:720px;">
+      <div class="card-title">No runtime state yet</div>
+      <p class="text-small text-dim">{{ ic.hint|default('Start loop from terminal: python3 -m bot.cli run-ict-1m-continuous-loop') }}</p>
+    </div>
+    {% endif %}
+
     <h3 style="margin:0 0 6px;font-size:14px;font-weight:700;">{{ t('dashboard.broker_truth_heading') }}</h3>
     <p class="text-dim text-small" style="margin:0 0 12px;line-height:1.55;">{{ t('dashboard.truth_vs_local_explainer') }}</p>
 

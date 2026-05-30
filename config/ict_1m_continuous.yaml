@@ -1,0 +1,16 @@
+# ICT 1-minute dual-asset continuous paper supervisor (Strategy Lab).
+# Orchestrates Forex auto supervisor + US intraday paper pass on a single long-lived loop.
+# Does NOT enable live trading, does NOT change submit_to_broker or dry_run in other configs.
+
+loop_interval_seconds: 60
+
+# Melbourne wall-clock windows (Mon–Fri). Forex: same calendar day. US: overnight wrap.
+forex:
+  timezone: Australia/Melbourne
+  session_start: "08:00"
+  session_end: "22:00"
+
+us_stock:
+  timezone: Australia/Melbourne
+  session_start: "22:30"
+  session_end: "01:00"

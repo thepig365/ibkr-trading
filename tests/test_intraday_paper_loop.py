@@ -94,8 +94,8 @@ def test_loop_skips_outside_rth_when_market_hours_only(
         "bot.auto_paper_intraday_loop.run_intraday_paper_pass", pass_mock,
     )
     monkeypatch.setattr(
-        "bot.auto_paper_intraday_loop.us_rth_allows_new_entries",
-        lambda: (False, "test closed"),
+        "bot.auto_paper_intraday_loop.intraday_new_entries_allow_config",
+        lambda ip, *, now_local=None: (False, "test closed"),
     )
     run_auto_paper_intraday_loop(
         cfg,

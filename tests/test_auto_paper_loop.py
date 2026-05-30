@@ -47,7 +47,8 @@ def test_loop_skips_outside_rth(tmp_project: Path, monkeypatch: pytest.MonkeyPat
     cfg = load_config(project_root=tmp_project)
     journal = Journal(cfg)
     monkeypatch.setattr(
-        "bot.auto_paper_loop.us_rth_allows_new_entries", lambda: (False, "test closed")
+        "bot.auto_paper_loop.intraday_new_entries_allow_config",
+        lambda ip, *, now_local=None: (False, "test closed"),
     )
     run_ap = MagicMock()
     monkeypatch.setattr("bot.auto_paper_loop.run_auto_paper_mtf", run_ap)

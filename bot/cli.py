@@ -3411,6 +3411,85 @@ def run_forex_auto_paper_supervisor_cmd(
     raise typer.Exit(0)
 
 
+@app.command("run-ict-1m-continuous-loop")
+def run_ict_1m_continuous_loop_cmd(
+    once: bool = typer.Option(False, "--once", help="Run one tick then exit (for tests / smoke)."),
+    interval: Optional[int] = typer.Option(
+        None,
+        "--interval",
+        help="Seconds between ticks (default from config/ict_1m_continuous.yaml; min 5).",
+    ),
+    forex_dry_run: bool = typer.Option(
+        False,
+        "--forex-dry-run",
+        help="Pass dry_run into Forex auto supervisor (no FX broker submits from that path).",
+    ),
+    no_tws_health_telegram: bool = typer.Option(
+        False,
+        "--no-tws-health-telegram",
+        help="Keep TWS health probes; skip Telegram alerts from this loop.",
+    ),
+    no_us_telegram: bool = typer.Option(
+        False,
+        "--no-us-telegram",
+        help="Disable Telegram notifications from the US intraday paper pass.",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Print final supervisor state JSON on exit."),
+) -> None:
+    """ICT 1m paper: long-lived loop (Forex + US) with Melbourne session gates; stop with Ctrl+C."""
+
+    cfg, journal = _bootstrap()
+    from bot.ict_1m_continuous_supervisor import run_ict_1m_continuous_loop
+
+    root = Path(cfg.absolute(""))
+    iv: float | None = None
+    if interval is not None:
+        if interval < 5:
+            console.print("[red]--interval must be >= 5[/red]")
+            raise typer.Exit(2)
+        iv = float(interval)
+    final = run_ict_1m_continuous_loop(
+        root,
+        cfg=cfg,
+        journal=journal,
+        interval_override=iv,
+        once=once,
+        forex_dry_run=forex_dry_run,
+        us_telegram=not no_us_telegram,
+        run_tws_health_telegram=not no_tws_health_telegram,
+    )
+    if as_json:
+        print(json.dumps(final, ensure_ascii=False, indent=2, default=str))
+    else:
+        console.print(
+            Panel.fit(
+                json.dumps(
+                    {
+                        "bot_runtime": final.get("bot_runtime"),
+                        "iteration": final.get("iteration"),
+                        "ict_1m_status": final.get("ict_1m_status"),
+                        "trading_permission": final.get("trading_permission"),
+                        "block_reason": final.get("block_reason"),
+                    },
+                    indent=2,
+                ),
+                title="run-ict-1m-continuous-loop (final tick snapshot)",
+            )
+        )
+    journal.record_event(
+        category="strategy",
+        level="INFO",
+        message="run-ict-1m-continuous-loop",
+        payload={
+            "once": once,
+            "forex_dry_run": forex_dry_run,
+            "final_iteration": final.get("iteration"),
+            "bot_runtime": final.get("bot_runtime"),
+        },
+    )
+    raise typer.Exit(0)
+
+
 @app.command("forex-auto-paper-enable")
 def forex_auto_paper_enable_cmd(as_json: bool = typer.Option(False, "--json")) -> None:
     """Set runtime data/runtime/forex_auto_paper_enabled.json (does not edit YAML)."""

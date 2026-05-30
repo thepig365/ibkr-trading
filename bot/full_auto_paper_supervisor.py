@@ -16,7 +16,6 @@ from .full_auto_paper_readiness import (
     FULL_AUTO_STATE_RELPATH,
     build_full_auto_paper_readiness,
     in_premarket_check_window,
-    in_trading_window_full,
     in_trading_window_morning,
     tws_port_listening,
 )
@@ -36,6 +35,11 @@ from .full_auto_telegram import (
     send_blocker_telegram_if_configured,
 )
 from .journal import Journal
+from .intraday_entry_window import (
+    entry_timezone_now_display,
+    intraday_new_entries_allow_config,
+    ny_premarket_compatible,
+)
 from .reports.market_news_check import run_market_news_check
 from zoneinfo import ZoneInfo
 
@@ -179,13 +183,17 @@ def run_full_auto_paper_supervisor(
     while end_ts is None or time_fn() < end_ts:
         out["iterations"] = int(out["iterations"]) + 1
         ny_t = _ny_hhmm()
-        w, m = _weekday_minutes()
-        in_win = (
-            in_trading_window_morning(w, m)
-            if sess == "morning"
-            else in_trading_window_full(w, m)
-        )
-        in_pre = in_premarket_check_window(w, m)
+        nw, nm = _weekday_minutes()
+        ip_loop = cfg.settings.trading.intraday_paper
+        _, _, ew, _ = entry_timezone_now_display(ip_loop)
+        if sess == "morning":
+            in_win = in_trading_window_morning(nw, nm)
+            in_pre = in_premarket_check_window(nw, nm)
+            weekend = nw >= 5
+        else:
+            in_win, _ = intraday_new_entries_allow_config(ip_loop)
+            in_pre = ny_premarket_compatible(ip_loop, ny_weekday=nw, ny_minute=nm)
+            weekend = ew >= 5
         preprobe = (in_win or in_pre) and not dry_run
 
         rd = build_full_auto_paper_readiness(
@@ -230,7 +238,7 @@ def run_full_auto_paper_supervisor(
 
         # Deduped blocker Telegram: relevant when we would trade or are in premarket / session
         # Weekday ~08:30–16:30 NY: alert TWS/gates; no overnight spam
-        alert_band = w < 5 and (8 * 60 + 30) <= m <= (16 * 60 + 30)
+        alert_band = nw < 5 and (8 * 60 + 30) <= nm <= (16 * 60 + 30)
 
         if getattr(cfg.settings.trading.tws_health_alerts, "enabled", True) and alert_band:
             try:
@@ -293,7 +301,8 @@ def run_full_auto_paper_supervisor(
             continue
 
         # Hourly market news during premarket or RTH (no spam — run_market_news_check dedups)
-        if (in_pre or in_win) and w < 5:
+        news_weekday_ok = ew < 5 if sess == "full" else nw < 5
+        if (in_pre or in_win) and news_weekday_ok:
             if time_fn() - last_news >= 3600.0 or last_news == 0.0:
                 nr = cfg.settings.news_reporting
                 if nr.enabled and bool(nr.hourly_market_news_check):
@@ -313,7 +322,7 @@ def run_full_auto_paper_supervisor(
                     out["news_checks"] = int(out["news_checks"]) + 1
                 last_news = time_fn()
 
-        if not in_win or w >= 5:
+        if not in_win or weekend:
             write_full_auto_supervisor_state(
                 root,
                 {
